@@ -367,6 +367,7 @@ static func house_pieces(parent: Node3D, pos: Vector3, yaw_deg: float, size: Vec
 		parent.add_child(rb)
 		pieces.append(rb)
 	var shape := Geo.add_box_shape(found_body, Vector3(0, (0.5 + size.y) / 2.0, 0), Vector3(size.x + 0.1, 0.5 + size.y, size.z + 0.1))
+	found_body.set_meta("no_fit", true)   # Shape wird beim Einsturz abgeschaltet (PropCollision nicht anwenden)
 	parent.add_child(found_body)
 	return {"body": found_body, "shape": shape, "pieces": pieces, "center": pos + Vector3(0, size.y * 0.6, 0), "size": size, "yaw": yaw_deg}
 

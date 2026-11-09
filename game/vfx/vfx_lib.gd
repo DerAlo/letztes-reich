@@ -44,7 +44,14 @@ static func smoke_flipbook() -> Texture2D:
 static func smoke_mat(params: Dictionary = {}, fast: bool = false) -> ShaderMaterial:
 	var m := shader_mat("smoke_billboard_fast" if fast else "smoke_billboard", params)
 	m.set_shader_parameter("flipbook", smoke_flipbook())
+	m.set_shader_parameter("detail_tex", smoke_detail())
 	return m
+
+## Animierte Detail-Schicht fuer Rauch (RG = Curl-Verzerrung, B = feines Billow-Noise), kachelbar.
+static func smoke_detail() -> Texture2D:
+	if not _cache.has("smoke_detail"):
+		_cache["smoke_detail"] = load("res://assets/vfx/smoke_detail.png")
+	return _cache["smoke_detail"]
 
 ## Gemeinsame Rauch-Partikel-Einstellungen: langsame Rotation, Zufalls-Frame (anim_offset -> CUSTOM.z).
 static func smoke_pm(pm: ParticleProcessMaterial, spin_deg: float = 10.0) -> ParticleProcessMaterial:

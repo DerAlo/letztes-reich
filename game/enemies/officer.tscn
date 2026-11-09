@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/officer.gd" id="1_officer"]
+
+[node name="Officer" type="CharacterBody3D"]
+script = ExtResource("1_officer")
+enemy_type = "officer"
+max_health = 70.0
+cover_chance = 0.9
+flank_chance = 0.1
+preferred_distance_min = 18.0
+preferred_distance_max = 30.0
+damage_per_hit = 6.0
+burst_min = 2
+burst_max = 3
+burst_pause_min = 2.0
+burst_pause_max = 3.5
+type_accuracy = 0.7

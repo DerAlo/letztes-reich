@@ -71,12 +71,19 @@ var _explosive: bool = false
 var _counted: bool = false
 var _meshes: Array[GeometryInstance3D] = []
 var _weapon_body: RigidBody3D = null
+var role: String = "rifleman"
+var scope_tip: Node3D = null      ## Marksman: Objektiv (Glint-Position)
+
+## Waffenlaenge (z-Skalierung des Gewehrmodells) und Magazin je Gegnertyp
+const ROLE_WEAPON_Z := {"assault": 0.74, "marksman": 1.3, "officer": 0.86}
+const ROLE_MAG := {"assault": 40, "marksman": 8, "officer": 30}
 
 func setup(e: Enemy) -> void:
 	enemy = e
 	heavy = e.heavy_armor
 	vis_scale = 1.1 if heavy else 1.0
-	_mag_size = 100 if heavy else 30
+	role = e.enemy_type
+	_mag_size = 100 if heavy else int(ROLE_MAG.get(role, 30))
 	name = "Visual"
 	rig = (load(RIG_PATH) as PackedScene).instantiate() as Node3D
 	add_child(rig)
@@ -84,6 +91,10 @@ func setup(e: Enemy) -> void:
 	rig.scale = Vector3.ONE * vis_scale
 	skeleton = rig.get_node("Skeleton3D") as Skeleton3D
 	_apply_materials()
+	if role == "officer":
+		var sh := skeleton.get_node_or_null("Swat_Head") as Node3D
+		if sh != null:
+			sh.visible = false
 	_build_gear()
 	_build_weapon()
 	_build_tree()
@@ -255,16 +266,30 @@ func _build_kit() -> void:
 		match grp:
 			"chest":
 				SG.build_chest(k, enemy.faction, heavy)
+				if role == "assault":
+					SG.build_assault_chest(k, enemy.faction)
+				elif role == "officer":
+					SG.build_officer_chest(k, enemy.faction)
+				elif role == "marksman":
+					SG.build_ghillie_back(k, enemy.faction)
 			"hips":
 				SG.build_hips(k, enemy.faction)
 			"head":
-				SG.build_head(k, enemy.faction)
+				if role == "officer":
+					SG.build_officer_head(k, enemy.faction, enemy.color_skin)
+				elif role == "marksman":
+					SG.build_ghillie(k, enemy.faction)
+				else:
+					SG.build_head(k, enemy.faction)
+					if role == "assault":
+						SG.build_assault_head(k, enemy.faction)
 		var mi := k.emit(frame, gm, "Kit")
 		_meshes.append(mi)
 
 ## Waffe: Modell normalisiert (Lauf -Z, oben +Y, Ursprung oben am Pistolengriff).
 func _weapon_model() -> Dictionary:
-	var key := "mg" if heavy else "rifle"
+	var zs: float = 1.0 if heavy else float(ROLE_WEAPON_Z.get(role, 1.0))
+	var key := "mg" if heavy else "rifle_%.2f" % zs
 	if _weapon_cache.has(key):
 		return _weapon_cache[key]
 	var d := {}
@@ -297,9 +322,10 @@ func _weapon_model() -> Dictionary:
 		# West-Gewehr: bereits Meter, Lauf -Z, 0.70 m (Arme des Low-Poly-Modells sind kurz)
 		var s := 1.0
 		var grip := Vector3(0, -0.045, 0.09) * s
-		d["xf"] = Transform3D(Basis().scaled(Vector3.ONE * s), -grip) * xf
-		d["muzzle"] = Vector3(0, 0.016, -0.345) * s - grip
-		d["stock"] = 0.355 * s - grip.z
+		var zsc := Transform3D(Basis.from_scale(Vector3(1, 1, zs)), Vector3.ZERO)
+		d["xf"] = zsc * Transform3D(Basis().scaled(Vector3.ONE * s), -grip) * xf
+		d["muzzle"] = zsc * (Vector3(0, 0.016, -0.345) * s - grip)
+		d["stock"] = (0.355 * s - grip.z) * zs
 	src.free()
 	_weapon_cache[key] = d
 	return d
@@ -322,6 +348,8 @@ func _build_weapon() -> void:
 		_part(weapon, _cyl(0.026, 0.026, 0.42, 10), dark, Vector3(0, 0.115, -0.47), Vector3(PI * 0.5, 0, 0))  # Laufmantel
 		for sx in [-1.0, 1.0]:
 			_part(weapon, _cyl(0.008, 0.008, 0.3, 6), dark, Vector3(sx * 0.03, 0.07, -0.5), Vector3(PI * 0.5 + 0.12, 0, sx * 0.08))  # Zweibein
+	else:
+		_build_role_weapon(wm)
 	muzzle = Node3D.new()
 	muzzle.name = "Muzzle"
 	muzzle.position = wm["muzzle"]
@@ -357,6 +385,33 @@ func _build_weapon() -> void:
 	_weapon_attach = _attach("Wrist.R")
 	_weapon_attach.add_child(weapon)
 
+## Anbauteile je Gegnertyp (Waffe: Lauf -Z, oben +Y, Ursprung am Pistolengriff).
+func _build_role_weapon(wm: Dictionary) -> void:
+	var gc := SG.gear_colors(enemy.faction)
+	var blk := SG.flat_gear(Color(0.05, 0.05, 0.055), 0.45, 0.5)
+	var mz: Vector3 = wm["muzzle"]
+	match role:
+		"assault":
+			var drum := SG.flat_gear(gc[2] * 0.8, 0.5, 0.35)
+			_part(weapon, _cyl(0.062, 0.062, 0.05, 16), drum, Vector3(0, -0.075, -0.075), Vector3(0, 0, PI * 0.5))   # Trommelmagazin
+			_part(weapon, _cyl(0.02, 0.02, 0.06, 8), blk, Vector3(0, -0.03, -0.31), Vector3.ZERO)                    # Vordergriff
+			_part(weapon, _cyl(0.02, 0.022, 0.07, 10), blk, mz + Vector3(0, 0, 0.03), Vector3(PI * 0.5, 0, 0))       # Kompensator
+		"marksman":
+			_part(weapon, _cyl(0.021, 0.021, 0.2, 12), blk, Vector3(0, 0.115, -0.08), Vector3(PI * 0.5, 0, 0))       # Zielfernrohr
+			_part(weapon, _cyl(0.029, 0.022, 0.05, 12), blk, Vector3(0, 0.115, -0.2), Vector3(PI * 0.5, 0, 0))       # Objektiv
+			_part(weapon, _cyl(0.024, 0.02, 0.04, 12), blk, Vector3(0, 0.115, 0.04), Vector3(PI * 0.5, 0, 0))        # Okular
+			for zz in [-0.13, -0.03]:
+				_part(weapon, _boxm(Vector3(0.018, 0.04, 0.018)), blk, Vector3(0, 0.085, zz))                         # Montage
+			_part(weapon, _cyl(0.014, 0.014, 0.12, 10), blk, mz + Vector3(0, 0, 0.055), Vector3(PI * 0.5, 0, 0))     # Schalldaempfer
+			for sx in [-1.0, 1.0]:
+				_part(weapon, _cyl(0.006, 0.006, 0.22, 6), blk, Vector3(sx * 0.02, -0.02, mz.z + 0.18), Vector3(PI * 0.5 - 0.15, 0, sx * 0.06))  # Zweibein (angeklappt)
+			scope_tip = Node3D.new()
+			scope_tip.name = "ScopeTip"
+			scope_tip.position = Vector3(0, 0.115, -0.228)
+			weapon.add_child(scope_tip)
+		"officer":
+			pass
+
 func _config_ik() -> void:
 	var wm := _weapon_model()
 	ik.stock_length = wm["stock"]
@@ -365,7 +420,8 @@ func _config_ik() -> void:
 		ik.grip_l = Transform3D(SoldierIK.hand_basis(Vector3(0.3, 0.5, -0.8), Vector3(-0.6, -0.8, 0.0)), Vector3(-0.045, 0.0, -0.24))
 	else:
 		ik.grip_r = Transform3D(SoldierIK.hand_basis(Vector3(-0.15, 0.3, -1.0), Vector3(1.0, 0.15, 0.05)), Vector3(0.025, -0.075, 0.085))
-		ik.grip_l = Transform3D(SoldierIK.hand_basis(Vector3(0.3, 0.5, -0.8), Vector3(-0.6, -0.8, 0.0)), Vector3(-0.04, -0.05, -0.2))
+		var zs: float = float(ROLE_WEAPON_Z.get(role, 1.0))
+		ik.grip_l = Transform3D(SoldierIK.hand_basis(Vector3(0.3, 0.5, -0.8), Vector3(-0.6, -0.8, 0.0)), Vector3(-0.04, -0.05, -0.2 * minf(zs, 1.15)))
 	weapon.transform = ik.grip_r.affine_inverse()
 
 func _build_tree() -> void:
@@ -489,6 +545,7 @@ func tick(delta: float) -> void:
 func start_reload() -> void:
 	_reload_left = RELOAD_TIME
 	_shots_at_reload = enemy.stat_shots
+	enemy._bark("reload")
 
 # ---------------------------------------------------------------- Tod / Ragdoll
 

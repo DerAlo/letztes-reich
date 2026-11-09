@@ -10,8 +10,9 @@ const ENEMIES: Dictionary = {
 	"heavy": "res://game/enemies/heavy.tscn",
 }
 const WEAPONS: Dictionary = {
-	"rifle": "res://game/weapons/rifle.tscn",
+	"rifle": "res://game/weapons/g36c.tscn",
 	"pistol": "res://game/weapons/pistol.tscn",
+	"ak74m": "res://game/weapons/ak74m.tscn",
 }
 
 var _cam: Camera3D

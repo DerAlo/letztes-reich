@@ -492,10 +492,10 @@ func _build_markers() -> void:
 		["rifleman", 0, -6.0, 0.05, -53.6], ["rifleman", 0, 8.3, 0.05, -56.7], ["rifleman", 0, -13.0, 0.05, -49.6],
 		["rifleman", 0, 12.5, 0.05, -43.6], ["rifleman", 0, -4.0, 0.05, -62.6], ["rifleman", 0, 15.0, 0.05, -60.0],
 		["rifleman", 1, -6.0, 0.05, -78.0], ["rifleman", 1, 6.5, 0.05, -88.0], ["rifleman", 1, -6.5, 0.05, -101.0],
-		["rifleman", 1, 7.0, 0.05, -106.0], ["drone", 1, 0.0, 6.0, -100.0],
+		["assault", 1, 7.0, 0.05, -106.0], ["drone", 1, 0.0, 6.0, -100.0],
 		["rifleman", 2, 3.6, 0.05, -142.0], ["rifleman", 2, -3.5, 0.05, -160.0], ["rifleman", 2, 6.5, 0.05, -153.5],
-		["rifleman", 2, -6.5, 0.05, -172.0], ["heavy", 2, 1.0, 0.05, -167.0],
-		["rifleman", 3, -6.0, 0.05, -192.0], ["rifleman", 3, -8.0, 0.05, -201.0], ["rifleman", 3, 9.0, 0.05, -215.0],
+		["marksman", 2, -6.5, 0.05, -172.0], ["heavy", 2, 1.0, 0.05, -167.0],
+		["assault", 3, -6.0, 0.05, -192.0], ["officer", 3, -8.0, 0.05, -201.0], ["rifleman", 3, 9.0, 0.05, -215.0],
 		["heavy", 3, 5.0, 0.05, -214.0], ["drone", 3, -5.0, 7.0, -195.0], ["drone", 3, 6.0, 8.0, -205.0],
 	]
 	for i in spawns.size():
@@ -725,7 +725,7 @@ func _bake_nav() -> void:
 	nm.cell_height = 0.25
 	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nm.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
-	nm.geometry_collision_mask = 1
+	nm.geometry_collision_mask = 1 | 16   # world + move_block (= alles, woran Player/Gegner haengen)
 	nm.filter_baking_aabb = AABB(Vector3(-30.0, -2.0, end_z - 8.0), Vector3(60.0, 16.0, 22.0 - end_z + 8.0))
 	world.navigation_mesh = nm
 	world.bake_navigation_mesh(false)

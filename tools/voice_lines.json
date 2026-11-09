@@ -1,0 +1,548 @@
+[
+ {
+  "id": "bbcfbb9611e1",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kerner, hier Weber. Euer Zug überquert das Feld. Die Stellungen am Waldrand müssen fallen, bevor es hell wird.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "6869bef8ea4f",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Bin direkt hinter dir, Jonas. Kopf unten.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "087d15bdac2c",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Bewegung bei den Sandsäcken! Zwölf Uhr!",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "d20e48752138",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Stellung genommen. Weiter durch den Wald – das Dorf dahinter ist besetzt.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "d39d70fc2659",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Artillerie! Runter!",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "80fa2b854d4b",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Dorfplatz. Achtet auf den Wasserturm – und das Tanklager geht hoch wie eine Bombe.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "34d9e911ac75",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Dann lassen wir es hochgehen. Bei denen.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "b2a126bad0ce",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Bahnübergang voraus. Sammelpunkt dahinter. Bringt alle nach Hause.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "95f00d8be98b",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kerner, die Hauptstraße. Haus für Haus, bis zum Tor am Ende.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "ee6ed3781d18",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Achte auf die Dächer. Die lieben ihre Scharfschützen.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "9e455ec43024",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Rakete im Anflug! Das Haus kommt runter – weg da!",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "a2454603ed37",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Panzerwrack voraus, dahinter das MG. Nutzt die Deckung.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "5a4d9e1b90f5",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Schon gehört? Von Riedhammer will nach dem Krieg in Berlin „aufräumen“. Was immer das heißt.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "21e4564e7479",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Politik ist nicht unser Job, Aksoy. Funkdisziplin.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "ecf95e18a984",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Fast geschafft. Das Tor am Ende, dann gehört die Straße uns.",
+  "source": "story_data.SCRIPTS"
+ },
+ {
+  "id": "70dfe5e18269",
+  "speaker": "Lage",
+  "character": "lage",
+  "text": "Russische Verbände haben in der Nacht die lettische Grenze überschritten. Die EU-Kampfgruppe „Nord“ soll die Linie halten, bis Verstärkung eintrifft. Ihr Zug stößt über das Feld vor, nimmt die Stellungen am Waldrand und sichert den Bahnübergang.",
+  "source": "story_data.BRIEFINGS:baltic_night"
+ },
+ {
+  "id": "cd022a5b7d69",
+  "speaker": "Lage",
+  "character": "lage",
+  "text": "Daugavpils ist seit vier Stunden umkämpft. Feindliche Infanterie hat sich in der Hauptstraße eingegraben, ein MG-Nest blockiert die Kreuzung. Kampfgruppe „Nord“ nimmt die Straße zurück – Haus für Haus.",
+  "source": "story_data.BRIEFINGS:test_range"
+ },
+ {
+  "id": "bedaba89a4d9",
+  "speaker": "Lage",
+  "character": "lage",
+  "text": "Der Gegner zieht sich hinter die Welikaja zurück und will die letzte intakte Brücke sprengen. Fällt sie, steht der Vormarsch für Wochen. Die Brücke muss genommen werden, bevor es hell wird.",
+  "source": "story_data.BRIEFINGS:river_crossing"
+ },
+ {
+  "id": "d9474d84d17b",
+  "speaker": "Lage",
+  "character": "lage",
+  "text": "Pskow steht kurz vor dem Fall. Am Güterbahnhof wartet ein Zug mit Gefangenen und Munition auf die Abfahrt nach Osten. Hält Kampfgruppe „Nord“ den Bahnhof, sind die Waffenstillstandsgespräche nur noch Formsache.",
+  "source": "story_data.BRIEFINGS:rail_yard"
+ },
+ {
+  "id": "6fde8b9dbcb9",
+  "speaker": "Lage",
+  "character": "lage",
+  "text": "Der Krieg ist vorbei. Berlin feiert den Waffenstillstand vor dem Regierungsviertel, die Kampfgruppe „Nord“ steht als Ehrenformation an der Bühne. Hauptmann Weber hat euch persönlich für die Feier eingeteilt.",
+  "source": "story_data.BRIEFINGS:berlin"
+ },
+ {
+  "id": "252f70772819",
+  "speaker": "Kerner",
+  "character": "kerner",
+  "text": "Weber hatte den Funk. Er wusste, wo wir standen. Jeder Schritt, jede Nacht.",
+  "source": "story_data.ENDING"
+ },
+ {
+  "id": "a1c66b752601",
+  "speaker": "Kerner",
+  "character": "kerner",
+  "text": "Die Ordnungsfront hält das Regierungsviertel. Sie nennt es Ordnung.\nWir nennen es, was es ist: ein Putsch.",
+  "source": "story_data.ENDING"
+ },
+ {
+  "id": "944ceb8d83e3",
+  "speaker": "Kerner",
+  "character": "kerner",
+  "text": "General von Riedhammer spricht auf allen Kanälen. Er verspricht Sicherheit.\nEr hat sie mit Sprengstoff bezahlt.",
+  "source": "story_data.ENDING"
+ },
+ {
+  "id": "480735f93f68",
+  "speaker": "Kerner",
+  "character": "kerner",
+  "text": "Lena und ich sind noch hier. Und wir sind nicht die Einzigen.",
+  "source": "story_data.ENDING"
+ },
+ {
+  "id": "638211bda786",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Gut so. Ein Bildschirm weniger, der lügt.",
+  "source": "game/levels/berlin_level.gd:686"
+ },
+ {
+  "id": "6bfc918a91d7",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kerner, Aksoy – ruhige Nacht heute. Genießt die Feier, ihr habt sie euch verdient.",
+  "source": "game/levels/berlin_level.gd:955"
+ },
+ {
+  "id": "039584d82925",
+  "speaker": "Rednerin",
+  "character": "rednerin",
+  "text": "…zwei Jahre Krieg. Und heute Nacht sagen wir: Europa hat gehalten!",
+  "source": "game/levels/berlin_level.gd:958"
+ },
+ {
+  "id": "d1a283acfa15",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Sagt der Mann, der uns zur Ehrenwache eingeteilt hat. Ganz vorne. Direkt an der Bühne.",
+  "source": "game/levels/berlin_level.gd:961"
+ },
+ {
+  "id": "66290b845ce9",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Jonas! Die Bühne – runter, runter!",
+  "source": "game/levels/berlin_level.gd:1057"
+ },
+ {
+  "id": "a3d229e2c8d8",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Explosion an der Bühne! Haltet die Stellung, ich kläre die Lage.",
+  "source": "game/levels/berlin_level.gd:1060"
+ },
+ {
+  "id": "4a3a6699da01",
+  "speaker": "Lautsprecher (Gen. von Riedhammer)",
+  "character": "riedhammer",
+  "text": "Bürger Berlins. Ausländische Kräfte haben unsere Feier angegriffen. Die Ordnungsfront übernimmt ab sofort den Schutz des Landes.",
+  "source": "game/levels/berlin_level.gd:1073"
+ },
+ {
+  "id": "24d0d3f03451",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Das sind unsere Leute – mit Armbinden. Ordnungsfront! Die schießen auf alles, was sich bewegt.",
+  "source": "game/levels/berlin_level.gd:1074"
+ },
+ {
+  "id": "aa49bd51bfe9",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Das ist ein Putsch. Das Sendezentrum am Ende der Achse – solange sie senden, glaubt ihnen das Land. Schaltet es ab.",
+  "source": "game/levels/berlin_level.gd:1076"
+ },
+ {
+  "id": "d235560c7548",
+  "speaker": "Lautsprecher (Gen. von Riedhammer)",
+  "character": "riedhammer",
+  "text": "Bleibt in euren Häusern. Wer sich fügt, hat nichts zu befürchten.",
+  "source": "game/levels/berlin_level.gd:1084"
+ },
+ {
+  "id": "89ffb006f48e",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Klingt, als hätten sie die Durchsage schon vor der Feier aufgenommen.",
+  "source": "game/levels/berlin_level.gd:1085"
+ },
+ {
+  "id": "7550aa75e26b",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Hubschrauber! Unsere Kennung – die haben auch die Flieger auf ihrer Seite.",
+  "source": "game/levels/berlin_level.gd:1090"
+ },
+ {
+  "id": "b44539b8cbb0",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Panzer auf dem Platz! Bleib in Deckung – Kugeln bringen da nichts.",
+  "source": "game/levels/berlin_level.gd:1163"
+ },
+ {
+  "id": "cca4fccabc77",
+  "speaker": "Lautsprecher (Gen. von Riedhammer)",
+  "character": "riedhammer",
+  "text": "Ordnung. Stärke. Das letzte Reich beginnt heute Nacht.",
+  "source": "game/levels/berlin_level.gd:1168"
+ },
+ {
+  "id": "3b6ca55085b1",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "„Das letzte Reich.“ Gefeiert mit Sprengstoff unter der Bühne.",
+  "source": "game/levels/berlin_level.gd:1169"
+ },
+ {
+  "id": "63b9934ef41f",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin – ich warte auf euch.",
+  "source": "game/levels/berlin_level.gd:1170"
+ },
+ {
+  "id": "b7bb80fd6eef",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kommt rein, Kerner. Nur du. Aksoy sichert den Eingang.",
+  "source": "game/levels/berlin_level.gd:1175"
+ },
+ {
+  "id": "78bfa9f81edf",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Warum nur du? Und wie ist er vor uns da reingekommen? Jonas – pass auf.",
+  "source": "game/levels/berlin_level.gd:1176"
+ },
+ {
+  "id": "163e7d57f2d2",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Tut mir leid, Kerner. Deutschland braucht Ordnung.",
+  "source": "game/levels/berlin_level.gd:1207"
+ },
+ {
+  "id": "08a8ce802a43",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Jonas… er war es die ganze Zeit.",
+  "source": "game/levels/berlin_level.gd:1212"
+ },
+ {
+  "id": "49d0e25242e0",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Kontakt am Zug! Die Lok steht unter Dampf – die wollen raus.",
+  "source": "game/levels/rail_yard.gd:306"
+ },
+ {
+  "id": "0f09759bc476",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Letzte Stellung unter dem Kran. MG und Panzerabwehr.",
+  "source": "game/levels/rail_yard.gd:313"
+ },
+ {
+  "id": "04a412f313a5",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Güterbahnhof Pskow. Da hinten steht ihr Munitionszug. Der fährt heute nirgendwo mehr hin.",
+  "source": "game/levels/rail_yard.gd:505"
+ },
+ {
+  "id": "80affc6e58c1",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Stellwerk rechts, obere Etage. Da oben sitzt einer.",
+  "source": "game/levels/rail_yard.gd:507"
+ },
+ {
+  "id": "6b224beba7bd",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Kanal zwei, nur wir, Jonas. Weber funkt seit Tagen verschlüsselt mit Berlin. Nachts.",
+  "source": "game/levels/rail_yard.gd:510"
+ },
+ {
+  "id": "a4a4ff89dc9f",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Funkdisziplin, Aksoy. Augen nach vorn.",
+  "source": "game/levels/rail_yard.gd:511"
+ },
+ {
+  "id": "9d5edd88ca2a",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Kesselwagen mit roter Binde – Treibladungen. Ein Treffer und der ganze Zug geht hoch.",
+  "source": "game/levels/rail_yard.gd:516"
+ },
+ {
+  "id": "1cd1de34457d",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer – nur Munition.",
+  "source": "game/levels/rail_yard.gd:519"
+ },
+ {
+  "id": "8f5081720a33",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Aksoy! Panzerfaust auf die rote Binde!",
+  "source": "game/levels/rail_yard.gd:526"
+ },
+ {
+  "id": "7dcf1d484084",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Rakete raus!",
+  "source": "game/levels/rail_yard.gd:531"
+ },
+ {
+  "id": "59ce3d1f8140",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Heilige ... das ganze Gleis brennt!",
+  "source": "game/levels/rail_yard.gd:549"
+ },
+ {
+  "id": "2461329fdff7",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Weiter! Lagerhallen und Kranbahn, bevor die sich neu sortieren.",
+  "source": "game/levels/rail_yard.gd:551"
+ },
+ {
+  "id": "57818f5cda81",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Adler-Staffel im Anflug. Köpfe runter!",
+  "source": "game/levels/rail_yard.gd:560"
+ },
+ {
+  "id": "bb2749d99485",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Der Kran! Der ganze Kran kommt runter!",
+  "source": "game/levels/rail_yard.gd:597"
+ },
+ {
+  "id": "0c30c3f914dc",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Sie werfen die Waffen weg ... die rennen!",
+  "source": "game/levels/rail_yard.gd:646"
+ },
+ {
+  "id": "87d56e69ed5b",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "An alle Einheiten: Moskau hat den Waffenstillstand unterzeichnet. Es ist vorbei.",
+  "source": "game/levels/rail_yard.gd:648"
+ },
+ {
+  "id": "309f3873564f",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Vorbei. Hörst du, Jonas? Es ist vorbei.",
+  "source": "game/levels/rail_yard.gd:650"
+ },
+ {
+  "id": "02ebd99c07bd",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Kontakt am Brueckenkopf! Die halten die Auffahrt – Deckung hinter den Wracks!",
+  "source": "game/levels/river_crossing.gd:500"
+ },
+ {
+  "id": "2be5d160bdd6",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Gut so. Jetzt rueber – bleibt nicht auf dem Stahl stehen!",
+  "source": "game/levels/river_crossing.gd:503"
+ },
+ {
+  "id": "793940b73e15",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kerner, hier Weber. Die Bruecke muss bis Sonnenaufgang stehen – und in unserer Hand sein. Pioniere folgen euch.",
+  "source": "game/levels/river_crossing.gd:532"
+ },
+ {
+  "id": "3a579101f54e",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Graeben links und rechts der Strasse. Bleib auf dem Asphalt, Jonas.",
+  "source": "game/levels/river_crossing.gd:534"
+ },
+ {
+  "id": "aea20fbd1022",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Hubschrauber! Elf Uhr!",
+  "source": "game/levels/river_crossing.gd:544"
+ },
+ {
+  "id": "c8632e781a50",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Hol ihn runter, Kerner, sonst kommt keiner ueber diese Bruecke!",
+  "source": "game/levels/river_crossing.gd:548"
+ },
+ {
+  "id": "28d8f8aa4ecf",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Halt ihn beschaeftigt – Fliegerfaust ist raus!",
+  "source": "game/levels/river_crossing.gd:580"
+ },
+ {
+  "id": "64c06e1c4dbe",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Er geht runter! Direkt in den Fluss!",
+  "source": "game/levels/river_crossing.gd:599"
+ },
+ {
+  "id": "0fd258065eed",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Er dreht ab – weiter, weiter!",
+  "source": "game/levels/river_crossing.gd:640"
+ },
+ {
+  "id": "7533af1dcaf2",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Die Bruecke! Lauf, Jonas, lauf!",
+  "source": "game/levels/river_crossing.gd:661"
+ },
+ {
+  "id": "51e548356d0d",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Das erste Feld ist weg. Kein Weg zurueck, Kerner – nur nach vorn.",
+  "source": "game/levels/river_crossing.gd:698"
+ },
+ {
+  "id": "9ab65de5afb9",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Panzer am Brueckenkopf!",
+  "source": "game/levels/river_crossing.gd:738"
+ },
+ {
+  "id": "2f0bd1a41dad",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Sprengladung an die Wanne, Kerner! Links an ihm vorbei, er sieht dich schlecht!",
+  "source": "game/levels/river_crossing.gd:741"
+ },
+ {
+  "id": "8a5899c63c09",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Artillerie liegt auf dem Panzer – Kopf runter!",
+  "source": "game/levels/river_crossing.gd:781"
+ },
+ {
+  "id": "564498f31e43",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Panzer ist erledigt! Brueckenkopf sichern – bis zur Fabrik!",
+  "source": "game/levels/river_crossing.gd:796"
+ },
+ {
+  "id": "35718131d121",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Unsere Jets! Endlich!",
+  "source": "game/levels/river_crossing.gd:812"
+ },
+ {
+  "id": "ee41e5ee60e2",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Die Sonne geht auf ... und die Bruecke steht. Gute Arbeit, Kerner.",
+  "source": "game/levels/river_crossing.gd:820"
+ }
+]

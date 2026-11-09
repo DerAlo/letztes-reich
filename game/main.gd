@@ -20,7 +20,10 @@ const STORY_UI_PATH := "res://game/story/story_ui.gd"
 const STORY_DIRECTOR_PATH := "res://game/story/story_director.gd"
 const SFX_TYPE := "res://assets/sfx/story_type.ogg"
 const SFX_DRONE := "res://assets/sfx/story_drone.ogg"
-const BRIEFING_MAX := 8.0        # Sekunden gesamt (Tippen + Lesen)
+const BRIEFING_MAX := 8.0        # Sekunden gesamt (Tippen + Lesen); mit Sprecher bis Stimme fertig
+## Vertonung (tools/gen_voice.py): res://assets/voice/<sha1(speaker|text)[:12]>.ogg, wie StoryUI.voice_id().
+const VOICE_BRIEFING := "Lage"   # Sprecher-Schluessel der Lageberichte (Funk, Stabsoffizier)
+const VOICE_ENDING := "Kerner"   # Endtafeln = Kerners innerer Monolog
 
 var _level: Node = null
 var _level_name: String = ""
@@ -31,6 +34,7 @@ var _sub: Label
 var _brief: Label
 var _hint: Label
 var _audio: AudioStreamPlayer
+var _vo: AudioStreamPlayer
 var _busy: bool = false
 var _skip: bool = false
 var _in_briefing: bool = false
@@ -92,6 +96,9 @@ func _build_ui() -> void:
 	_audio = AudioStreamPlayer.new()
 	_audio.bus = "SFX"
 	add_child(_audio)
+	_vo = AudioStreamPlayer.new()
+	_vo.bus = &"Voice" if AudioServer.get_bus_index("Voice") >= 0 else &"SFX"
+	add_child(_vo)
 
 func _make_label(font_size: int, anchor_y: float, offset_y: float) -> Label:
 	var l := Label.new()
@@ -119,6 +126,19 @@ func _play(path: String, vol: float) -> void:
 	_audio.stream = load(path)
 	_audio.volume_db = vol
 	_audio.play()
+
+## Gesprochene Fassung eines Textes (null, wenn nicht vertont).
+func _voice_stream(speaker: String, text: String) -> AudioStream:
+	return StoryUI.voice_stream(speaker, text)
+
+func _stop_voice(fade: float = 0.25) -> void:
+	if not _vo.playing:
+		return
+	var tw := create_tween()
+	tw.tween_property(_vo, "volume_db", -40.0, fade)
+	tw.tween_callback(func() -> void:
+		_vo.stop()
+		_vo.volume_db = 0.0)
 
 func _level_path(level_name: String) -> String:
 	return "res://game/levels/%s.tscn" % level_name
@@ -215,19 +235,33 @@ func _run_briefing(text: String) -> void:
 	tw.tween_property(_hint, "modulate:a", 0.8, 0.5).set_delay(0.8)
 	var n := text.length()
 	var type_time := minf(n / 52.0, BRIEFING_MAX - 2.6)
+	var max_time := BRIEFING_MAX
+	var vs := _voice_stream(VOICE_BRIEFING, text)
+	var voice_started := vs == null
+	if vs != null:
+		# Sprecher liest den Lagebericht: Tippen folgt ungefaehr der Stimme, Karte bleibt bis zum Ende stehen
+		var vl := vs.get_length()
+		max_time = maxf(BRIEFING_MAX, 0.6 + vl + 0.9)
+		type_time = maxf(type_time, vl * 0.9)
+		_vo.stream = vs
+		_vo.volume_db = 0.0
 	var start := Time.get_ticks_msec() / 1000.0
 	var last_click := 0
 	while not _skip:
 		await tree.process_frame
 		var el := Time.get_ticks_msec() / 1000.0 - start
+		if not voice_started and el >= 0.6:
+			voice_started = true
+			_vo.play()
 		var shown := clampi(int((el - 0.7) / type_time * n), 0, n)
 		_brief.visible_characters = shown
 		if shown - last_click >= 3 and shown < n:
 			last_click = shown
 			_play(SFX_TYPE, -20.0)
-		if el >= BRIEFING_MAX:
+		if el >= max_time:
 			break
 	tw.kill()
+	_stop_voice()
 	_title.modulate.a = 1.0
 	_sub.modulate.a = 1.0
 	_brief.visible_characters = -1
@@ -318,8 +352,15 @@ func _ending_sequence() -> void:
 	for card in StoryData.ENDING:
 		_brief.text = str(card[0])
 		_brief.visible_characters = -1
+		var hold := float(card[1])
+		var vs := _voice_stream(VOICE_ENDING, str(card[0]))
+		if vs != null:
+			_vo.stream = vs
+			_vo.volume_db = 0.0
+			_vo.play()
+			hold = maxf(hold, vs.get_length() - 0.9 + 0.5)   # nach dem Einblenden (0,9 s) ausreden lassen
 		await _fade_labels(1.0, 0.9, [_brief])
-		await _wait(float(card[1]))
+		await _wait(hold)
 		await _fade_labels(0.0, 0.8, [_brief])
 		if not _audio.playing:
 			_play(SFX_DRONE, -8.0)

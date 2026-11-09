@@ -42,7 +42,7 @@ var _dive_speed: float = 0.0
 func _ready() -> void:
 	enemy_type = "drone"
 	super._ready()
-	collision_mask = LAYER_WORLD | LAYER_PLAYER
+	collision_mask = LAYER_WORLD | LAYER_PLAYER | 16   # 16 = move_block
 	_wobble_phase = rng.randf() * TAU
 	_hover_goal = rng.randf_range(hover_time_min, hover_time_max)
 

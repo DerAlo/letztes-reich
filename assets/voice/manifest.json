@@ -1,0 +1,782 @@
+{
+ "02ebd99c07bd": {
+  "asr": "»Kontakt am Brückenkopf. Die halten die Auffahrt, Deckung hinter den Drax.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.16,
+  "slot": 4.5,
+  "speaker": "Lena Aksoy",
+  "text": "Kontakt am Brueckenkopf! Die halten die Auffahrt – Deckung hinter den Wracks!",
+  "wer": 0.091
+ },
+ "039584d82925": {
+  "asr": "Zwei Jahre Krieg. Und heute Nacht sagen wir, Europa hat gehalten.",
+  "cast": "7dea93d7",
+  "character": "rednerin",
+  "seconds": 5.22,
+  "slot": 3.0,
+  "speaker": "Rednerin",
+  "text": "…zwei Jahre Krieg. Und heute Nacht sagen wir: Europa hat gehalten!",
+  "wer": 0.0
+ },
+ "04a412f313a5": {
+  "asr": "Güterbahnhof Pskov. Da hinten steht ihr Munitionszug. Der fährt heute nirgendwo mehr hin.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 6.51,
+  "slot": 5.0,
+  "speaker": "Hauptmann Weber",
+  "text": "Güterbahnhof Pskow. Da hinten steht ihr Munitionszug. Der fährt heute nirgendwo mehr hin.",
+  "wer": 0.077
+ },
+ "087d15bdac2c": {
+  "asr": "Bewegung bei den Sandsäcken, 12 Uhr.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.91,
+  "slot": 3.745,
+  "speaker": "Lena Aksoy",
+  "text": "Bewegung bei den Sandsäcken! Zwölf Uhr!",
+  "wer": 0.0
+ },
+ "08a8ce802a43": {
+  "asr": "Jonas, er war es die ganze Zeit.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.78,
+  "slot": 4.2,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas… er war es die ganze Zeit.",
+  "wer": 0.0
+ },
+ "0c30c3f914dc": {
+  "asr": "Sie werfen die Waffen weg, die rennen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.43,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Sie werfen die Waffen weg ... die rennen!",
+  "wer": 0.0
+ },
+ "0f09759bc476": {
+  "asr": "Letzte Stellung unter dem Kran. MG und Panzerabwehr.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.71,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Letzte Stellung unter dem Kran. MG und Panzerabwehr.",
+  "wer": 0.222
+ },
+ "0fd258065eed": {
+  "asr": "Er dreht ab, weiter, weiter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.35,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Er dreht ab – weiter, weiter!",
+  "wer": 0.0
+ },
+ "163e7d57f2d2": {
+  "asr": "Tut mir leid, Kerner. Deutschland braucht Ordnung.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.35,
+  "slot": 3.6,
+  "speaker": "Hptm. Weber",
+  "text": "Tut mir leid, Kerner. Deutschland braucht Ordnung.",
+  "wer": 0.0
+ },
+ "1cd1de34457d": {
+  "asr": "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer, nur Munition.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.65,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer – nur Munition.",
+  "wer": 0.0
+ },
+ "21e4564e7479": {
+  "asr": "Politik ist nicht unser Job, Axoi, Funkdisziplin.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.08,
+  "slot": 4.35,
+  "speaker": "Hptm. Weber",
+  "text": "Politik ist nicht unser Job, Aksoy. Funkdisziplin.",
+  "wer": 0.143
+ },
+ "2461329fdff7": {
+  "asr": "weiter Lagerhallen und Kranbahnen, bevor die sich neu sortieren.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.38,
+  "slot": 4.0,
+  "speaker": "Hauptmann Weber",
+  "text": "Weiter! Lagerhallen und Kranbahn, bevor die sich neu sortieren.",
+  "wer": 0.111
+ },
+ "24d0d3f03451": {
+  "asr": "Das sind unsere Leute mit Armbinden, ordnungsfrommend, die schießen auf alles, was sich bewegt.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.51,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Das sind unsere Leute – mit Armbinden. Ordnungsfront! Die schießen auf alles, was sich bewegt.",
+  "wer": 0.071
+ },
+ "252f70772819": {
+  "asr": "Weber hatte den Funk. Er wusste, wo wir standen. Jeder Schritt, jede Nacht.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.51,
+  "slot": 4.5,
+  "speaker": "Kerner",
+  "text": "Weber hatte den Funk. Er wusste, wo wir standen. Jeder Schritt, jede Nacht.",
+  "wer": 0.0
+ },
+ "28d8f8aa4ecf": {
+  "asr": "Halt ihn beschäftigt, Fliegerfaust ist raus.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.36,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Halt ihn beschaeftigt – Fliegerfaust ist raus!",
+  "wer": 0.0
+ },
+ "2be5d160bdd6": {
+  "asr": "Tut so, jetzt rüber, bleibt nicht auf dem Stahl stehen,",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.85,
+  "slot": 4.0,
+  "speaker": "Hptm. Weber",
+  "text": "Gut so. Jetzt rueber – bleibt nicht auf dem Stahl stehen!",
+  "wer": 0.1
+ },
+ "2f0bd1a41dad": {
+  "asr": "Sprennladung an die Wanne, Kerner, links an ihm vorbei, er sieht dich schlecht.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.92,
+  "slot": 4.5,
+  "speaker": "Hptm. Weber",
+  "text": "Sprengladung an die Wanne, Kerner! Links an ihm vorbei, er sieht dich schlecht!",
+  "wer": 0.077
+ },
+ "309f3873564f": {
+  "asr": "Vorbei, hörst du, Jonas? Es ist vorbei.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.1,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Vorbei. Hörst du, Jonas? Es ist vorbei.",
+  "wer": 0.0
+ },
+ "34d9e911ac75": {
+  "asr": "Dann lassen wir es hochgehen bei denen...",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.16,
+  "slot": 3.8000000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "Dann lassen wir es hochgehen. Bei denen.",
+  "wer": 0.0
+ },
+ "35718131d121": {
+  "asr": "unsere Jets endlich.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.28,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Unsere Jets! Endlich!",
+  "wer": 0.0
+ },
+ "3a579101f54e": {
+  "asr": "Kleben links und rechts der Straße, bleib auf dem Asphalt, Jonas.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.63,
+  "slot": 4.5,
+  "speaker": "Lena Aksoy",
+  "text": "Graeben links und rechts der Strasse. Bleib auf dem Asphalt, Jonas.",
+  "wer": 0.091
+ },
+ "3b6ca55085b1": {
+  "asr": "Das letzte Reich, gefeiert mit Sprengstoff unter der Bühne.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.39,
+  "slot": 3.2,
+  "speaker": "Lena Aksoy",
+  "text": "„Das letzte Reich.“ Gefeiert mit Sprengstoff unter der Bühne.",
+  "wer": 0.0
+ },
+ "480735f93f68": {
+  "asr": "Lena und ich sind noch hier und wir sind nicht die einzigen.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.7,
+  "slot": 4.0,
+  "speaker": "Kerner",
+  "text": "Lena und ich sind noch hier. Und wir sind nicht die Einzigen.",
+  "wer": 0.0
+ },
+ "49d0e25242e0": {
+  "asr": "Kontakt am Zug. Die Lok steht unter Dampf, die wollen raus.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.44,
+  "slot": 4.0,
+  "speaker": "Hauptmann Weber",
+  "text": "Kontakt am Zug! Die Lok steht unter Dampf – die wollen raus.",
+  "wer": 0.0
+ },
+ "4a3a6699da01": {
+  "asr": "Bürger Berlins. Ausländische Kräfte haben unsere Feier angegriffen. Die Ordnungsfront übernimmt ab sofort den Schutz des Landes.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 7.3,
+  "slot": 6.0,
+  "speaker": "Lautsprecher (Gen. von Riedhammer)",
+  "text": "Bürger Berlins. Ausländische Kräfte haben unsere Feier angegriffen. Die Ordnungsfront übernimmt ab sofort den Schutz des Landes.",
+  "wer": 0.0
+ },
+ "51e548356d0d": {
+  "asr": "Das erste Feld ist weg. Kein Weg-zurück-Kerner, nur nach vorn.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.56,
+  "slot": 4.5,
+  "speaker": "Hptm. Weber",
+  "text": "Das erste Feld ist weg. Kein Weg zurueck, Kerner – nur nach vorn.",
+  "wer": 0.083
+ },
+ "564498f31e43": {
+  "asr": "Panther ist erledigt. Brückenkopf sichern bis zur Fabrik.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.82,
+  "slot": 4.0,
+  "speaker": "Hptm. Weber",
+  "text": "Panzer ist erledigt! Brueckenkopf sichern – bis zur Fabrik!",
+  "wer": 0.125
+ },
+ "57818f5cda81": {
+  "asr": "Adler Staffel im Anflug. Köpfe runter.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.08,
+  "slot": 3.0,
+  "speaker": "Hauptmann Weber",
+  "text": "Adler-Staffel im Anflug. Köpfe runter!",
+  "wer": 0.0
+ },
+ "59ce3d1f8140": {
+  "asr": "Heilige, das ganze Gleis brennt.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.16,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Heilige ... das ganze Gleis brennt!",
+  "wer": 0.0
+ },
+ "5a4d9e1b90f5": {
+  "asr": "Schon gehört? Von Riethammer will nach dem Krieg in Berlin aufräumen, was immer das heißt.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.94,
+  "slot": 6.66,
+  "speaker": "Lena Aksoy",
+  "text": "Schon gehört? Von Riedhammer will nach dem Krieg in Berlin „aufräumen“. Was immer das heißt.",
+  "wer": 0.067
+ },
+ "638211bda786": {
+  "asr": "Gut so. Ein Bildschirm weniger, der lügt.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.04,
+  "slot": 3.855,
+  "speaker": "Lena Aksoy",
+  "text": "Gut so. Ein Bildschirm weniger, der lügt.",
+  "wer": 0.0
+ },
+ "63b9934ef41f": {
+  "asr": "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin. Ich warte auf Euch.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.2,
+  "slot": 4.0,
+  "speaker": "Hptm. Weber",
+  "text": "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin – ich warte auf euch.",
+  "wer": 0.0
+ },
+ "64c06e1c4dbe": {
+  "asr": "Er geht runter, direkt in den Fluss.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.56,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Er geht runter! Direkt in den Fluss!",
+  "wer": 0.0
+ },
+ "66290b845ce9": {
+  "asr": "Jonas, die Bühne runter, runter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.94,
+  "slot": 2.4,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas! Die Bühne – runter, runter!",
+  "wer": 0.0
+ },
+ "6869bef8ea4f": {
+  "asr": "Bin direkt hinter dir, Jonas. Kopf unten.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.28,
+  "slot": 3.855,
+  "speaker": "Lena Aksoy",
+  "text": "Bin direkt hinter dir, Jonas. Kopf unten.",
+  "wer": 0.0
+ },
+ "6b224beba7bd": {
+  "asr": "Kanal 2, nur wir, Jonas. Weberfunk seit Tagen verschlüsselt mit Berlin, nachts.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.76,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Kanal zwei, nur wir, Jonas. Weber funkt seit Tagen verschlüsselt mit Berlin. Nachts.",
+  "wer": 0.154
+ },
+ "6bfc918a91d7": {
+  "asr": "Kerner, Aksoi, ruhige Nacht heute. Genießt die Feier, ihr habt sie euch verdient.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.76,
+  "slot": 6.109999999999999,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner, Aksoy – ruhige Nacht heute. Genießt die Feier, ihr habt sie euch verdient.",
+  "wer": 0.0
+ },
+ "6fde8b9dbcb9": {
+  "asr": "Der Krieg ist vorbei. Berlin feiert den Waffenstillstand vor dem Regierungsviertel, die Kampfgruppe Nord steht als Ehrenformation an der Bühne. Hauptmann Weber hat euch persönlich für die Feier eingeteilt.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 9.32,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Der Krieg ist vorbei. Berlin feiert den Waffenstillstand vor dem Regierungsviertel, die Kampfgruppe „Nord“ steht als Ehrenformation an der Bühne. Hauptmann Weber hat euch persönlich für die Feier eingeteilt.",
+  "wer": 0.0
+ },
+ "70dfe5e18269": {
+  "asr": "Russische Verbände haben in der Nacht die lettische Grenze überschritten. Die EU-Kampfgruppe Nord soll die Linie halten, bis Verstärkung eintrifft. Ihr Zug stößt über das Feld vor, nimmt die Stellungen am Waldrand und sichert den Bahnübergang.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 10.76,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Russische Verbände haben in der Nacht die lettische Grenze überschritten. Die EU-Kampfgruppe „Nord“ soll die Linie halten, bis Verstärkung eintrifft. Ihr Zug stößt über das Feld vor, nimmt die Stellungen am Waldrand und sichert den Bahnübergang.",
+  "wer": 0.053
+ },
+ "7533af1dcaf2": {
+  "asr": "Die Brücke, lauf, Jonas, lauf!",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.54,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Die Bruecke! Lauf, Jonas, lauf!",
+  "wer": 0.0
+ },
+ "7550aa75e26b": {
+  "asr": "»Hubschrauber, unsere Kennung, die haben auch die Flieger auf ihrer Seite.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.63,
+  "slot": 3.4,
+  "speaker": "Lena Aksoy",
+  "text": "Hubschrauber! Unsere Kennung – die haben auch die Flieger auf ihrer Seite.",
+  "wer": 0.0
+ },
+ "78bfa9f81edf": {
+  "asr": "»Warum nur du? Und wie ist er vor uns da reingekommen? Jonas, pass auf!«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.0,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Warum nur du? Und wie ist er vor uns da reingekommen? Jonas – pass auf.",
+  "wer": 0.0
+ },
+ "793940b73e15": {
+  "asr": "Ferne hier Weber. Die Brücke muss bis Sonnenaufgang stehen und in unserer Hand sein. Pioniere folgen euch.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 6.94,
+  "slot": 6.5,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner, hier Weber. Die Bruecke muss bis Sonnenaufgang stehen – und in unserer Hand sein. Pioniere folgen euch.",
+  "wer": 0.059
+ },
+ "7dcf1d484084": {
+  "asr": "Rakete raus.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.68,
+  "slot": 1.5,
+  "speaker": "Lena Aksoy",
+  "text": "Rakete raus!",
+  "wer": 0.0
+ },
+ "80affc6e58c1": {
+  "asr": "Stellwerk rechts, obere Etage, da oben sitzt einer.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.53,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Stellwerk rechts, obere Etage. Da oben sitzt einer.",
+  "wer": 0.0
+ },
+ "80fa2b854d4b": {
+  "asr": "Der Dorfplatz achtet auf den Wasserturm und das Tanklager geht hoch wie eine Bombe.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.82,
+  "slot": 6.109999999999999,
+  "speaker": "Hptm. Weber",
+  "text": "Dorfplatz. Achtet auf den Wasserturm – und das Tanklager geht hoch wie eine Bombe.",
+  "wer": 0.077
+ },
+ "87d56e69ed5b": {
+  "asr": "An alle Einheiten Moskau hat den Waffenstillstand unterzeichnet. Es ist vorbei.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 6.16,
+  "slot": 6.5,
+  "speaker": "Hauptmann Weber",
+  "text": "An alle Einheiten: Moskau hat den Waffenstillstand unterzeichnet. Es ist vorbei.",
+  "wer": 0.0
+ },
+ "89ffb006f48e": {
+  "asr": "Klingt, als hätten sie die Durchsage schon vor der Feier aufgenommen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.2,
+  "slot": 3.2,
+  "speaker": "Lena Aksoy",
+  "text": "Klingt, als hätten sie die Durchsage schon vor der Feier aufgenommen.",
+  "wer": 0.0
+ },
+ "8a5899c63c09": {
+  "asr": "Artillerie liegt auf dem Panzer, Kopf runter.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.39,
+  "slot": 3.0,
+  "speaker": "Hptm. Weber",
+  "text": "Artillerie liegt auf dem Panzer – Kopf runter!",
+  "wer": 0.0
+ },
+ "8f5081720a33": {
+  "asr": "AXOI, Panzerfaust auf die rote Binde.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.04,
+  "slot": 2.5,
+  "speaker": "Hauptmann Weber",
+  "text": "Aksoy! Panzerfaust auf die rote Binde!",
+  "wer": 0.167
+ },
+ "944ceb8d83e3": {
+  "asr": "General von Riedhammer spricht auf allen Kanälen. Er verspricht Sicherheit. Er hat sie mit Sprengstoff bezahlt.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 5.4,
+  "slot": 5.0,
+  "speaker": "Kerner",
+  "text": "General von Riedhammer spricht auf allen Kanälen. Er verspricht Sicherheit.\nEr hat sie mit Sprengstoff bezahlt.",
+  "wer": 0.0
+ },
+ "95f00d8be98b": {
+  "asr": "Ferne die Hauptstraße, Haus für Haus bis zum Tor am Ende.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.6,
+  "slot": 4.9,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner, die Hauptstraße. Haus für Haus, bis zum Tor am Ende.",
+  "wer": 0.091
+ },
+ "9ab65de5afb9": {
+  "asr": "Panzer am Brückenkopf.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.14,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Panzer am Brueckenkopf!",
+  "wer": 0.0
+ },
+ "9d5edd88ca2a": {
+  "asr": "Kesselwagen mit roter Binde Treibladungen. Ein Treffer und der ganze Zug geht hoch.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.74,
+  "slot": 5.0,
+  "speaker": "Hauptmann Weber",
+  "text": "Kesselwagen mit roter Binde – Treibladungen. Ein Treffer und der ganze Zug geht hoch.",
+  "wer": 0.0
+ },
+ "9e455ec43024": {
+  "asr": "Rakete im Anflug, das Haus kommt runter, weg da.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.6,
+  "slot": 4.295,
+  "speaker": "Lena Aksoy",
+  "text": "Rakete im Anflug! Das Haus kommt runter – weg da!",
+  "wer": 0.0
+ },
+ "a1c66b752601": {
+  "asr": "Die Ordnungsfront hält das Regierungsviertel. Sie nennt es Ordnung. Wir nennen es, was es ist, ein Putsch.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.99,
+  "slot": 5.0,
+  "speaker": "Kerner",
+  "text": "Die Ordnungsfront hält das Regierungsviertel. Sie nennt es Ordnung.\nWir nennen es, was es ist: ein Putsch.",
+  "wer": 0.0
+ },
+ "a2454603ed37": {
+  "asr": "Panzerwrack voraus, dahinter das MG. Nutzt die Deckung.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.93,
+  "slot": 4.625,
+  "speaker": "Hptm. Weber",
+  "text": "Panzerwrack voraus, dahinter das MG. Nutzt die Deckung.",
+  "wer": 0.222
+ },
+ "a3d229e2c8d8": {
+  "asr": "»Explosion an der Bühne«, haltet die Stellung, »ich kläre die Lage.«",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.36,
+  "slot": 3.2,
+  "speaker": "Hptm. Weber",
+  "text": "Explosion an der Bühne! Haltet die Stellung, ich kläre die Lage.",
+  "wer": 0.0
+ },
+ "a4a4ff89dc9f": {
+  "asr": "Funkdisziplin, AXOI, Augen nach vorn.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.15,
+  "slot": 3.0,
+  "speaker": "Hauptmann Weber",
+  "text": "Funkdisziplin, Aksoy. Augen nach vorn.",
+  "wer": 0.2
+ },
+ "aa49bd51bfe9": {
+  "asr": "Das ist ein Putsch. Das Sendezentrum am Ende der Achse, solange Sie senden, glaubt Ihnen das Land, schaltet es ab.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 7.1,
+  "slot": 5.0,
+  "speaker": "Hptm. Weber",
+  "text": "Das ist ein Putsch. Das Sendezentrum am Ende der Achse – solange sie senden, glaubt ihnen das Land. Schaltet es ab.",
+  "wer": 0.0
+ },
+ "aea20fbd1022": {
+  "asr": "Hubschrauber, 11 Uhr.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.36,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Hubschrauber! Elf Uhr!",
+  "wer": 0.0
+ },
+ "b2a126bad0ce": {
+  "asr": "Bahnübergang voraus. Sammelpunkt dahinter. Bringt alle nach Hause.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.88,
+  "slot": 5.23,
+  "speaker": "Hptm. Weber",
+  "text": "Bahnübergang voraus. Sammelpunkt dahinter. Bringt alle nach Hause.",
+  "wer": 0.0
+ },
+ "b44539b8cbb0": {
+  "asr": "Panzer auf dem Platz, bleib in Deckung, Kugeln bringen da nichts.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.07,
+  "slot": 3.4,
+  "speaker": "Lena Aksoy",
+  "text": "Panzer auf dem Platz! Bleib in Deckung – Kugeln bringen da nichts.",
+  "wer": 0.0
+ },
+ "b7bb80fd6eef": {
+  "asr": "Kommt rein Kerner. Nur du. Aksu sichert den Eingang.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.51,
+  "slot": 3.4,
+  "speaker": "Hptm. Weber",
+  "text": "Kommt rein, Kerner. Nur du. Aksoy sichert den Eingang.",
+  "wer": 0.111
+ },
+ "bb2749d99485": {
+  "asr": "Der Kran, der ganze Kran kommt runter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.07,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Der Kran! Der ganze Kran kommt runter!",
+  "wer": 0.0
+ },
+ "bbcfbb9611e1": {
+  "asr": "Herner, hier Weber, euer Zug überquert das Feld. Die Stellungen am Waldrand müssen fallen, bevor es hell wird.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 7.31,
+  "slot": 7.65,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner, hier Weber. Euer Zug überquert das Feld. Die Stellungen am Waldrand müssen fallen, bevor es hell wird.",
+  "wer": 0.056
+ },
+ "bedaba89a4d9": {
+  "asr": "Der Gegner zieht sich hinter die Bilikaya zurück und will die letzte intakte Brücke sprengen. Fällt sie, steht der Vormarsch für Wochen. Die Brücke muss genommen werden, bevor es hell wird.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 8.76,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Der Gegner zieht sich hinter die Welikaja zurück und will die letzte intakte Brücke sprengen. Fällt sie, steht der Vormarsch für Wochen. Die Brücke muss genommen werden, bevor es hell wird.",
+  "wer": 0.032
+ },
+ "c8632e781a50": {
+  "asr": "Hol ihn runter, Kerner. Sonst kommt keiner über diese Brücke.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.12,
+  "slot": 4.0,
+  "speaker": "Hptm. Weber",
+  "text": "Hol ihn runter, Kerner, sonst kommt keiner ueber diese Bruecke!",
+  "wer": 0.0
+ },
+ "cca4fccabc77": {
+  "asr": "Ordnung, Stärke, das letzte Reich beginnt heute Nacht.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.69,
+  "slot": 3.4,
+  "speaker": "Lautsprecher (Gen. von Riedhammer)",
+  "text": "Ordnung. Stärke. Das letzte Reich beginnt heute Nacht.",
+  "wer": 0.0
+ },
+ "cd022a5b7d69": {
+  "asr": "Daugapils ist seit 4 Stunden umkämpft. Feindliche Infanterie hat sich in der Hauptstraße eingegraben, ein NG Nest blockiert die Kreuzung. Kampfgruppe Nord nimmt die Straße zurück, Haus für Haus.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 9.55,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Daugavpils ist seit vier Stunden umkämpft. Feindliche Infanterie hat sich in der Hauptstraße eingegraben, ein MG-Nest blockiert die Kreuzung. Kampfgruppe „Nord“ nimmt die Straße zurück – Haus für Haus.",
+  "wer": 0.1
+ },
+ "d1a283acfa15": {
+  "asr": "sagt der Mann, der uns zur Ehrenwache eingeteilt hat, ganz vorne, direkt an der Bühne.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.11,
+  "slot": 3.4,
+  "speaker": "Lena Aksoy",
+  "text": "Sagt der Mann, der uns zur Ehrenwache eingeteilt hat. Ganz vorne. Direkt an der Bühne.",
+  "wer": 0.0
+ },
+ "d20e48752138": {
+  "asr": "Stellung genommen. Weiter durch den Wald, das Dorf dahinter ist besetzt.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.88,
+  "slot": 5.615,
+  "speaker": "Hptm. Weber",
+  "text": "Stellung genommen. Weiter durch den Wald – das Dorf dahinter ist besetzt.",
+  "wer": 0.0
+ },
+ "d235560c7548": {
+  "asr": "bleibt in euren häusern wer sich fügt hat nichts zu befürchten",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.88,
+  "slot": 3.6,
+  "speaker": "Lautsprecher (Gen. von Riedhammer)",
+  "text": "Bleibt in euren Häusern. Wer sich fügt, hat nichts zu befürchten.",
+  "wer": 0.0
+ },
+ "d39d70fc2659": {
+  "asr": "Artillerie runter...",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.88,
+  "slot": 2.645,
+  "speaker": "Lena Aksoy",
+  "text": "Artillerie! Runter!",
+  "wer": 0.0
+ },
+ "d9474d84d17b": {
+  "asr": "Pskow steht kurz vor dem Fall. Am Güterbahnhof wartet ein Zug mit Gefangenen und Munition auf die Abfahrt nach Osten. Hält Kampfgruppe Nord den Bahnhof sind die Waffenstillstandsgespräche nur noch Formsache.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 10.35,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Pskow steht kurz vor dem Fall. Am Güterbahnhof wartet ein Zug mit Gefangenen und Munition auf die Abfahrt nach Osten. Hält Kampfgruppe „Nord“ den Bahnhof, sind die Waffenstillstandsgespräche nur noch Formsache.",
+  "wer": 0.032
+ },
+ "ecf95e18a984": {
+  "asr": "Hast geschafft. Das Tor am Ende, dann gehört die Straße uns.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.56,
+  "slot": 4.9,
+  "speaker": "Hptm. Weber",
+  "text": "Fast geschafft. Das Tor am Ende, dann gehört die Straße uns.",
+  "wer": 0.091
+ },
+ "ee41e5ee60e2": {
+  "asr": "Die Sonne geht auf und die Brücke steht. Gute Arbeit, Kerner!",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.65,
+  "slot": 5.0,
+  "speaker": "Hptm. Weber",
+  "text": "Die Sonne geht auf ... und die Bruecke steht. Gute Arbeit, Kerner.",
+  "wer": 0.0
+ },
+ "ee6ed3781d18": {
+  "asr": "Achte auf die Dächer, die lieben ihre Schafschützen.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.0,
+  "slot": 4.515000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Achte auf die Dächer. Die lieben ihre Scharfschützen.",
+  "wer": 0.125
+ }
+}

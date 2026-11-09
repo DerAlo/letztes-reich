@@ -9,6 +9,11 @@ var rifle: Enemy
 var heavy: Enemy
 var drone: Enemy
 var drone2: Enemy
+var assault: Enemy
+var marksman: Enemy
+var officer: Enemy
+var laser_seen := false
+var barks := 0
 var t: float = 0.0
 var step := 0
 var killed: Array[String] = []
@@ -117,12 +122,31 @@ func _spawn_all() -> void:
 	heavy.name = "Heavy"
 	drone = _spawn("res://game/enemies/drone.tscn", Vector3(0, 4.0, -32), 0.0)
 	drone.name = "Drone"
+	assault = _spawn("res://game/enemies/assault.tscn", Vector3(-12, 0.05, -30), 0.0)
+	assault.name = "Assault"
+	marksman = _spawn("res://game/enemies/marksman.tscn", Vector3(14, 0.05, -42), 0.0)
+	marksman.name = "Marksman"
+	officer = _spawn("res://game/enemies/officer.tscn", Vector3(2, 0.05, -40), 0.0)
+	officer.name = "Officer"
+	print("VOICES assault=%s marksman=%s officer=%s" % [assault.get_meta("voice", "-"), marksman.get_meta("voice", "-"), officer.get_meta("voice", "-")])
 	print("SPAWNED all; navmesh_ok=%s" % navmesh_ok)
 
 func _physics_process(delta: float) -> void:
 	if fake == null:
 		return
 	t += delta
+	if is_instance_valid(marksman) and not laser_seen:
+		var lz := marksman.get_node_or_null("AimLaser") as Node3D
+		if lz != null and lz.visible:
+			laser_seen = true
+			print("[%6.2f] TEST marksman aiming (laser visible)" % t)
+	for en in [rifle, heavy, assault, marksman, officer]:
+		if is_instance_valid(en):
+			for c in en.get_children():
+				if c is AudioStreamPlayer3D and not c.has_meta("counted"):
+					c.set_meta("counted", true)
+					barks += 1
+					print("[%6.2f] BARK %s %s" % [t, en.name, (c as AudioStreamPlayer3D).stream.resource_path.get_file()])
 	if t >= 1.0 and not victims_spawned:
 		victims_spawned = true
 		victim_r = _spawn("res://game/enemies/rifleman.tscn", Vector3(25, 0.05, -35), 0.0)
@@ -171,6 +195,11 @@ func _physics_process(delta: float) -> void:
 			for i in 6:
 				if rifle.is_alive():
 					rifle.take_damage(20.0, fake, rifle.global_position + Vector3.UP, Vector3(0, 0, 1))
+	if t >= 15.5 and step == 5 and is_instance_valid(officer) and officer.is_alive():
+		officer.call("_check_reinforcements")
+		for en in [assault, marksman, officer]:
+			if is_instance_valid(en) and en.is_alive():
+				en.take_damage(200.0, fake, en.global_position + Vector3.UP, Vector3(0, 0, 1))
 	if t >= 16.5 and step == 5:
 		step = 6
 		if is_instance_valid(heavy) and heavy.is_alive():
@@ -196,7 +225,8 @@ func _report() -> void:
 	print("Fake player total damage: %.1f in %d hits  by source: %s" % [fake.total_damage, fake.hit_count, str(fake.damage_by_source)])
 	print("Killed: %s" % str(killed))
 	print("enemy_damaged events: %d" % dmg_events)
-	for en in [rifle, heavy, drone, drone2]:
+	print("marksman laser seen: %s  barks played: %d" % [str(laser_seen), barks])
+	for en in [rifle, heavy, drone, drone2, assault, marksman, officer]:
 		if is_instance_valid(en):
 			print("status: %s shots=%d hits=%d" % [str(en.get_status()), en.stat_shots, en.stat_hits])
 	print("enemies in group: %d" % get_tree().get_nodes_in_group("enemy").size())
@@ -210,15 +240,27 @@ func _shot_mode() -> void:
 	fp.set_script(FakePlayer)
 	add_child(fp)
 	fp.global_position = Vector3(0, 0.05, 6)
-	var a := _spawn("res://game/enemies/rifleman.tscn", Vector3(-1.5, 0.05, -2), PI)
-	var b := _spawn("res://game/enemies/heavy.tscn", Vector3(1.5, 0.05, -2), PI)
-	var c := _spawn("res://game/enemies/drone.tscn", Vector3(0, 1.8, -1), 0.0)
-	for e in [a, b, c]:
+	# --types=a,b,c  --faction=ru|reich  --cam=x,y,z (optional)
+	var types := str(Game.arg("types", "rifleman,heavy,drone")).split(",")
+	var fac := str(Game.arg("faction", "ru"))
+	var list: Array[Enemy] = []
+	var n := types.size()
+	for i in n:
+		var ty := types[i]
+		var x := (float(i) - (n - 1) * 0.5) * 1.6
+		var en: Enemy = load("res://game/enemies/%s.tscn" % ty).instantiate()
+		en.set_meta("faction", fac)
+		add_child(en)
+		en.global_position = Vector3(x, 1.8 if ty == "drone" else 0.05, -2)
+		en.rotation.y = 0.0 if ty == "drone" else PI
+		list.append(en)
+	for e in list:
 		e.debug_log = false
 		e.set_physics_process(false)
 	var cam := get_viewport().get_camera_3d()
-	cam.global_position = Vector3(1.0, 1.7, 3.5)
-	cam.look_at(Vector3(0, 1.0, -2))
+	var cp := str(Game.arg("cam", "")).split(",")
+	cam.global_position = Vector3(float(cp[0]), float(cp[1]), float(cp[2])) if cp.size() == 3 else Vector3(1.0, 1.7, 3.5)
+	cam.look_at(Vector3(cam.global_position.x * 0.3, 1.1, -2))
 	await get_tree().create_timer(0.5).timeout
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(str(Game.arg("shot", "")))

@@ -289,7 +289,7 @@ func _apply_input(d: Dictionary) -> String:
 				if a is Array and (a as Array).size() >= 2:
 					var v := Vector2(float(a[0]), float(a[1]))
 					ext[key] = v.limit_length(1.0) if key == "move" else v
-			"fire", "aim", "sprint", "crouch", "jump", "reload", "grenade", "prone":
+			"fire", "aim", "sprint", "crouch", "jump", "reload", "grenade", "prone", "interact":
 				ext[key] = bool(d[k])
 			"weapon":
 				ext[key] = int(d[k])

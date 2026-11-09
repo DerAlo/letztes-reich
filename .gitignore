@@ -9,3 +9,7 @@ build/
 dist/
 *.tpz
 __pycache__/
+tools/chatterbox/
+tools/voice_refs/raw/
+tools/.voice_cache/
+tools/voice_refs/cand/

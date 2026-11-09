@@ -19,7 +19,11 @@ const MAX_DEBRIS: int = 16
 @export_group("Identity")
 @export var weapon_id: String = "rifle"
 @export var display_name: String = "STURMGEWEHR"
-@export_enum("rifle", "pistol") var model_kind: String = "rifle"
+@export_enum("rifle", "pistol", "g36c", "ak", "launcher") var model_kind: String = "rifle"
+## Munitionssorte ("556", "545", "9mm", "pzf") – Pickups mit gleicher Sorte füllen diese Waffe auf.
+@export var ammo_type: String = "556"
+## Slot: 0 Primärwaffe (tauschbar), 1 Pistole, 2 Panzerfaust
+@export_range(0, 2) var slot: int = 0
 @export var sfx_fire: String = "rifle_fire"
 ## Fallback, falls die Phasen-Sounds (<sfx_prefix>_mag_out/_mag_in/_bolt|_slide) fehlen
 @export var sfx_reload: String = "rifle_reload"
@@ -86,6 +90,8 @@ const MAX_DEBRIS: int = 16
 @export var sprint_pos: Vector3 = Vector3(0.12, -0.26, -0.4)
 @export var sprint_rot: Vector3 = Vector3(-12.0, 38.0, -14.0)
 ## Wegstecken / Ziehen beim Waffenwechsel (s)
+## Sprint-zu-Feuer: so lange nach Sprint-Ende kann noch nicht geschossen werden (s)
+@export var sprint_to_fire: float = 0.17
 @export var holster_time: float = 0.2
 @export var draw_time: float = 0.32
 
@@ -102,6 +108,9 @@ const MAX_DEBRIS: int = 16
 ## Abstand Auge -> Glas im ADS. ads_pos wird daraus automatisch berechnet (Glas exakt auf der Sichtachse).
 @export var ads_eye_dist: float = 0.15
 @export var muzzle_pos: Vector3 = Vector3(0.0, 0.012, -0.80)
+## Auswurffenster (Pivot-Raum); ZERO = keine Hülsen
+@export var eject_pos: Vector3 = Vector3.ZERO
+@export var shell_len: float = 0.045
 
 var ammo_mag: int = 0
 var ammo_reserve: int = 0
@@ -167,6 +176,11 @@ static var _metal_mat: StandardMaterial3D
 static var _poly_mat: StandardMaterial3D
 static var _cloth_mat: StandardMaterial3D
 static var _debris: Array = []
+static var _shell_mat: StandardMaterial3D
+
+const MAX_SHELLS: int = 10
+var _shells: Array = []                    # [{node, vel, angv, t, sound}]
+var _wall_amt: float = 0.0
 
 func _ready() -> void:
 	ammo_mag = mag_size
@@ -216,6 +230,13 @@ func tick(delta: float) -> void:
 		if _flash_t <= 0.0:
 			_flash_light.visible = false
 			_flash_mesh.visible = false
+	_tick_shells(delta)
+
+func is_launcher() -> bool:
+	return model_kind == "launcher"
+
+func is_long() -> bool:
+	return model_kind != "pistol"
 
 func reload_progress() -> float:
 	return clampf(_reload_t / _reload_total, 0.0, 1.0) if reloading else 0.0
@@ -274,6 +295,10 @@ func _timeline() -> Dictionary:
 	if model_kind == "pistol":
 		return {"rel": 0.10, "out": 0.22, "new0": 0.40, "ins0": 0.78, "ins1": 0.90, "slap": 0.93,
 			"bolt0": 1.08, "bolt1": 1.14, "bolt2": 1.18, "end_t": 1.45, "end_e": 1.75}
+	if model_kind == "launcher":
+		# Neuer Gefechtskopf wird von vorn in das Rohr gesteckt
+		return {"rel": 0.05, "out": 0.08, "new0": 0.45, "ins0": 1.25, "ins1": 1.6, "slap": 1.65,
+			"bolt0": 1.85, "bolt1": 1.95, "bolt2": 2.05, "end_t": 2.5, "end_e": 2.5}
 	return {"rel": 0.12, "out": 0.30, "new0": 0.50, "ins0": 0.98, "ins1": 1.16, "slap": 1.20,
 		"bolt0": 1.40, "bolt1": 1.56, "bolt2": 1.66, "end_t": 1.9, "end_e": 2.4}
 
@@ -297,7 +322,9 @@ func _reload_events(t0: float, t1: float) -> void:
 			"mag_out":
 				_play_phase("_mag_out")
 			"drop":
-				_spawn_mag_debris()
+				# Leer: Magazin fällt zu Boden. Taktisch: Magazin wird verstaut (keine Trümmer).
+				if _reload_empty and not is_launcher():
+					_spawn_mag_debris()
 			"mag_in":
 				_play_phase("_mag_in")
 			"seat":
@@ -306,7 +333,7 @@ func _reload_events(t0: float, t1: float) -> void:
 				_imp.v += Vector3(0.0, 0.25, 0.08)
 				_imp_r.v += Vector3(70.0, 0.0, -25.0)
 			"bolt_pull":
-				if model_kind != "pistol":
+				if model_kind != "pistol" and not is_launcher():
 					_imp_r.v += Vector3(0.0, -30.0, 20.0)
 			"bolt":
 				_slide_locked = false
@@ -386,6 +413,7 @@ func try_fire(cam: Camera3D, ads: float, move_ratio: float, crouching: bool, air
 	if ammo_mag <= 0 and model_kind == "pistol":
 		_slide_locked = true
 	_shoot(cam, spread)
+	_eject_shell()
 	_muzzle_flash()
 	_play(sfx_fire, 0.035, 1.2)
 	fired.emit(self)
@@ -620,6 +648,68 @@ func _collect_meshes(n: Node) -> Array[MeshInstance3D]:
 		out.append_array(_collect_meshes(c))
 	return out
 
+## Messinghülse aus dem Auswurffenster: fliegt nach rechts-oben-hinten, dreht sich, fällt.
+## Liegt im Weltraum (nur Waffen-Kamera), wird manuell integriert und nach ~0.7 s entfernt.
+func _eject_shell() -> void:
+	if eject_pos == Vector3.ZERO or not is_inside_tree() or not visible:
+		return
+	if _shell_mat == null:
+		_shell_mat = StandardMaterial3D.new()
+		_shell_mat.albedo_color = Color(0.8, 0.58, 0.26)
+		_shell_mat.metallic = 1.0
+		_shell_mat.roughness = 0.28
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	var r: float = 0.0042 if is_long() else 0.0048
+	cm.top_radius = r * 0.78
+	cm.bottom_radius = r
+	cm.height = shell_len
+	cm.radial_segments = 8
+	cm.rings = 1
+	mi.mesh = cm
+	mi.material_override = _shell_mat
+	mi.layers = VIEW_LAYER_BIT
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_world_root().add_child(mi)
+	var gb: Basis = _pivot.global_basis.orthonormalized()
+	# Zylinder liegt quer zur Laufachse (Hülse zeigt nach rechts)
+	mi.global_transform = Transform3D(gb * Basis.from_euler(Vector3(0, 0, PI * 0.5)), _pivot.global_transform * eject_pos)
+	var pv: Vector3 = owner_player.velocity if owner_player else Vector3.ZERO
+	var v_local := Vector3(randf_range(1.4, 2.1), randf_range(0.9, 1.5), randf_range(0.1, 0.5))
+	var vel: Vector3 = pv + gb * v_local
+	var angv: Vector3 = gb * Vector3(randf_range(-18.0, 18.0), randf_range(-8.0, 8.0), randf_range(14.0, 26.0))
+	_shells.append({"node": mi, "vel": vel, "angv": angv, "t": 0.0, "snd": false})
+	while _shells.size() > MAX_SHELLS:
+		var old: Dictionary = _shells.pop_front()
+		if is_instance_valid(old.node):
+			(old.node as Node).queue_free()
+
+func _tick_shells(delta: float) -> void:
+	var i: int = 0
+	while i < _shells.size():
+		var s: Dictionary = _shells[i]
+		var n: Node3D = s.node as Node3D
+		if not is_instance_valid(n):
+			_shells.remove_at(i)
+			continue
+		s.t = float(s.t) + delta
+		var v: Vector3 = s.vel
+		v.y -= 9.8 * delta
+		s.vel = v
+		n.global_position += v * delta
+		var av: Vector3 = s.angv
+		if av.length() > 0.001:
+			n.global_basis = Basis(av.normalized(), av.length() * delta) * n.global_basis
+		if not bool(s.snd) and float(s.t) > 0.42:
+			s.snd = true
+			if randf() < 0.6:
+				_play("shell_drop", 0.12, 3.0)
+		if float(s.t) > 0.7:
+			n.queue_free()
+			_shells.remove_at(i)
+			continue
+		i += 1
+
 # ---------------------------------------------------------------- Viewmodel-Animation
 
 ## Viewmodel pro Frame animieren. s (alle optional):
@@ -640,6 +730,8 @@ func animate(delta: float, s: Dictionary) -> void:
 	var slide: float = float(s.get("slide", 0.0))
 	var mantle: float = float(s.get("mantle", 0.0))
 	var airborne: bool = bool(s.get("airborne", false))
+	# Wand vor der Mündung: Waffe zurückziehen und hochkippen (geglättet)
+	_wall_amt = lerpf(_wall_amt, clampf(float(s.get("wall", 0.0)), 0.0, 1.0), 1.0 - exp(-12.0 * delta))
 	_time += delta
 	var hip: float = 1.0 - ads
 
@@ -659,6 +751,10 @@ func animate(delta: float, s: Dictionary) -> void:
 	# Mantle: Waffe weggedreht, die "Hände" sind beschäftigt
 	pos += Vector3(0.03, -0.14, 0.04) * mantle
 	rot += Vector3(-28.0, 10.0, 22.0) * mantle
+	# Wand: Mündung hoch, Waffe an den Körper gezogen
+	var wall_k: float = _wall_amt * (1.0 - mantle)
+	pos += Vector3(-0.02, -0.035, 0.11 if is_long() else 0.06) * wall_k
+	rot += Vector3(38.0 if is_long() else 30.0, 12.0, 14.0) * wall_k
 	# Nachladen
 	if reloading:
 		var rp: Array = _reload_pose(_reload_t)
@@ -690,11 +786,18 @@ func animate(delta: float, s: Dictionary) -> void:
 		_rc_r.step(Vector3.ZERO, 300.0, 0.45, dt)
 
 	# --- Schritt-Bob (ein Schritt = PI; tiefster Punkt beim Auftreten)
-	var bm: float = bob_amt * lerpf(1.0, 0.18, ads)
+	# Haltungsabhängig: geduckt ruhiger, liegend seitliches Robben statt Auf-Ab
+	var stance_m: float = 1.0 - 0.35 * crouch * (1.0 - prone)
+	var bm: float = bob_amt * lerpf(1.0, 0.18, ads) * stance_m
 	var sn: float = sin(phase)
 	var dip: float = 1.0 - absf(sn)
 	var bpos := Vector3(sn * 0.007, -dip * 0.009, 0.0)
 	var brot := Vector3(-dip * 0.8, sn * 0.6, sn * 1.4)
+	if prone > 0.01:
+		var crawl := Vector3(sn * 0.016, -dip * 0.003, -absf(sn) * 0.012)
+		var crawl_r := Vector3(-dip * 0.4, sn * 2.6, sn * 4.5)
+		bpos = bpos.lerp(crawl, prone)
+		brot = brot.lerp(crawl_r, prone)
 	if sprint > 0.01:
 		bpos += Vector3(sn * 0.016, -dip * 0.014, 0.0) * sprint
 		brot += Vector3(-dip * 2.0, sn * 3.0, sn * 4.0) * sprint
@@ -733,6 +836,10 @@ func _reload_pose(t: float) -> Array:
 		# Mündung hoch, nach rechts gekippt -> Magazinschacht zur Stützhand
 		p = Vector3(-0.05, 0.035, 0.04) * a
 		r = Vector3(14.0, 12.0, 26.0) * a
+	elif is_launcher():
+		# Rohr von der Schulter nehmen, Mündung nach vorn-unten: Gefechtskopf von vorn einsetzen
+		p = Vector3(-0.08, -0.06, 0.06) * a
+		r = Vector3(-14.0, 28.0, -10.0) * a
 	else:
 		# Waffe zur Mitte, nach links eingedreht -> Magazinschacht sichtbar
 		p = Vector3(-0.06, 0.085, 0.01) * a
@@ -757,7 +864,25 @@ func _animate_parts() -> void:
 		var off := Vector3.ZERO
 		var rot := Vector3.ZERO
 		node.visible = true
-		if reloading:
+		if is_launcher():
+			# Gefechtskopf: nach dem Schuss weg, beim Nachladen von vorn eingeschoben
+			if reloading:
+				var t3: float = _reload_t
+				var n0: float = _tl("new0")
+				var i0: float = _tl("ins0")
+				var i1: float = _tl("ins1")
+				if t3 < n0:
+					node.visible = false
+				elif t3 < i0:
+					var k3: float = smoothstep(n0, i0, t3)
+					off = Vector3(0.06, -0.12, -0.35) * (1.0 - k3) + Vector3(0, 0, -0.14) * k3
+					rot = Vector3(-15.0, 20.0, 0.0) * (1.0 - k3)
+				elif t3 < i1:
+					off = Vector3(0, 0, -0.14) * (1.0 - smoothstep(i0, i1, t3))
+			elif ammo_mag <= 0:
+				node.visible = false
+			_set_part(_mag_part, off, rot)
+		elif reloading:
 			var t: float = _reload_t
 			var down: Vector3 = _mag_part.down
 			var out_d: float = 0.05 if model_kind == "pistol" else 0.06
@@ -896,10 +1021,51 @@ func _build_model() -> void:
 	muzzle = Node3D.new()
 	muzzle.name = "Muzzle"
 	_pivot.add_child(muzzle)
-	if model_kind == "pistol":
-		_build_pistol()
-	else:
-		_build_rifle()
+	match model_kind:
+		"pistol":
+			_build_pistol()
+		"g36c", "ak", "launcher":
+			_build_procedural()
+		_:
+			_build_rifle()
+
+## G36C / Panzerfaust (prozedural, GunModels) bzw. AK-74M (CC0-Modell, eigene Materialien).
+## Mündung, Auswurf und Optik-Montage kommen aus den Metas des Modells (G36C/PzF).
+func _build_procedural() -> void:
+	var model: Node3D = null
+	match model_kind:
+		"g36c":
+			model = GunModels.build_g36c()
+		"ak":
+			model = GunModels.build_ak()
+		"launcher":
+			model = GunModels.build_pzf()
+	if model == null:
+		_build_rifle_primitive()
+		return
+	model.name = "Model"
+	_pivot.add_child(model)
+	var xf := Transform3D(Basis.from_euler(model_rot_deg * (PI / 180.0)).scaled(Vector3.ONE * model_scale), model_offset)
+	model.transform = xf
+	_apply_view_layer(model, null)
+	if model.has_meta("muzzle"):
+		muzzle_pos = xf * (model.get_meta("muzzle") as Vector3)
+	if model.has_meta("eject") and eject_pos == Vector3.ZERO:
+		eject_pos = xf * (model.get_meta("eject") as Vector3)
+	if model.has_meta("optic_mount") and has_red_dot:
+		optic_mount = xf * (model.get_meta("optic_mount") as Vector3)
+	var mag_down := Vector3(0.0, -1.0, -0.2)
+	if is_launcher():
+		mag_down = Vector3(0.0, -0.3, -1.0)
+	_mag_part = _make_part(model.find_child("Magazine", true, false) as Node3D, mag_down)
+	_bolt_part = _make_part(model.find_child("Charging_Handle", true, false) as Node3D, Vector3.BACK)
+	if is_launcher() and model.has_meta("sight"):
+		# Zielen durch das Klappvisier: Visier-Achse auf die Kamera-Achse
+		var sp: Vector3 = xf * (model.get_meta("sight") as Vector3)
+		ads_pos = Vector3(-sp.x, -sp.y, -ads_eye_dist - sp.z)
+	muzzle.position = muzzle_pos
+	if has_red_dot:
+		_build_red_dot()
 
 const MODEL_TEX_DIR: String = "res://assets/weapons/m4a1/"
 const RED_DOT_SHADER: Shader = preload("res://game/weapons/red_dot.gdshader")
@@ -956,12 +1122,12 @@ func _build_rifle() -> void:
 
 ## Alle Meshes nur für die Waffen-Kamera, ohne Schattenwurf.
 func _apply_view_layer(n: Node, mat: Material) -> void:
-	if n is MeshInstance3D:
-		var mi: MeshInstance3D = n as MeshInstance3D
-		mi.layers = VIEW_LAYER_BIT
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		if mat:
-			mi.material_override = mat
+	if n is GeometryInstance3D:
+		var gi: GeometryInstance3D = n as GeometryInstance3D
+		gi.layers = VIEW_LAYER_BIT
+		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if mat and gi is MeshInstance3D:
+			gi.material_override = mat
 	for c in n.get_children():
 		_apply_view_layer(c, mat)
 
@@ -1003,6 +1169,29 @@ func _build_red_dot() -> void:
 	var gy: float = 0.036          # Glasmitte über Schienenoberkante
 	var gz: float = -0.012         # Glas vorn
 	var fr: float = 0.0025         # Rahmenstärke
+	var lm: ShaderMaterial = _lens_mat.duplicate() as ShaderMaterial   # pro Waffe (Ring nur G36C)
+	if model_kind == "g36c":
+		# Holografisches Visier (EOTech-Stil, prozedural): Haube mit Fenster, Batteriefach vorn
+		var holo: Node3D = GunModels.build_holo()
+		o.add_child(holo)
+		_apply_view_layer(holo, null)
+		lm.set_shader_parameter("ring_radius_deg", 0.55)
+	else:
+		_build_reflex_body(o, gw, gh, gy, gz, fr)
+	# Glas (leicht nach hinten geneigt)
+	var q := QuadMesh.new()
+	q.size = Vector2(gw, gh)
+	_optic_lens = _optic_part(o, q, Vector3(0, gy, gz), Vector3(-3.0, 0, 0), lm)
+	_optic_lens.sorting_offset = 1.0
+	# Punkt-Achse im Glas-Objektraum = Waffenachse (-Z des Pivots)
+	lm.set_shader_parameter("axis_local", _optic_lens.basis.inverse() * Vector3(0, 0, -1))
+	lm.set_shader_parameter("half_size", Vector2(gw, gh) * 0.5)
+	# Zielpunkt: Glasmitte exakt auf die Kameraachse legen
+	var lens_c: Vector3 = optic_mount + Vector3(0, gy, gz)
+	ads_pos = Vector3(-lens_c.x, -lens_c.y, -ads_eye_dist - lens_c.z)
+
+## Offenes Reflexvisier-Gehäuse (AK / Gewehr).
+func _build_reflex_body(o: Node3D, gw: float, gh: float, gy: float, gz: float, fr: float) -> void:
 	# Klemmfuß + Riser
 	_optic_box(o, Vector3(0.032, 0.008, 0.052), Vector3(0, 0.004, 0.0))
 	_optic_box(o, Vector3(0.026, 0.014, 0.046), Vector3(0, 0.015, 0.0))
@@ -1012,7 +1201,8 @@ func _build_red_dot() -> void:
 	knob.height = 0.007
 	_optic_part(o, knob, Vector3(0.019, 0.004, 0.006), Vector3(0, 0, 90), _optic_mat)   # Klemmschraube
 	# Emitter-Gehäuse hinten (Batterie seitlich)
-	_optic_box(o, Vector3(0.024, 0.008, 0.016), Vector3(0, 0.026, 0.017))
+	# (so tief, dass es beim Zielen nicht ins Glas ragt)
+	_optic_box(o, Vector3(0.03, 0.008, 0.016), Vector3(0, 0.017, 0.017))
 	var batt := CylinderMesh.new()
 	batt.top_radius = 0.0075
 	batt.bottom_radius = 0.0075
@@ -1025,17 +1215,6 @@ func _build_red_dot() -> void:
 	for sx: float in [-1.0, 1.0]:
 		_optic_box(o, Vector3(fr, gh + 0.004, 0.006), Vector3(sx * (gw + fr) * 0.5, gy + 0.001, gz + 0.001), Vector3(-4, 0, 0))
 	_optic_box(o, Vector3(gw + fr * 2.0, fr, 0.007), Vector3(0, y_top + fr * 0.5 + 0.001, gz), Vector3(-4, 0, 0))
-	# Glas (leicht nach hinten geneigt)
-	var q := QuadMesh.new()
-	q.size = Vector2(gw, gh)
-	_optic_lens = _optic_part(o, q, Vector3(0, gy, gz), Vector3(-3.0, 0, 0), _lens_mat)
-	_optic_lens.sorting_offset = 1.0
-	# Punkt-Achse im Glas-Objektraum = Waffenachse (-Z des Pivots)
-	_lens_mat.set_shader_parameter("axis_local", _optic_lens.basis.inverse() * Vector3(0, 0, -1))
-	_lens_mat.set_shader_parameter("half_size", Vector2(gw, gh) * 0.5)
-	# Zielpunkt: Glasmitte exakt auf die Kameraachse legen
-	var lens_c: Vector3 = optic_mount + Vector3(0, gy, gz)
-	ads_pos = Vector3(-lens_c.x, -lens_c.y, -ads_eye_dist - lens_c.z)
 
 func _build_rifle_primitive() -> void:
 	_box(Vector3(0.056, 0.088, 0.32), Vector3(0, 0, -0.05), _metal_mat)             # Gehäuse
@@ -1150,7 +1329,7 @@ func _build_muzzle_flash() -> void:
 		_flash_mat.no_depth_test = true
 	_flash_mesh = MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(0.28, 0.28) if model_kind == "rifle" else Vector2(0.16, 0.16)
+	q.size = Vector2(0.16, 0.16) if model_kind == "pistol" else (Vector2(0.6, 0.6) if is_launcher() else Vector2(0.28, 0.28))
 	_flash_mesh.mesh = q
 	_flash_mesh.material_override = _flash_mat
 	_flash_mesh.layers = VIEW_LAYER_BIT

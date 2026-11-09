@@ -145,7 +145,7 @@ func _range_test() -> void:
 	await _wait(1.5)
 	player.ext.weapon = 1
 	await _wait(0.7)
-	_check("rifle back", player.get_status().weapon == "rifle")
+	_check("rifle back", player.get_status().weapon == "g36c")
 	# Slide
 	await _home()
 	player.ext.move = Vector2(0, 1)

@@ -228,3 +228,48 @@ Alle Assets von **Poly Haven** (https://polyhaven.com), Lizenz **CC0 1.0**, unve
 | `assets/environment/street/models/` (covered_car, street_lamp_01, fire_hydrant, water_manhole_cover, utility_box_02, power_box_01, exterior_aircon_unit, trashbag, metal_trash_can, cardboard_box_01, rusted_wheel_rim_01, old_tyre, concrete_road_barrier, rollershutter_door, security_light) | Poly Haven Modelle, https://polyhaven.com/models (jeweils https://polyhaven.com/a/<name>), 1k-glTF | CC0 |
 | `assets/environment/decals/` (Einschüsse, Ruß, Risse, Flicken, Pfützen, Papier, Gully, Farbe) | Selbst prozedural erzeugt (Python/Pillow) | CC0 |
 | `assets/environment/facade/facade.gdshader`, `game/vfx/shaders/post_fx.gdshader`, `window_interior.gdshader` (Interior Mapping) | Selbst geschrieben | CC0 |
+
+## Sprachausgabe (Vertonung aller Funk-/Story-Zeilen)
+
+| Datei | Quelle / Bearbeitung | Lizenz |
+|---|---|---|
+| `assets/voice/*.ogg`, `assets/sfx/intro_vo*.wav`, `tools/voice_samples/` | Synthetisch erzeugt mit **Chatterbox Multilingual** (Resemble AI), https://github.com/resemble-ai/chatterbox, Modell https://huggingface.co/ResembleAI/chatterbox – per Voice-Cloning aus den unten genannten freien Referenzaufnahmen; Funk-/Lautsprecher-/Hall-Effekte selbst programmiert (`tools/gen_voice.py`). Chatterbox versieht die Ausgabe mit einem unhörbaren Wasserzeichen (Perth). | Modell/Code: MIT; erzeugte Audiodateien: CC0 (eigene Bearbeitung), Stimmen siehe unten |
+| Stimme **Hauptmann Weber** (Referenz `tools/voice_refs/weber.wav`) | Thorsten-Voice „TV-2022.10-Neutral“ von Thorsten Müller, https://www.thorsten-voice.de, https://huggingface.co/datasets/Thorsten-Voice/TV-44kHz-Full | CC0 |
+| Stimmen **Lena Aksoy, Jonas Kerner, Gen. Albrecht von Riedhammer, Rednerin, Lagebericht** (Referenzen `tools/voice_refs/lena.wav`, `kerner.wav`, `riedhammer.wav`, `rednerin.wav`, `lage.wav`) | CML-TTS German (Oliveira et al., 2023), https://huggingface.co/datasets/freds0/cml_tts_dataset_german – Sprecher-IDs 8450, 91, 4911, 1593, 7002 (Lesungen aus LibriVox/Multilingual LibriSpeech, LibriVox-Aufnahmen sind gemeinfrei). Die Figuren haben mit den Sprecherinnen und Sprechern nichts zu tun. | CC-BY 4.0 (Namensnennung: CML-TTS, Oliveira et al.; LibriVox-Sprecher) |
+| Qualitätskontrolle beim Erzeugen (nicht im Spiel) | Whisper large-v3-turbo (OpenAI), https://huggingface.co/openai/whisper-large-v3-turbo | MIT |
+| Bisherige Piper-Stimme (nur noch `tools/piper/`, Babble im Intro) | Piper TTS, Stimme „thorsten“ | MIT / CC0 |
+
+## Gegner-Barks (Kampfrufe russischer Soldaten und der „Ordnungsfront“)
+
+| Datei | Quelle / Bearbeitung | Lizenz |
+|---|---|---|
+| `assets/voice/barks/*.ogg`, `tools/voice_samples/barks/` | Synthetisch erzeugt mit **Chatterbox Multilingual** (Resemble AI, https://github.com/resemble-ai/chatterbox, Modell https://huggingface.co/ResembleAI/chatterbox; Russisch `language_id="ru"`, Deutsch `"de"`) per Voice-Cloning aus den unten genannten freien Referenzen; Trimmung, Kompression, Tonhöhen-Versatz je Stimme und leichter Funk-Effekt (Offiziersbefehle) selbst programmiert (`tools/gen_barks.py`). Texte selbst geschrieben. Chatterbox-Wasserzeichen (Perth) enthalten. | Modell/Code: MIT; erzeugte Audiodateien: CC0 (eigene Bearbeitung), Stimmen siehe unten |
+| Russische Stimmen `ru_v1`–`ru_v5`, `ru_off` (Referenzen `tools/voice_refs/bark_ru_*.wav`) | Google **FLEURS** (Conneau et al., 2022), Sprache ru_ru, https://huggingface.co/datasets/google/fleurs – je ein Clip aus dem Train-Split (Dateien `6070315263568956937.wav`, `4627039069170210682.wav`, `15597926945427512812.wav`, `10463014390435637574.wav`, `3949639651547107576.wav`, `5591603984983668316.wav`; FLEURS hat keine Sprecher-IDs). Die Figuren haben mit den Sprechern nichts zu tun. | CC-BY 4.0 (Namensnennung: Google, FLEURS) |
+| Deutsche Stimmen `reich_v1`–`reich_v3`, `reich_off` (Referenzen `tools/voice_refs/bark_reich_*.wav`) | CML-TTS German (Oliveira et al., 2023), https://huggingface.co/datasets/freds0/cml_tts_dataset_german – Sprecher-IDs 5295, 3052, 138, 4001 (LibriVox-Lesungen). Die Figuren haben mit den Sprechern nichts zu tun. | CC-BY 4.0 (Namensnennung: CML-TTS, Oliveira et al.; LibriVox-Sprecher) |
+| Qualitätskontrolle (nicht im Spiel) | Whisper large-v3-turbo (OpenAI), Transkription mit `language="ru"` bzw. `"de"` | MIT |
+
+## Rauch-Texturen (Runde fx2)
+
+| Datei | Quelle / Bearbeitung | Lizenz |
+|---|---|---|
+| `assets/vfx/smoke_flipbook.png` | Selbst prozedural erzeugt mit `assets/vfx/gen_smoke.py` (Python/numpy/Pillow): 8x8-Flipbook à 256 px, schlierige, ausgefranste Rauchwolken aus domain-gewarptem 3D-fBm-Noise mit weicher Hüllkurve; Kanäle A = Dichte, B = geglättete Dichte, RG = Normale. Ersetzt die Version aus `assets/vfx/gen_smoke.gd` (128 px, Skript entfernt). | CC0 |
+| `assets/vfx/smoke_detail.png` | Selbst prozedural erzeugt mit `assets/vfx/gen_smoke.py`: kachelbares Detail-Noise (RG = Curl-Verzerrung, B = feines Billow-Noise, A = fBm) für die animierte Detail-Schicht im Rauch-Shader. | CC0 |
+
+## Waffen Runde weapons2 (G36C, AK-74M, Panzerfaust 3, Pickups)
+
+| Datei | Quelle / Bearbeitung | Lizenz |
+|---|---|---|
+| G36C-Viewmodel und -Bodenmodell (`game/weapons/gun_models.gd`, `build_g36c`) | Eigene Arbeit: prozedural aus Extrusions-/Drehprofilen (Tragegriff mit Schiene, Klappschaft, durchscheinendes Magazin, PBR-Materialien) | CC0 |
+| Panzerfaust 3 und Rakete (`gun_models.gd`, `build_pzf`/`build_rocket`) | Eigene Arbeit, prozedural | CC0 |
+| `assets/weapons/ak47/ak47.glb` (AK-74M-Viewmodel) | "High Poly AK-47" von Lamoot, https://opengameart.org/content/high-poly-ak-47; Materialien im Spiel ersetzt (Metall/Polymer/Magazin), skaliert | CC0 |
+| Munitionskisten, Munitionskästen (`game/pickups/pickup.gd`) | Eigene Arbeit, prozedural | CC0 |
+| `assets/sfx/rocket_launch.wav`, `rocket_fly.wav`, `shell_drop.wav`, `ammo_pickup.wav` | Synthetisch erzeugt mit `tools/gen_weapon_sfx.py` (numpy/scipy: gefiltertes Rauschen, Sinus-Moden) | CC0 |
+
+## Waffen Runde weapons3 (G36C/Panzerfaust-Aufwertung, Holo-Visier, Kisten)
+
+Suche nach freien Modellen (CC0/CC-BY/CC-BY-SA, Download ohne Login): BlendSwap #5788 "FPS Assault Rifle" (G36C, CC-BY) nur mit Login; OpenGameArt/Poly Pizza ohne brauchbare G36C bzw. Panzerfaust 3 (nur stilisierte Low-Poly-Werfer); itch.io-Seite nicht abrufbar. Deshalb wurde **kein externes Asset** übernommen.
+
+| Datei | Quelle / Bearbeitung | Lizenz |
+|---|---|---|
+| G36C, Holo-Visier (EOTech-Stil, `build_holo`), Panzerfaust 3, Rakete, Munitionskisten, Munitionskasten (`game/weapons/gun_models.gd`) | Eigene Arbeit, komplett prozedural: Profile mit abgerundeten Ecken, mit runder Fase extrudiert, Drehkörper, 30 Einzelpatronen im transluzenten Magazin; fiktive Beschriftungen (keine Herstellermarken) | CC0 |
+| `game/weapons/gun_surface.gdshader` | Eigene Arbeit: triplanare Mikrostruktur aus Godot-`NoiseTexture2D`, Kantenabnutzung aus Vertexfarben, Rauheits-/Farbvariation | CC0 |

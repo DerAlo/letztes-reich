@@ -2,13 +2,15 @@ extends CanvasLayer
 class_name StoryUI
 ## Story-Overlay: Funk-Untertitel (Warteschlange), Missionsziel oben links, Letterbox-Balken.
 ## Hoert auf Events.story_radio / story_objective / story_cinematic. Wird von main.gd instanziiert.
+## Sprachausgabe: zu jeder Zeile wird res://assets/voice/<voice_id>.ogg abgespielt (falls vorhanden; erzeugt mit
+## tools/gen_voice.py). Die Anzeigedauer verlaengert sich auf Audiolaenge + VOICE_TAIL. Fehlt die Datei: stumm wie bisher.
 
 const SPEAKER_COLORS := {
 	"Weber": Color(0.55, 0.78, 1.0),
 	"Aksoy": Color(0.38, 0.92, 0.74),
 	"Lena": Color(0.38, 0.92, 0.74),
 	"Kerner": Color(1.0, 0.9, 0.42),
-	"Hagen": Color(1.0, 0.64, 0.16),
+	"Riedhammer": Color(1.0, 0.64, 0.16),
 	"Ordnungsfront": Color(1.0, 0.64, 0.16),
 	"Lautsprecher": Color(1.0, 0.64, 0.16),
 }
@@ -16,6 +18,9 @@ const DEFAULT_COLOR := Color(0.78, 0.8, 0.82)
 const SFX_ON := "res://assets/sfx/story_radio_on.ogg"
 const SFX_OFF := "res://assets/sfx/story_radio_off.ogg"
 const SFX_TYPE := "res://assets/sfx/story_type.ogg"
+const VOICE_DIR := "res://assets/voice/"
+const VOICE_TAIL := 0.3
+const VOICE_DB := 0.0
 
 var _queue: Array = []
 var _showing: bool = false
@@ -27,12 +32,17 @@ var _obj_text: Label
 var _bar_top: ColorRect
 var _bar_bot: ColorRect
 var _audio: AudioStreamPlayer
+var _voice: AudioStreamPlayer
 var _streams: Dictionary = {}
+var _tween: Tween
 var _cinematic: bool = false
+var _clock: float = 0.0          # Spielzeit (pausiert mit, skaliert mit time_scale) fuer die Verzugs-Messung
+var max_lag: float = 0.0         # groesster Verzug einer Zeile zwischen Signal und Anzeige (Diagnose)
 
 func _ready() -> void:
 	layer = 20
 	process_mode = Node.PROCESS_MODE_PAUSABLE   # friert im Pausemenue mit ein
+	add_to_group(&"story_ui")
 	_build()
 	Events.story_radio.connect(_on_radio)
 	Events.story_objective.connect(_on_objective)
@@ -94,6 +104,13 @@ func _build() -> void:
 	_audio.bus = "SFX"
 	_audio.volume_db = -6.0
 	add_child(_audio)
+	_voice = AudioStreamPlayer.new()
+	_voice.bus = voice_bus()
+	_voice.volume_db = VOICE_DB
+	add_child(_voice)
+
+func _process(delta: float) -> void:
+	_clock += delta
 
 func _bar(top: bool) -> ColorRect:
 	var r := ColorRect.new()
@@ -133,18 +150,47 @@ static func speaker_color(speaker: String) -> Color:
 			return SPEAKER_COLORS[k]
 	return DEFAULT_COLOR
 
+## Stabile ID einer gesprochenen Zeile (identisch mit tools/voice_lines.py: sha1(speaker|text)[:12]).
+static func voice_id(speaker: String, text: String) -> String:
+	return (speaker + "|" + text).sha1_text().substr(0, 12)
+
+## Vertonung einer Zeile laden (null, wenn es keine gibt).
+static func voice_stream(speaker: String, text: String) -> AudioStream:
+	if "--no-voice" in OS.get_cmdline_user_args():   # Diagnose: Timing ohne Sprachausgabe vergleichen
+		return null
+	var path := VOICE_DIR + voice_id(speaker, text) + ".ogg"
+	return load(path) as AudioStream if ResourceLoader.exists(path) else null
+
+## Eigener Bus "Voice" (mit Ducking von SFX/Ambient), sonst SFX.
+static func voice_bus() -> StringName:
+	return &"Voice" if AudioServer.get_bus_index("Voice") >= 0 else &"SFX"
+
 static func auto_duration(text: String) -> float:
 	return clampf(1.6 + 0.055 * text.length(), 2.5, 8.0)
 
 # ---------------------------------------------------------------- Funk
 
 func _on_radio(speaker: String, text: String, duration: float) -> void:
-	_queue.append([speaker, text, duration if duration > 0.0 else auto_duration(text)])
+	_queue.append([speaker, text, duration if duration > 0.0 else auto_duration(text), _clock])
 	if not _showing:
 		_next()
 
 func clear_queue() -> void:
 	_queue.clear()
+	if _voice != null:
+		_voice.stop()
+
+## Bricht laufende Zeile + Warteschlange ab (z. B. Explosion schneidet Rede/Geplauder ab).
+## Aufruf aus Leveln: get_tree().call_group(&"story_ui", &"interrupt")
+func interrupt() -> void:
+	_queue.clear()
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
+	if _voice != null:
+		_voice.stop()
+	_showing = false
+	var tw := create_tween()
+	tw.tween_property(_panel, "modulate:a", 0.0, 0.12)
 
 func _next() -> void:
 	if _queue.is_empty():
@@ -156,11 +202,26 @@ func _next() -> void:
 	var col := speaker_color(speaker).to_html(false)
 	var body := str(e[1]).replace("[", "[lb]")
 	_text.text = ("[b][color=#%s]%s:[/color][/b]  %s" % [col, speaker, body]) if speaker != "" else body
-	_sfx(SFX_ON, -8.0)
+	var dur := float(e[2])
+	var lag := _clock - float(e[3])
+	if lag > max_lag:
+		max_lag = lag
+	if lag > 2.0 and OS.is_debug_build():
+		print("[story] Funkzeile %.1f s verspaetet (Warteschlange %d): %s" % [lag, _queue.size(), str(e[1]).left(48)])
+	var vs := voice_stream(speaker, str(e[1]))
+	if vs != null:
+		# Funk-Klick/Squelch bzw. Lautsprecher-Klang sind in der Datei enthalten -> keine UI-Klicks
+		_voice.stream = vs
+		_voice.play()
+		dur = maxf(dur, vs.get_length() + VOICE_TAIL)
+	else:
+		_sfx(SFX_ON, -8.0)
 	var tw := create_tween()
+	_tween = tw
 	tw.tween_property(_panel, "modulate:a", 1.0, 0.18)
-	tw.tween_interval(float(e[2]))
-	tw.tween_callback(_sfx.bind(SFX_OFF, -10.0))
+	tw.tween_interval(dur)
+	if vs == null:
+		tw.tween_callback(_sfx.bind(SFX_OFF, -10.0))
 	tw.tween_property(_panel, "modulate:a", 0.0, 0.22)
 	tw.tween_interval(0.25)
 	tw.tween_callback(_next)

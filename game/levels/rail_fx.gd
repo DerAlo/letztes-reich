@@ -167,8 +167,8 @@ func smoke_column(pos: Vector3) -> void:
 		"smoke_color": Color(0.03, 0.028, 0.026),
 		"smoke_color_end": Color(0.2, 0.17, 0.15),
 		"color_shift": 1.2,
-		"density": 1.5,
-		"erosion": 0.3,
+		"density": 2.0,
+		"erosion": 0.2,
 		"frame_span": 6.0,
 		"soft_dist": 3.0,
 		"glow": 1.2,
@@ -176,7 +176,7 @@ func smoke_column(pos: Vector3) -> void:
 		"glow_color": Color(1.0, 0.42, 0.12),
 		"glow_origin_y": pos.y - 2.0,
 	})
-	var p := VfxLib.make_particles(90, 20.0, sp, VfxLib.quad(1.0), mat)
+	var p := VfxLib.make_particles(130, 20.0, sp, VfxLib.quad(1.0), mat)
 	p.one_shot = false
 	p.explosiveness = 0.0
 	p.randomness = 0.3
@@ -253,7 +253,7 @@ func rocket(from: Vector3, to: Vector3, time: float, callback: Callable) -> void
 	sp.scale_curve = VfxLib.smooth_curve_tex([[0.0, 0.5], [1.0, 3.0]])
 	sp.color_ramp = VfxLib.smoke_alpha_ramp(0.8, 0.05, 0.4)
 	var trail := VfxLib.make_particles(70, 3.5, sp, VfxLib.quad(1.0), VfxLib.smoke_mat({
-		"smoke_color": Color(0.5, 0.48, 0.45), "smoke_color_end": Color(0.7, 0.66, 0.6), "density": 1.0, "soft_dist": 0.4}, true))
+		"smoke_color": Color(0.5, 0.48, 0.45), "smoke_color_end": Color(0.7, 0.66, 0.6), "density": 1.4, "soft_dist": 0.4}, true))
 	trail.one_shot = false
 	trail.explosiveness = 0.0
 	trail.emitting = true

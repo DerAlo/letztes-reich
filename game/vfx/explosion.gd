@@ -105,11 +105,11 @@ func _build() -> void:
 	_fire_body.name = "FireBody"
 	add_child(_fire_body)
 
-	# --- Rauch -------------------------------------------------------------
+	# --- Rauch (fx2: mehr Partikel, schlieriges Flipbook, weniger Deckkraft je Partikel) -------------------------------------------------------------
 	_pm["smoke_col"] = _make_pm()
 	var sc := Vector3(smoke_color.r, smoke_color.g, smoke_color.b)
-	_smoke_col = VfxLib.make_particles(44, 8.0, _pm["smoke_col"], quad, VfxLib.smoke_mat({"smoke_color": sc, "smoke_color_end": Vector3(0.24, 0.235, 0.23), "color_shift": 1.1,
-		"glow": 2.6, "glow_decay": 3.0, "density": smoke_density * 1.0, "erosion": 0.4, "frame_span": 8.0, "soft_dist": 1.0}, true))
+	_smoke_col = VfxLib.make_particles(60, 8.0, _pm["smoke_col"], quad, VfxLib.smoke_mat({"smoke_color": sc, "smoke_color_end": Vector3(0.24, 0.235, 0.23), "color_shift": 1.1,
+		"glow": 2.6, "glow_decay": 3.0, "density": smoke_density * 1.5, "erosion": 0.3, "frame_span": 8.0, "soft_dist": 1.0}, true))
 	_smoke_col.explosiveness = 0.7
 	_smoke_col.randomness = 0.3
 	_smoke_col.name = "SmokeColumn"
@@ -117,8 +117,8 @@ func _build() -> void:
 	add_child(_smoke_col)
 
 	_pm["smoke_cap"] = _make_pm()
-	_smoke_cap = VfxLib.make_particles(38, 7.0, _pm["smoke_cap"], quad, VfxLib.smoke_mat({"smoke_color": sc * 1.15, "smoke_color_end": Vector3(0.27, 0.265, 0.26), "color_shift": 1.0,
-		"glow": 1.2, "glow_decay": 3.0, "density": smoke_density * 0.95, "erosion": 0.4, "frame_span": 8.0, "soft_dist": 1.0}, true))
+	_smoke_cap = VfxLib.make_particles(52, 7.0, _pm["smoke_cap"], quad, VfxLib.smoke_mat({"smoke_color": sc * 1.15, "smoke_color_end": Vector3(0.27, 0.265, 0.26), "color_shift": 1.0,
+		"glow": 1.2, "glow_decay": 3.0, "density": smoke_density * 1.4, "erosion": 0.3, "frame_span": 8.0, "soft_dist": 1.0}, true))
 	_smoke_cap.explosiveness = 0.9
 	_smoke_cap.randomness = 0.3
 	_smoke_cap.name = "SmokeCap"
@@ -126,8 +126,8 @@ func _build() -> void:
 	add_child(_smoke_cap)
 
 	_pm["smoke_low"] = _make_pm()
-	_smoke_low = VfxLib.make_particles(26, 10.0, _pm["smoke_low"], quad, VfxLib.smoke_mat({"smoke_color": Vector3(0.07, 0.065, 0.06), "smoke_color_end": Vector3(0.3, 0.29, 0.27), "color_shift": 0.9,
-		"glow": 1.6, "glow_decay": 3.0, "density": 0.85 * smoke_density, "erosion": 0.35, "frame_span": 9.0, "soft_dist": 1.2}, true))
+	_smoke_low = VfxLib.make_particles(36, 10.0, _pm["smoke_low"], quad, VfxLib.smoke_mat({"smoke_color": Vector3(0.07, 0.065, 0.06), "smoke_color_end": Vector3(0.3, 0.29, 0.27), "color_shift": 0.9,
+		"glow": 1.6, "glow_decay": 3.0, "density": 1.25 * smoke_density, "erosion": 0.28, "frame_span": 9.0, "soft_dist": 1.2}, true))
 	_smoke_low.explosiveness = 0.6
 	_smoke_low.randomness = 0.4
 	_smoke_low.name = "SmokeLow"
@@ -136,7 +136,7 @@ func _build() -> void:
 
 	# --- Staubring ---------------------------------------------------------
 	_pm["dust"] = _make_pm()
-	_dust = VfxLib.make_particles(30, 4.0, _pm["dust"], quad, VfxLib.smoke_mat({"smoke_color": Vector3(0.3, 0.27, 0.23), "smoke_color_end": Vector3(0.4, 0.37, 0.33), "density": 0.75, "glow": 0.0,
+	_dust = VfxLib.make_particles(40, 4.0, _pm["dust"], quad, VfxLib.smoke_mat({"smoke_color": Vector3(0.3, 0.27, 0.23), "smoke_color_end": Vector3(0.4, 0.37, 0.33), "density": 1.1, "glow": 0.0,
 		"soft_dist": 0.6, "erosion": 0.45, "frame_span": 5.0, "self_shadow": 0.35}, true))
 	_dust.name = "DustRing"
 	add_child(_dust)

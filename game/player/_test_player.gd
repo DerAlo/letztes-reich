@@ -133,7 +133,7 @@ func _run() -> void:
 	_check("pistol fires", _fired > f2, "shots=%d" % (_fired - f2))
 	player.ext.weapon = 1
 	await _wait(0.6)
-	_check("switch back rifle", player.get_status().weapon == "rifle")
+	_check("switch back rifle", player.get_status().weapon == "g36c")
 
 	# 4. Granate
 	var g0: int = player.grenades

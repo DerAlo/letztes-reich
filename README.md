@@ -29,10 +29,11 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 5
 | Linksklick / Rechtsklick | Schießen / Zielen |
 | Shift | Sprinten |
 | Leertaste | Springen, an Kanten hochklettern |
-| C (lang: hinlegen), Z | Ducken, Hinlegen |
-| Shift + C | Rutschen |
-| R / G / E | Nachladen / Granate / Benutzen |
-| 1 / 2, Mausrad, Q | Gewehr / Pistole, Waffe wechseln, letzte Waffe |
+| C / Strg (halten) / Z | Ducken umschalten / geduckt bleiben / Hinlegen umschalten |
+| Shift + C | Rutschen (endet geduckt; Springen oder Sprinten richtet auf) |
+| R / G | Nachladen / Granate |
+| E | Waffe aufnehmen (tauscht die Primärwaffe), Munitionskiste benutzen |
+| 1 / 2 / 3, Mausrad, Q | Primärwaffe / Pistole / Panzerfaust, Waffe wechseln, letzte Waffe |
 | Esc | Pause (Intro: Leertaste/Esc überspringt) |
 
 ## Entwicklung

@@ -248,7 +248,7 @@ func _make_trail(local: Vector3, size: float, alpha: float) -> GPUParticles3D:
 	pm.scale_max = size * 1.4
 	pm.scale_curve = VfxLib.smooth_curve_tex([[0.0, 0.4], [0.2, 1.0], [1.0, 4.0]])
 	pm.color_ramp = VfxLib.smoke_alpha_ramp(alpha, 0.05, 0.4)
-	var mat := VfxLib.smoke_mat({"smoke_color": Color(0.75, 0.77, 0.8), "smoke_color_end": Color(0.6, 0.62, 0.66), "density": 0.5, "glow": 0.0, "soft_dist": 0.5}, true)
+	var mat := VfxLib.smoke_mat({"smoke_color": Color(0.75, 0.77, 0.8), "smoke_color_end": Color(0.6, 0.62, 0.66), "density": 0.75, "glow": 0.0, "soft_dist": 0.5}, true)
 	var p := VfxLib.make_particles(260, 2.6, pm, VfxLib.quad(1.0), mat)
 	p.one_shot = false
 	p.explosiveness = 0.0

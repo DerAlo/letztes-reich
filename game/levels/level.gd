@@ -68,6 +68,8 @@ func _ready() -> void:
 	_build_set_piece_geometry()
 	_build_skyline()
 	_build_atmosphere()
+	# Deckungs-Props: enge Kollision (Layer 1) aus der Optik, alte Boxen -> Layer 5 (move_block); Navmesh backt beide
+	PropCollision.fit_tree(self)
 	_bake_nav()
 	# Navigation-Map braucht ein/zwei Physikframes, bevor Gegner Pfade finden.
 	var map: RID = world.get_navigation_map()
@@ -358,15 +360,20 @@ func _build_markers() -> void:
 	add_child(m)
 	var ps := Geo.marker(m, Vector3(0, 0.1, 5.0), "player_spawn")
 	ps.name = "PlayerSpawn"
+	if level_name == "test_range":
+		# Schießstand: Panzerfaust-Set, AK-74M und Munitionskiste neben dem Start
+		Pickup.place_pzf_set(self, Vector3(2.2, 0.0, 2.0), 90.0)
+		Pickup.place_ammo_crate(self, Vector3(-2.4, 0.0, 2.5), 90.0)
+		(func() -> void: Pickup.spawn_weapon(self, Vector3(1.6, 0.0, -1.0), "ak74m", 30, 60, 20.0)).call_deferred()
 	# Gegner: [typ, welle, x, y, z]
 	var spawns: Array = [
 		["rifleman", 0, 3.4, 0.05, -33.5], ["rifleman", 0, -3.0, 0.05, -29.5],
 		["rifleman", 0, -14.0, 0.05, -43.0], ["rifleman", 0, 6.0, 0.05, -50.0],
 		["rifleman", 1, -4.0, 0.05, -102.0], ["rifleman", 1, 5.4, 0.05, -95.0],
-		["rifleman", 1, 6.5, 0.05, -115.0], ["heavy", 1, 1.5, 0.05, -108.0],
+		["marksman", 1, 6.5, 0.05, -115.0], ["heavy", 1, 1.5, 0.05, -108.0],
 		["drone", 1, 0.0, 6.0, -112.0],
-		["rifleman", 2, -5.0, 0.05, -145.0], ["rifleman", 2, 5.0, 0.05, -149.0],
-		["rifleman", 2, -2.0, 0.05, -166.0], ["heavy", 2, 0.5, 0.05, -158.0],
+		["rifleman", 2, -5.0, 0.05, -145.0], ["assault", 2, 5.0, 0.05, -149.0],
+		["officer", 2, -2.0, 0.05, -166.0], ["heavy", 2, 0.5, 0.05, -158.0],
 		["drone", 2, -5.0, 7.0, -150.0], ["drone", 2, 5.0, 8.0, -162.0],
 	]
 	for i in spawns.size():
@@ -644,7 +651,7 @@ func _bake_nav() -> void:
 	nm.cell_height = 0.25
 	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nm.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
-	nm.geometry_collision_mask = 1
+	nm.geometry_collision_mask = 1 | 16   # world + move_block (= alles, woran Player/Gegner haengen)
 	nm.filter_baking_aabb = AABB(Vector3(-27.0, -1.0, end_z - 12.0), Vector3(54.0, 15.0, 15.0 - end_z + 12.0))
 	world.navigation_mesh = nm
 	world.bake_navigation_mesh(false)

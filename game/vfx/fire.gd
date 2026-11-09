@@ -19,6 +19,7 @@ const VfxLib = preload("res://game/vfx/vfx_lib.gd")
 var _flames: GPUParticles3D
 var _smoke: GPUParticles3D
 var _smoke_mat: ShaderMaterial
+var _fog_mat: FogMaterial
 var _embers: GPUParticles3D
 var _light: OmniLight3D
 var _noise := FastNoiseLite.new()
@@ -70,6 +71,8 @@ func _build() -> void:
 		_smoke = _build_smoke(s)
 		add_child(_smoke)
 		_smoke_mat.set_shader_parameter("glow_origin_y", global_position.y + 0.2 * s)
+		if smoke_height >= 2.5:
+			_build_smoke_fog(s)
 
 	if embers_enabled:
 		var ep := ParticleProcessMaterial.new()
@@ -124,10 +127,10 @@ func _build_smoke(s: float) -> GPUParticles3D:
 	sp.gravity = Vector3(0, 0.18 * s, 0) + VfxLib.WIND * (0.35 + 0.12 * h) * sqrt(s)
 	sp.damping_min = 0.05
 	sp.damping_max = 0.15
-	sp.scale_min = 2.2 * s
-	sp.scale_max = 3.4 * s
+	sp.scale_min = 2.0 * s
+	sp.scale_max = 3.3 * s
 	sp.scale_curve = VfxLib.smooth_curve_tex([[0.0, 0.4], [0.2, 0.8], [1.0, 1.6 + 0.45 * h]])
-	sp.color_ramp = VfxLib.smoke_alpha_ramp(1.0, 0.08, 0.7)
+	sp.color_ramp = VfxLib.smoke_alpha_ramp(1.0, 0.16, 0.6)
 	sp.turbulence_enabled = true
 	sp.turbulence_noise_strength = 0.35
 	sp.turbulence_noise_scale = 2.4 * s
@@ -138,15 +141,16 @@ func _build_smoke(s: float) -> GPUParticles3D:
 		"smoke_color": Color(0.045, 0.042, 0.04),
 		"smoke_color_end": Color(0.15, 0.147, 0.144),
 		"color_shift": 1.4,
-		"density": 1.35,
-		"erosion": 0.35,
+		"density": 1.6,
+		"erosion": 0.2,
 		"frame_span": 7.0,
 		"soft_dist": 0.8 * s,
-		"glow": 0.8,
-		"glow_height": 1.1 * s,
+		"glow": 0.45,
+		"glow_height": 0.6 * s,
 		"glow_color": Color(1.0, 0.4, 0.12),
 	})
-	var p := VfxLib.make_particles(int(smoke_amount * big), life, sp, VfxLib.quad(1.0), _smoke_mat)
+	# fx2: viele, sehr transparente Partikel (Alpha ~0.05-0.25), die sich weich ueberlagern
+	var p := VfxLib.make_particles(int(smoke_amount * big * 2.4), life, sp, VfxLib.quad(1.0), _smoke_mat)
 	p.one_shot = false
 	p.explosiveness = 0.0
 	p.randomness = 0.25
@@ -190,6 +194,25 @@ func _exit_tree() -> void:
 		_crackle.stream = null
 
 ## Feuer langsam loeschen: Flammen und Licht blenden aus, Rauch laeuft aus.
+## Hohe Rauchsaeulen: zusaetzlich ein weiches, dunkles Fog-Volumen um den unteren/mittleren Teil der
+## Saeule (fuellt die Luecken zwischen den Partikeln mit volumetrischem Dunst; wirkt nur in Leveln mit
+## volumetrischem Nebel, sonst ohne Kosten). Leicht in Windrichtung versetzt.
+func _build_smoke_fog(s: float) -> void:
+	var h := smoke_height
+	var fv := FogVolume.new()
+	fv.shape = RenderingServer.FOG_VOLUME_SHAPE_ELLIPSOID
+	fv.size = Vector3(3.2 * s, 2.6 * h * s, 3.2 * s)
+	_fog_mat = FogMaterial.new()
+	_fog_mat.density = 0.35
+	_fog_mat.albedo = Color(0.12, 0.115, 0.11)
+	_fog_mat.height_falloff = 0.15
+	_fog_mat.edge_fade = 0.9
+	fv.material = _fog_mat
+	var wd := Vector3(VfxLib.WIND.x, 0.0, VfxLib.WIND.z)
+	fv.position = Vector3(0, 1.3 * h * s, 0) + wd * (0.25 * h * s)
+	fv.name = "SmokeFog"
+	add_child(fv)
+
 func extinguish(fade_time: float = 6.0) -> void:
 	if _dying:
 		return
@@ -198,6 +221,8 @@ func extinguish(fade_time: float = 6.0) -> void:
 	tw.tween_property(self, "_intensity", 0.0, fade_time)
 	if _smoke_mat:
 		tw.tween_property(_smoke_mat, "shader_parameter/glow", 0.0, fade_time * 0.6)
+	if _fog_mat:
+		tw.tween_property(_fog_mat, "density", 0.0, fade_time * 1.5)
 	if _crackle:
 		tw.tween_property(_crackle, "volume_db", -60.0, fade_time)
 	tw.tween_callback(func() -> void:

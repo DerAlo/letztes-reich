@@ -4,6 +4,7 @@ extends RefCounted
 
 const Geo = preload("res://game/levels/level_geo.gd")
 const NightProps = preload("res://game/levels/night_props.gd")
+const VfxLib = preload("res://game/vfx/vfx_lib.gd")
 
 const TANK_SCENE := "res://game/vehicles/tank.tscn"
 const HELI_SCENE := "res://game/vehicles/helicopter.tscn"
@@ -287,10 +288,10 @@ static func missile() -> Node3D:
 	var gt := GradientTexture1D.new()
 	gt.gradient = gr
 	pm.color_ramp = gt
-	p.process_material = pm
+	p.process_material = VfxLib.smoke_pm(pm, 14.0)
 	var q := QuadMesh.new()
 	q.size = Vector2(1, 1)
-	q.material = smoke_mat()
+	q.material = VfxLib.smoke_mat({"smoke_color": Color(0.62, 0.6, 0.58), "smoke_color_end": Color(0.48, 0.48, 0.5), "density": 0.9, "glow": 0.0, "soft_dist": 0.5}, true)
 	p.draw_pass_1 = q
 	p.visibility_aabb = AABB(Vector3(-400, -400, -400), Vector3(800, 800, 800))
 	root.add_child(p)

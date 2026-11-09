@@ -262,7 +262,7 @@ func _build_splash_templates() -> void:
 	_splash_pm.color = Color(0.82, 0.86, 0.9)
 	_splash_pm.color_ramp = VfxLib.smoke_alpha_ramp(0.9, 0.05, 0.4)
 	VfxLib.smoke_pm(_splash_pm, 25.0)
-	_splash_mat = VfxLib.smoke_mat({}, true)
+	_splash_mat = VfxLib.smoke_mat({"density": 1.4}, true)  # fx2: Flipbook duenner -> Dichte hoch
 	_mist_pm = ParticleProcessMaterial.new()
 	_mist_pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
 	_mist_pm.emission_ring_axis = Vector3.UP
@@ -282,7 +282,7 @@ func _build_splash_templates() -> void:
 	_mist_pm.color = Color(0.7, 0.74, 0.78)
 	_mist_pm.color_ramp = VfxLib.smoke_alpha_ramp(0.5, 0.1, 0.35)
 	VfxLib.smoke_pm(_mist_pm, 8.0)
-	_mist_mat = VfxLib.smoke_mat({}, true)
+	_mist_mat = VfxLib.smoke_mat({"density": 1.4}, true)
 
 ## Wasserfontaene + Gischtnebel. size ~ 1 (Granate) bis 4 (Brueckenfeld/Hubschrauber).
 func splash(pos: Vector3, size: float = 1.0, sound: bool = true) -> void:

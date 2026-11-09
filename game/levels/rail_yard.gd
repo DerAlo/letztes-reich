@@ -271,15 +271,15 @@ func _build_markers() -> void:
 	var spawns: Array = [
 		# Welle 0: Gleisvorfeld + Stellwerk
 		["rifleman", 0, -3.5, 0.05, -44.0], ["rifleman", 0, 9.5, 0.05, -40.0], ["rifleman", 0, -8.5, 0.05, -52.0],
-		["rifleman", 0, 4.5, 0.05, -62.0], ["rifleman", 0, 22.5, 4.5, -60.0], ["rifleman", 0, -13.5, 0.05, -66.0],
+		["rifleman", 0, 4.5, 0.05, -62.0], ["marksman", 0, 22.5, 4.5, -60.0], ["rifleman", 0, -13.5, 0.05, -66.0],
 		# Welle 1: am Munitionszug
-		["rifleman", 1, -7.5, 0.05, -128.0], ["rifleman", 1, -7.8, 0.05, -140.0], ["rifleman", 1, 4.8, 0.05, -110.0],
+		["rifleman", 1, -7.5, 0.05, -128.0], ["rifleman", 1, -7.8, 0.05, -140.0], ["assault", 1, 4.8, 0.05, -110.0],
 		["rifleman", 1, 9.5, 0.05, -126.0], ["rifleman", 1, 4.5, 0.05, -138.0], ["drone", 1, 0.0, 7.0, -125.0],
 		# Welle 2: Zugende / Hallenvorfeld
-		["rifleman", 2, 4.5, 0.05, -172.0], ["rifleman", 2, -5.0, 0.05, -182.0], ["rifleman", 2, 9.5, 0.05, -180.0],
+		["rifleman", 2, 4.5, 0.05, -172.0], ["officer", 2, -5.0, 0.05, -182.0], ["rifleman", 2, 9.5, 0.05, -180.0],
 		["heavy", 2, -1.0, 0.05, -198.0], ["rifleman", 2, -9.5, 0.05, -205.0],
 		# Welle 3: letzte Stellung unter dem Kran
-		["rifleman", 3, -8.0, 0.05, -250.0], ["rifleman", 3, 5.5, 0.05, -253.0], ["rifleman", 3, 2.5, 0.05, -244.0],
+		["rifleman", 3, -8.0, 0.05, -250.0], ["rifleman", 3, 5.5, 0.05, -253.0], ["assault", 3, 2.5, 0.05, -244.0],
 		["rifleman", 3, -11.0, 0.05, -240.0], ["heavy", 3, 9.0, 0.05, -246.0], ["rifleman", 3, 13.0, 0.05, -238.0],
 		["drone", 3, -4.0, 8.0, -236.0], ["drone", 3, 6.0, 9.0, -242.0],
 	]
@@ -474,7 +474,7 @@ func _bake_nav() -> void:
 	nm.cell_height = 0.25
 	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nm.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
-	nm.geometry_collision_mask = 1
+	nm.geometry_collision_mask = 1 | 16   # world + move_block (= alles, woran Player/Gegner haengen)
 	nm.filter_baking_aabb = AABB(Vector3(-30.0, -2.0, -290.0), Vector3(60.0, 16.0, 304.0))
 	world.navigation_mesh = nm
 	world.bake_navigation_mesh(false)

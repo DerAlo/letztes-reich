@@ -135,7 +135,7 @@ func _build_exhaust() -> void:
 	pm.scale_max = 0.9
 	pm.scale_curve = VfxLib.smooth_curve_tex([[0.0, 0.3], [0.3, 1.0], [1.0, 2.6]])
 	pm.color_ramp = VfxLib.smoke_alpha_ramp(0.5, 0.1, 0.3)
-	var mat := VfxLib.smoke_mat({"smoke_color": Color(0.08, 0.08, 0.08), "smoke_color_end": Color(0.22, 0.22, 0.22), "density": 0.6, "glow": 0.0, "soft_dist": 0.5}, true)
+	var mat := VfxLib.smoke_mat({"smoke_color": Color(0.08, 0.08, 0.08), "smoke_color_end": Color(0.22, 0.22, 0.22), "density": 0.9, "glow": 0.0, "soft_dist": 0.5}, true)
 	_exhaust = VfxLib.make_particles(24, 2.5, pm, VfxLib.quad(1.0), mat)
 	_exhaust.one_shot = false
 	_exhaust.explosiveness = 0.0

@@ -40,7 +40,7 @@ func _build() -> void:
 	_dust_pm.color_ramp = VfxLib.smoke_alpha_ramp(1.0, 0.06, 0.3)
 	_dust_pm.turbulence_enabled = big
 	_dust_pm.turbulence_noise_strength = 0.6
-	_dust_mat = VfxLib.smoke_mat({"smoke_color": Vector3(0.3, 0.27, 0.23), "density": 0.7, "soft_dist": 0.25 if not big else 0.8,
+	_dust_mat = VfxLib.smoke_mat({"smoke_color": Vector3(0.3, 0.27, 0.23), "density": 1.0, "soft_dist": 0.25 if not big else 0.8,
 		"erosion": 0.5, "frame_span": 6.0 if big else 3.0, "self_shadow": 0.35, "near_fade": 0.5 if not big else 1.2}, true)
 	_dust = VfxLib.make_particles(60 if big else 10, 5.5 if big else 1.3, _dust_pm, quad, _dust_mat)
 	_dust.explosiveness = 0.85 if big else 1.0

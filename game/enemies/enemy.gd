@@ -1,6 +1,6 @@
 class_name Enemy
 extends CharacterBody3D
-## Gegner-Basisklasse (Rifleman/Heavy; Drone erbt davon).
+## Gegner-Basisklasse (Rifleman/Heavy/Sturm; Drone, Marksman, Offizier erben davon).
 ## Zustandsmaschine, Sicht, Deckung, faire Treffsicherheit, prozeduraler Koerper, Ragdoll.
 ## Schnittstelle laut CONTRACTS.md: take_damage, is_alive, get_status.
 
@@ -177,6 +177,8 @@ var _cycles_goal: int = 4
 var _flank_target: Vector3 = Vector3.ZERO
 var _advance_time: float = 0.0
 var _fire_los_lost: float = 0.0
+var _grenade_scan: float = 0.0
+var _spotting: bool = false
 
 # Koerper / Animation
 var _visual: Node3D = null
@@ -214,10 +216,12 @@ func _ready() -> void:
 	add_to_group("enemy")
 	add_to_group("damageable")
 	collision_layer = LAYER_ENEMY
-	collision_mask = LAYER_WORLD | LAYER_PLAYER | LAYER_ENEMY
+	collision_mask = LAYER_WORLD | LAYER_PLAYER | LAYER_ENEMY | 16   # 16 = move_block (grobe Bewegungsboxen der Props)
 	_exclude.append(get_rid())
 	_setup_nav()
 	_apply_faction()
+	if enemy_type != "drone":
+		EnemyVoice.assign(self, enemy_type == "officer")
 	_build_body()
 	_cycles_goal = rng.randi_range(peek_cycles_min, peek_cycles_max)
 	if not Events.weapon_fired.is_connected(_on_weapon_fired):
@@ -267,7 +271,7 @@ func take_hit_part(amount: float, source: Node, hit_position: Vector3, hit_norma
 	if health <= 0.0:
 		_die()
 		return
-	_play_sfx("enemy_hurt")
+	_bark("hit")
 	_on_damaged(source, src_pos)
 
 func is_alive() -> bool:
@@ -291,7 +295,8 @@ func alert(pos: Vector3, propagate: bool = true) -> void:
 	_has_last_known = true
 	if state == State.IDLE:
 		_set_state(State.ALERT)
-		_play_sfx("enemy_alert")
+		if _spotting:
+			_bark("spot")
 		_alert_timer = rng.randf_range(reaction_min * 0.5, reaction_max * 0.6)
 		if propagate:
 			_alert_neighbors(pos)
@@ -351,6 +356,10 @@ func _update_perception(delta: float) -> void:
 		_player_vel = _player_vel.lerp(v, clampf(delta * 8.0, 0.0, 1.0))
 	_last_player_pos = ppos
 	_have_last_player_pos = true
+	_grenade_scan -= delta
+	if _grenade_scan <= 0.0:
+		_grenade_scan = 0.3 + rng.randf() * 0.1
+		_scan_grenades()
 	_los_timer -= delta
 	if _los_timer <= 0.0:
 		_los_timer = 0.1 + rng.randf() * 0.05
@@ -487,7 +496,9 @@ func _tick_idle(delta: float) -> void:
 		_notice_acc += delta
 		if _notice_acc >= notice_time:
 			_notice_acc = 0.0
+			_spotting = true
 			alert(_player.global_position, true)
+			_spotting = false
 	else:
 		_notice_acc = maxf(_notice_acc - delta, 0.0)
 
@@ -527,6 +538,7 @@ func _try_take_cover() -> bool:
 		_cover_owner[_cover_node.get_instance_id()] = self
 	_in_cover = false
 	_set_state(State.MOVE_TO_COVER)
+	_bark("cover")
 	return true
 
 func _tick_move_to_cover(delta: float) -> void:
@@ -586,6 +598,7 @@ func _tick_open_attack(delta: float) -> void:
 		_start_burst()
 	# Entscheidungen
 	if _lost_time > 3.5 and _state_time > 1.0:
+		_bark("lost")
 		_set_state(State.FLANK if rng.randf() < 0.5 else State.ADVANCE)
 		_on_enter_move_state()
 		return
@@ -720,6 +733,7 @@ func _enter_advance() -> void:
 	_in_cover = false
 	_release_cover()
 	_set_state(State.ADVANCE)
+	_bark("advance")
 
 func _on_enter_move_state() -> void:
 	if state == State.FLANK:
@@ -734,6 +748,7 @@ func _enter_flank() -> void:
 	_release_cover()
 	_set_state(State.FLANK)
 	_pick_flank_target()
+	_bark("flank")
 
 func _pick_flank_target() -> void:
 	if _player == null:
@@ -1294,7 +1309,8 @@ func _die() -> void:
 	_release_cover()
 	_burst_left = 0
 	Events.enemy_killed.emit(self)
-	_play_sfx("enemy_death")
+	_bark("death")
+	_notify_ally_death()
 	_on_death()
 
 func _on_death() -> void:
@@ -1355,6 +1371,75 @@ func _spawn_ragdoll(explosive: bool) -> void:
 		for ch in node.get_children():  # Weste, Helm, Armbinde ...
 			if ch is GeometryInstance3D:
 				tw.tween_property(ch, "transparency", 1.0, fade_dur).set_delay(fade_start)
+
+# ---------------------------------------------------------------- Stimme / Befehle
+
+## Zuruf ueber EnemyVoice (Drohnen haben keine Stimme).
+func _bark(situation: String, chance_mul: float = 1.0, force: bool = false) -> bool:
+	if not has_meta("voice"):
+		return false
+	return EnemyVoice.bark(self, situation, chance_mul, force)
+
+func _scan_grenades() -> void:
+	if state == State.IDLE:
+		return
+	for g in get_tree().get_nodes_in_group("grenade"):
+		if not (g is Node3D) or g.has_meta("barked"):
+			continue
+		if (g as Node3D).global_position.distance_to(global_position) < 8.0:
+			if _bark("grenade"):
+				g.set_meta("barked", true)
+			return
+
+## Ein Kamerad in der Naehe meldet den Verlust (etwas verzoegert, nicht immer).
+func _notify_ally_death() -> void:
+	var best: Enemy = null
+	var best_d := 26.0
+	for n in get_tree().get_nodes_in_group("enemy"):
+		if n == self or not (n is Enemy) or not n.has_meta("voice"):
+			continue
+		var d := (n as Enemy).global_position.distance_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = n
+	if best == null:
+		return
+	best.on_ally_died(self)
+	var who := best
+	get_tree().create_timer(rng.randf_range(0.6, 1.3)).timeout.connect(func() -> void:
+		if is_instance_valid(who) and who.is_alive():
+			who._bark("mandown"))
+
+## Hook: ein Verbuendeter in der Naehe ist gefallen.
+func on_ally_died(_ally: Enemy) -> void:
+	pass
+
+## Befehl eines Offiziers. kind: "advance" | "flank" | "mark". Gibt true zurueck, wenn befolgt.
+func receive_order(kind: String, pos: Vector3) -> bool:
+	if state == State.DEAD or enemy_type == "drone":
+		return false
+	_last_known = pos
+	_has_last_known = true
+	if state == State.IDLE:
+		alert(pos, false)
+		return kind == "mark"
+	if kind == "mark":
+		return true
+	if state != State.ATTACK or _burst_left > 0:
+		return false
+	if kind == "advance":
+		_enter_advance()
+	else:
+		_enter_flank()
+	return true
+
+## Kurzes Zoegern (z. B. Offizier gefallen): Salve abbrechen, Pause verlaengern.
+func hesitate(seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	_burst_left = 0
+	_pause_timer = maxf(_pause_timer, 0.0) + seconds
+	_alert_timer += seconds * 0.5
 
 # ---------------------------------------------------------------- Sound
 

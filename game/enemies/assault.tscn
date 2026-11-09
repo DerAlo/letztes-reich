@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/enemy.gd" id="1_enemy"]
+
+[node name="Assault" type="CharacterBody3D"]
+script = ExtResource("1_enemy")
+enemy_type = "assault"
+max_health = 70.0
+walk_speed = 2.8
+run_speed = 4.8
+strafe_speed = 1.6
+cover_chance = 0.35
+flank_chance = 0.7
+preferred_distance_min = 6.0
+preferred_distance_max = 12.0
+advance_segment_time = 2.0
+open_attack_max_time = 6.0
+fire_while_moving = true
+damage_per_hit = 5.0
+burst_min = 5
+burst_max = 8
+shot_interval = 0.085
+burst_pause_min = 1.2
+burst_pause_max = 2.2
+type_accuracy = 0.8
+accuracy_near = 0.45
+accuracy_far = 0.03
+accuracy_far_dist = 30.0
+max_hit_chance = 0.4

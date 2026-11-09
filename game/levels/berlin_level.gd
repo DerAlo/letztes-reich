@@ -15,7 +15,7 @@ const SD = preload("res://game/story/story_data.gd")
 const HELI_PATH := "res://game/vehicles/helicopter.tscn"
 const TANK_PATH := "res://game/vehicles/tank.tscn"
 const EMBLEM := "res://assets/environment/berlin/emblem.png"
-const PA := "Lautsprecher (Gen. von Hagen)"
+const PA := "Lautsprecher (Gen. von Riedhammer)"
 const STAGE_SPEAKER := "Rednerin"
 const STAGE := Vector3(0.0, 1.4, -33.5)
 const EXPLODE_AFTER := 9.0
@@ -826,12 +826,12 @@ func _build_markers() -> void:
 	# [typ, welle, x, y, z]
 	var spawns: Array = [
 		["rifleman", 1, -6.0, 0.05, -82.0], ["rifleman", 1, 6.0, 0.05, -86.0], ["rifleman", 1, -12.0, 0.05, -88.0],
-		["rifleman", 1, 11.0, 0.05, -81.0], ["rifleman", 1, 0.0, 0.05, -92.0],
-		["rifleman", 2, -8.0, 0.05, -136.0], ["rifleman", 2, 7.0, 0.05, -143.0], ["rifleman", 2, -11.0, 0.05, -154.0],
+		["rifleman", 1, 11.0, 0.05, -81.0], ["officer", 1, 0.0, 0.05, -92.0],
+		["rifleman", 2, -8.0, 0.05, -136.0], ["rifleman", 2, 7.0, 0.05, -143.0], ["marksman", 2, -11.0, 0.05, -154.0],
 		["rifleman", 2, 10.0, 0.05, -160.0], ["heavy", 2, 0.0, 0.05, -150.0], ["drone", 2, 0.0, 6.0, -140.0],
 		["rifleman", 3, -12.0, 0.05, -224.0], ["rifleman", 3, 14.0, 0.05, -238.0], ["rifleman", 3, -20.0, 0.05, -238.0],
-		["rifleman", 3, 6.0, 0.05, -244.0], ["heavy", 3, -2.0, 0.05, -236.0], ["drone", 3, -8.0, 7.0, -220.0], ["drone", 3, 10.0, 8.0, -228.0],
-		["rifleman", 4, -6.0, 0.05, -273.0], ["rifleman", 4, 7.0, 0.05, -274.0], ["rifleman", 4, -12.0, 0.05, -268.0],
+		["assault", 3, 6.0, 0.05, -244.0], ["heavy", 3, -2.0, 0.05, -236.0], ["drone", 3, -8.0, 7.0, -220.0], ["drone", 3, 10.0, 8.0, -228.0],
+		["assault", 4, -6.0, 0.05, -273.0], ["rifleman", 4, 7.0, 0.05, -274.0], ["rifleman", 4, -12.0, 0.05, -268.0],
 		["heavy", 4, 10.0, 0.05, -275.0],
 	]
 	for i in spawns.size():
@@ -852,6 +852,9 @@ func _build_markers() -> void:
 		w.set_meta("order", i)
 	_trigger("TriggerExplosion", Vector3(0, 3, -14.0), Vector3(40, 6, 1.5), trigger_setpiece)
 	_trigger("Checkpoint0", Vector3(0, 3, -46.0), Vector3(40, 6, 1.5), func() -> void: _checkpoint("cp_feier"))
+	# Panzerfaust gegen Helikopter (Boulevard) und Panzer (Platz) + Munitionskisten
+	Pickup.place_pzf_set(self, Vector3(-5.0, 0.0, -50.0), 90.0)
+	Pickup.place_pzf_set(self, Vector3(-6.0, 0.0, -170.0), 90.0)
 	_trigger("TriggerWave2",Vector3(0, 3, -96.0), Vector3(40, 6, 1.5), func() -> void: _spawn_wave(2))
 	_trigger("Checkpoint1", Vector3(0, 3, -94.0), Vector3(40, 6, 1.5), _on_cp_boulevard)
 	_trigger("TriggerHeli", Vector3(0, 3, -100.0), Vector3(40, 6, 1.5), _spawn_heli)
@@ -937,7 +940,7 @@ func _bake_nav() -> void:
 	nm.cell_height = 0.25
 	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nm.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
-	nm.geometry_collision_mask = 1
+	nm.geometry_collision_mask = 1 | 16   # world + move_block (= alles, woran Player/Gegner haengen)
 	nm.filter_baking_aabb = AABB(Vector3(-35.0, -1.0, -300.0), Vector3(70.0, 15.0, 314.0))
 	world.navigation_mesh = nm
 	world.bake_navigation_mesh(false)
@@ -1007,6 +1010,7 @@ func _explode() -> void:
 	_later(0.35, _blast)
 
 func _blast() -> void:
+	get_tree().call_group(&"story_ui", &"interrupt")   # Explosion schneidet Rede und Geplauder ab
 	VFX.spawn_explosion(STAGE + Vector3(0, 0.6, -1.0), 3.6)
 	VFX.spawn_dust_cloud(STAGE, 8.0)
 	_later(0.25, func() -> void: VFX.spawn_explosion(Vector3(-9.6, 2.0, -31.0), 2.0))

@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/marksman.gd" id="1_marksman"]
+
+[node name="Marksman" type="CharacterBody3D"]
+script = ExtResource("1_marksman")
+enemy_type = "marksman"
+max_health = 55.0
+walk_speed = 2.2
+run_speed = 3.8
+sight_range = 75.0
+cover_chance = 0.9
+flank_chance = 0.0
+preferred_distance_min = 22.0
+preferred_distance_max = 38.0
+hide_time_min = 1.8
+hide_time_max = 3.2
+peek_cycles_min = 4
+peek_cycles_max = 7
+open_attack_max_time = 9.0
+damage_per_hit = 22.0
+burst_min = 1
+burst_max = 1
+burst_pause_min = 3.0
+burst_pause_max = 4.5
+tracer_speed = 220.0
+accuracy_near = 0.7
+accuracy_far = 0.45
+accuracy_far_dist = 60.0
+warmup_floor = 0.3
+max_hit_chance = 0.55
+color_primary = Color(0.22, 0.22, 0.14, 1)

@@ -472,11 +472,11 @@ func _build_markers() -> void:
 	# Gegner: [typ, welle, x, y, z]
 	var spawns: Array = [
 		["rifleman", 0, -8.0, 0.05, -49.0], ["rifleman", 0, 8.5, 0.05, -50.5], ["rifleman", 0, 11.0, 0.05, -30.0],
-		["rifleman", 0, -3.0, 0.05, -60.0], ["rifleman", 0, 2.6, 0.05, -70.0],
+		["rifleman", 0, -3.0, 0.05, -60.0], ["marksman", 0, 2.6, 0.05, -70.0],
 		["rifleman", 1, -3.4, 0.05, -131.0], ["rifleman", 1, 3.6, 0.05, -140.0], ["drone", 1, 0.0, 7.0, -125.0],
-		["rifleman", 2, 3.4, 0.05, -171.0], ["rifleman", 2, -3.0, 0.05, -184.0], ["rifleman", 2, 7.0, 0.05, -201.0],
+		["assault", 2, 3.4, 0.05, -171.0], ["rifleman", 2, -3.0, 0.05, -184.0], ["rifleman", 2, 7.0, 0.05, -201.0],
 		["rifleman", 2, -7.0, 0.05, -199.0], ["heavy", 2, 0.5, 0.05, -197.0],
-		["rifleman", 3, -7.0, 0.05, -250.0], ["rifleman", 3, 7.5, 0.05, -256.0], ["rifleman", 3, -4.0, 0.05, -270.0],
+		["rifleman", 3, -7.0, 0.05, -250.0], ["rifleman", 3, 7.5, 0.05, -256.0], ["officer", 3, -4.0, 0.05, -270.0],
 		["heavy", 3, 3.0, 0.05, -280.0], ["drone", 3, 0.0, 8.0, -262.0], ["rifleman", 3, 8.0, 0.05, -289.0],
 	]
 	for i in spawns.size():
@@ -515,6 +515,10 @@ func _build_markers() -> void:
 	# Weiche Sperre hinter dem Panzer (faellt mit dem Panzer); nicht im Navmesh
 	_gate = Geo.static_body(Vector3(0, 4.0, GATE_Z))
 	_gate.name = "TankGate"
+	# Panzerfaust gegen Helikopter (vor TriggerHeli) und Panzer (am Checkpoint Brücke) + Munitionskiste
+	Pickup.place_pzf_set(self, Vector3(4.5, 0.0, -63.0), 90.0)
+	Pickup.place_pzf_set(self, Vector3(-3.6, 0.0, -110.0), -90.0)
+	Pickup.place_ammo_crate(self, Vector3(-4.5, 0.0, -58.0), 90.0)
 	Geo.add_box_shape(_gate, Vector3.ZERO, Vector3(24.0, 8.0, 1.0))
 	add_child(_gate)
 
@@ -911,7 +915,7 @@ func _bake_nav() -> void:
 	nm.cell_height = 0.25
 	nm.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nm.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
-	nm.geometry_collision_mask = 1
+	nm.geometry_collision_mask = 1 | 16   # world + move_block (= alles, woran Player/Gegner haengen)
 	nm.filter_baking_aabb = AABB(Vector3(-22.0, -2.0, end_z - 8.0), Vector3(44.0, 14.0, 26.0 - end_z + 8.0))
 	world.navigation_mesh = nm
 	world.bake_navigation_mesh(false)

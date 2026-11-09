@@ -6,7 +6,7 @@ extends CharacterBody3D
 ## Yaw/Pitch in Grad; yaw = rotation_degrees.y (Godot-Konvention, + = nach links).
 
 const VIEW_LAYER_BIT: int = 1 << 19
-const RIFLE_SCENE: PackedScene = preload("res://game/weapons/rifle.tscn")
+const RIFLE_SCENE: PackedScene = preload("res://game/weapons/g36c.tscn")
 const PISTOL_SCENE: PackedScene = preload("res://game/weapons/pistol.tscn")
 const GRENADE_SCENE: PackedScene = preload("res://game/weapons/grenade.tscn")
 
@@ -30,7 +30,6 @@ enum Stance { STAND, CROUCH, PRONE }
 @export var prone_eye: float = 0.35
 @export var crouch_rate: float = 7.0          # m/s Höhenänderung Stehen <-> Ducken
 @export var prone_rate: float = 2.4           # m/s Höhenänderung zum/vom Liegen
-@export var prone_hold_time: float = 0.45     # C so lange halten -> hinlegen
 @export var step_height: float = 0.35
 
 @export_group("Slide")
@@ -91,9 +90,10 @@ var external_input: bool = false
 var ext: Dictionary = {
 	"move": Vector2.ZERO, "look": Vector2.ZERO,
 	"fire": false, "aim": false, "sprint": false, "crouch": false,
-	"jump": false, "reload": false, "grenade": false, "prone": false,
+	"jump": false, "reload": false, "grenade": false, "prone": false, "interact": false,
 }
-# optionale Zusatzschlüssel: ext["weapon"] = 1|2 (Waffe wählen, wird zurückgesetzt)
+# optionale Zusatzschlüssel: ext["weapon"] = 1|2|3 (Waffe wählen, wird zurückgesetzt)
+# ext["interact"] = true: Pickup aufnehmen / Kiste benutzen (Flanke, wird zurückgesetzt)
 # Slide: sprint + crouch-Flanke; Mantle: jump vor einer Kante (beides automatisch)
 
 var health: float = 100.0
@@ -139,8 +139,17 @@ var _height_cur: float = 1.8
 var _crouch_amt: float = 0.0      # 0 stehen .. 1 geduckt (aus der Höhe)
 var _prone_amt: float = 0.0       # 0 geduckt .. 1 liegend
 var _prone_latched: bool = false
-var _crouch_hold_t: float = 0.0
-var _slide_crouch_latch: bool = false
+var _crouch_toggle: bool = false      # Tastatur: C schaltet Ducken um
+var _in_crouch_hold: bool = false     # Tastatur: Strg gehalten
+var _prev_sprint_fwd: bool = false
+var _in_interact: bool = false
+var _interact_hint: String = ""
+var _sprint_block: float = 0.0        # Feuern bricht den Sprint ab (Tastatur)
+var _since_sprint: float = 10.0       # Zeit seit Sprint-Ende (Sprint-zu-Feuer)
+var _wall_amt: float = 0.0            # 0..1 Wand direkt vor der Mündung
+var _bot_ammo: bool = false           # Autopilot: Reserve fällt nie unter ein Magazin
+var _pickup_cd: float = 0.0
+var drops: DropManager = null
 var _ads: float = 0.0
 var _sprint_amt: float = 0.0
 var _sprinting: bool = false
@@ -201,7 +210,7 @@ func _ready() -> void:
 	add_to_group("player")
 	add_to_group("damageable")
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 1 | 16         # world + move_block (grobe Bewegungs-Kollision der Props)
 	floor_snap_length = 0.4
 	health = max_health
 	grenades = grenades_start
@@ -240,22 +249,41 @@ func _setup_camera() -> void:
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	var sky := Sky.new()
 	var sm := ProceduralSkyMaterial.new()
-	sm.sky_top_color = Color(0.5, 0.58, 0.7)
-	sm.sky_horizon_color = Color(0.7, 0.72, 0.75)
-	sm.ground_bottom_color = Color(0.25, 0.24, 0.23)
-	sm.ground_horizon_color = Color(0.5, 0.5, 0.5)
+	# Kontrastreicher Himmel (heller Zenit, dunkler Boden): Reflexionen modellieren die Formen,
+	# statt das Viewmodel gleichmaessig grau auszuleuchten.
+	sm.sky_top_color = Color(0.62, 0.7, 0.82)
+	sm.sky_horizon_color = Color(0.78, 0.74, 0.68)
+	sm.sky_curve = 0.12
+	sm.ground_bottom_color = Color(0.05, 0.048, 0.045)
+	sm.ground_horizon_color = Color(0.32, 0.3, 0.28)
+	sm.ground_curve = 0.05
 	sky.sky_material = sm
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 1.0
+	env.ambient_light_energy = 0.6
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	weapon_cam.environment = env
+	# Kante- und Fuelllicht nur fuer das Viewmodel (Layer 20, ohne Schatten, wandert mit der Kamera)
+	_add_view_light("ViewRim", Vector3(-28.0, 155.0, 0.0), Color(0.85, 0.9, 1.0), 0.9, 0.6)
+	_add_view_light("ViewFill", Vector3(-12.0, -35.0, 0.0), Color(1.0, 0.92, 0.82), 0.28, 0.0)
 	weapon_viewport.transparent_bg = true
 	weapon_viewport.msaa_3d = Viewport.MSAA_4X
 	weapon_viewport.own_world_3d = false
 	weapon_viewport.handle_input_locally = false
 	weapon_viewport.gui_disable_input = true
+
+func _add_view_light(n: String, rot_deg: Vector3, col: Color, energy: float, spec: float) -> void:
+	var l := DirectionalLight3D.new()
+	l.name = n
+	l.rotation_degrees = rot_deg
+	l.light_color = col
+	l.light_energy = energy
+	l.light_specular = spec
+	l.light_cull_mask = VIEW_LAYER_BIT
+	l.shadow_enabled = false
+	l.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	weapon_cam.add_child(l)
 
 func _setup_weapons() -> void:
 	for sc in [RIFLE_SCENE, PISTOL_SCENE]:
@@ -268,6 +296,11 @@ func _setup_weapons() -> void:
 	weapon_index = 0
 	weapon = weapons[0]
 	weapon.set_active(true)
+	_bot_ammo = str(Game.arg("autopilot", "")) not in ["", "false", "0"]
+	drops = DropManager.new()
+	drops.name = "DropManager"
+	drops.player = self
+	add_child(drops)
 
 ## Staubwolke an den Füßen beim Rutschen.
 func _build_dust() -> void:
@@ -325,7 +358,8 @@ func _build_dust() -> void:
 
 func _ensure_actions() -> void:
 	var defs := {
-		"weapon_1": KEY_1, "weapon_2": KEY_2, "prone": KEY_Z, "weapon_last": KEY_Q,
+		"weapon_1": KEY_1, "weapon_2": KEY_2, "weapon_3": KEY_3, "prone": KEY_Z, "weapon_last": KEY_Q,
+		"crouch_hold": KEY_CTRL, "interact": KEY_E,
 	}
 	for a in defs:
 		if not InputMap.has_action(a):
@@ -358,6 +392,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pending_weapon = 1
 	elif event.is_action_pressed("weapon_2"):
 		_pending_weapon = 2
+	elif event.is_action_pressed("weapon_3"):
+		_pending_weapon = 3
 	elif event.is_action_pressed("weapon_next"):
 		_pending_weapon = 10
 	elif event.is_action_pressed("weapon_prev"):
@@ -381,6 +417,8 @@ func _read_input() -> void:
 		ext["jump"] = false
 		ext["reload"] = false
 		ext["grenade"] = false
+		_in_interact = _in_interact or bool(ext.get("interact", false))
+		ext["interact"] = false
 		var sel: int = int(ext.get("weapon", 0))
 		if sel != 0:
 			_pending_weapon = sel
@@ -391,11 +429,13 @@ func _read_input() -> void:
 		_in_fire = cap and Input.is_action_pressed("fire")
 		_in_aim = cap and Input.is_action_pressed("aim")
 		_in_sprint = Input.is_action_pressed("sprint")
-		_in_crouch = Input.is_action_pressed("crouch")
+		_in_crouch = cap and Input.is_action_pressed("crouch")
+		_in_crouch_hold = cap and InputMap.has_action("crouch_hold") and Input.is_action_pressed("crouch_hold")
 		_in_jump = cap and Input.is_action_just_pressed("jump")
 		_jump_held = cap and Input.is_action_pressed("jump")
 		_in_reload = cap and Input.is_action_just_pressed("reload")
 		_in_grenade = cap and Input.is_action_just_pressed("grenade")
+		_in_interact = _in_interact or (cap and Input.is_action_just_pressed("interact"))
 	_in_fire_edge = _in_fire and not _prev_fire
 	_prev_fire = _in_fire
 
@@ -531,7 +571,8 @@ func _update_camera(delta: float) -> void:
 	# FOV
 	var target_fov: float = fov_base + fov_sprint_add * _sprint_amt + slide_fov_add * _slide_amt
 	if weapon:
-		target_fov = lerpf(target_fov, weapon.ads_fov, _ads)
+		var ads_e: float = _ads * _ads * (3.0 - 2.0 * _ads)
+		target_fov = lerpf(target_fov, weapon.ads_fov, ads_e)
 	camera.fov = target_fov
 	# Waffen-Kamera folgt der Hauptkamera
 	weapon_cam.global_transform = camera.global_transform
@@ -545,7 +586,7 @@ func _update_camera(delta: float) -> void:
 			"look_rate": _look_rate, "vel_local": vel_local, "ads": _ads, "sprint": _sprint_amt,
 			"bob_phase": _bob_phase, "bob_amt": _wbob, "holster": _holster,
 			"crouch": _crouch_amt, "prone": _prone_amt, "slide": _slide_amt,
-			"mantle": _mantle_amt, "airborne": not grounded and not _mantling,
+			"mantle": _mantle_amt, "airborne": not grounded and not _mantling, "wall": _wall_amt,
 		})
 
 # ================================================================= Physik / Logik
@@ -590,8 +631,9 @@ func _update_movement(delta: float) -> void:
 	# Sprint: nur vorwärts, stehend, am Boden, nicht beim Zielen
 	var moving_fwd: bool = _in_move.y > 0.3
 	var was_sprinting: bool = _sprinting
+	_sprint_block = maxf(0.0, _sprint_block - delta)
 	_sprinting = _in_sprint and moving_fwd and stance == Stance.STAND and not _sliding and not _in_aim \
-			and on_floor and _switch_phase == 0
+			and on_floor and _switch_phase == 0 and _sprint_block <= 0.0
 	if not _sprinting and was_sprinting and not on_floor and not _sliding:
 		_sprinting = was_sprinting     # Sprint in der Luft beibehalten
 	_sprint_amt = move_toward(_sprint_amt, 1.0 if _sprinting else 0.0, delta * 7.0)
@@ -699,46 +741,46 @@ func _update_stance(delta: float, on_floor: bool) -> void:
 	var crouch_edge: bool = _in_crouch and not _prev_crouch_in
 	_prev_crouch_in = _in_crouch
 	var sprint_fwd: bool = _in_sprint and _in_move.y > 0.3
-	# Slide: aus dem Sprint ducken
-	if crouch_edge and not _sliding and stance == Stance.STAND and on_floor and sprint_fwd \
-			and Vector2(velocity.x, velocity.z).length() > walk_speed + 0.5:
-		_start_slide()
-		crouch_edge = false
+	var sprint_edge: bool = sprint_fwd and not _prev_sprint_fwd
+	_prev_sprint_fwd = sprint_fwd
 	if external_input:
+		# Vertrag: ext.crouch ist ein Haltezustand, ext.prone ein Zustand (kein Toggle)
+		if crouch_edge and not _sliding and stance == Stance.STAND and on_floor and sprint_fwd 				and Vector2(velocity.x, velocity.z).length() > walk_speed + 0.5:
+			_start_slide()
 		_prone_latched = bool(ext.get("prone", false))
-		_slide_crouch_latch = false
+		_crouch_toggle = false
+		if stance == Stance.PRONE and not _prone_latched:
+			_in_jump = false
 	else:
+		# C = Ducken umschalten (Sprint + C = Slide), Strg halten = geduckt, Z = Hinlegen umschalten
+		if crouch_edge and not _sliding and stance == Stance.STAND and on_floor and sprint_fwd 				and Vector2(velocity.x, velocity.z).length() > walk_speed + 0.5:
+			_start_slide()
+			crouch_edge = false
 		if _prone_toggle_req:
 			_prone_latched = not _prone_latched
-			_slide_crouch_latch = false
+			_crouch_toggle = false
 		_prone_toggle_req = false
-		if _in_crouch:
-			_crouch_hold_t += delta
-		else:
-			_crouch_hold_t = 0.0
-		if crouch_edge:
+		if crouch_edge and not _sliding:
 			if _prone_latched:
-				_prone_latched = false        # C aus dem Liegen -> hoch (geduckt, solange gehalten)
-				_crouch_hold_t = -10.0
-			elif _slide_crouch_latch:
-				_slide_crouch_latch = false
-		if _crouch_hold_t >= prone_hold_time and not _sliding:
-			_prone_latched = true
-			_crouch_hold_t = -10.0
-		if _slide_crouch_latch and (_in_jump or sprint_fwd):
-			_slide_crouch_latch = false
-		if _prone_latched and stance == Stance.PRONE and (_in_jump or sprint_fwd):
+				_prone_latched = false        # C aus dem Liegen -> geduckt
+				_crouch_toggle = true
+			else:
+				_crouch_toggle = not _crouch_toggle
+		# Springen oder (neu) Sprinten steht auf
+		if _crouch_toggle and (_in_jump or sprint_edge):
+			_crouch_toggle = false
+			if stance != Stance.STAND:
+				_in_jump = false              # Sprung nur zum Aufstehen
+		if _prone_latched and stance == Stance.PRONE and (_in_jump or sprint_edge):
 			_prone_latched = false
-			_in_jump = false                  # Sprung nur zum Aufstehen
-	if stance == Stance.PRONE and external_input and not _prone_latched:
-		_in_jump = false
+			_in_jump = false
 	# Gewünschte Haltung
 	var want: int = Stance.STAND
 	if _sliding:
 		want = Stance.CROUCH
 	elif _prone_latched and (on_floor or stance == Stance.PRONE):
 		want = Stance.PRONE
-	elif _in_crouch or _slide_crouch_latch:
+	elif (_in_crouch if external_input else (_crouch_toggle or _in_crouch_hold)):
 		want = Stance.CROUCH
 	var target_h: float = _height_for(want)
 	# Aufstehen nur, wenn oben frei
@@ -779,7 +821,6 @@ func _start_slide() -> void:
 	_slide_dir = hv.normalized() if hv.length() > 0.1 else -basis.z
 	_slide_v0 = maxf(hv.length(), sprint_speed) * slide_boost
 	_sprinting = false
-	_crouch_hold_t = -10.0
 	_dust.emitting = true
 	play_sfx("player_slide", 0.05)
 	if weapon:
@@ -791,7 +832,7 @@ func _end_slide(jumped: bool) -> void:
 	_sliding = false
 	_dust.emitting = false
 	if not external_input and not jumped:
-		_slide_crouch_latch = true        # Tastatur: danach geduckt bleiben
+		_crouch_toggle = true             # Tastatur: danach geduckt bleiben
 
 func _slide_velocity(delta: float, on_floor: bool, wish: Vector3) -> void:
 	_slide_t += delta
@@ -885,7 +926,7 @@ func _start_mantle(target: Vector3, h: float, crouched: bool) -> void:
 	_sprinting = false
 	_jump_buf = 0.0
 	if crouched and not external_input:
-		_slide_crouch_latch = true
+		_crouch_toggle = true
 	play_sfx("player_mantle", 0.05)
 	if weapon:
 		weapon.add_impulse(Vector3(0.0, -0.25, 0.0), Vector3(-40.0, 0.0, 25.0))
@@ -980,6 +1021,8 @@ func _update_weapons(delta: float) -> void:
 				want = 0
 			2:
 				want = 1
+			3:
+				want = 2 if weapons.size() > 2 else weapon_index
 			10:
 				want = (weapon_index + 1) % weapons.size()
 			11:
@@ -994,6 +1037,20 @@ func _update_weapons(delta: float) -> void:
 			weapon.cancel_reload()
 	weapon.tick(delta)
 	var busy: bool = _switch_phase != 0 or _mantling
+	_update_wall()
+	_update_pickups(delta, busy)
+	if _bot_ammo:
+		_bot_top_up()
+	# Sprint-zu-Feuer: Feuern (Tastatur) beendet den Sprint, geschossen wird erst nach kurzer Absenkzeit
+	if _in_fire and not external_input:
+		_sprint_block = 0.4
+		_sprinting = false
+	if _sprinting:
+		_since_sprint = 0.0
+	else:
+		_since_sprint += delta
+	var sprint_lock: bool = _sprinting or _since_sprint < weapon.sprint_to_fire
+	var wall_lock: bool = _wall_amt > 0.75 and not external_input
 	# Nachladen
 	if _in_reload and not busy and not _sprinting:
 		weapon.start_reload()
@@ -1001,7 +1058,7 @@ func _update_weapons(delta: float) -> void:
 	var trigger: bool = _in_fire if (weapon.full_auto or external_input) else _in_fire_edge
 	if not _in_fire:
 		weapon.reset_trigger()
-	if trigger and not busy and not _sprinting:
+	if trigger and not busy and not sprint_lock and not wall_lock:
 		if weapon.ammo_mag <= 0:
 			if _in_fire_edge or weapon.full_auto:
 				weapon.notify_dry()
@@ -1038,6 +1095,134 @@ func _on_hit_confirmed(killed: bool, headshot: bool) -> void:
 func add_ammo(amount_rifle: int, amount_pistol: int = 0) -> void:
 	weapons[0].add_reserve(amount_rifle)
 	weapons[1].add_reserve(amount_pistol)
+
+# ----------------------------------------------------------------- Inventar / Pickups
+
+func get_weapon(id: String) -> Weapon:
+	for w in weapons:
+		if w.weapon_id == id:
+			return w
+	return null
+
+func weapon_for_ammo(ammo: String) -> Weapon:
+	for w in weapons:
+		if w.ammo_type == ammo:
+			return w
+	return null
+
+func needs_ammo() -> bool:
+	for w in weapons:
+		if not w.is_launcher() and w.ammo_reserve < w.reserve_start:
+			return true
+	return grenades < grenades_start
+
+## Munitionskiste: Reserve aller Waffen (außer Panzerfaust) auf Startwert, Granaten auf Startzahl.
+func refill_from_crate() -> void:
+	for w in weapons:
+		if not w.is_launcher():
+			w.ammo_reserve = maxi(w.ammo_reserve, w.reserve_start)
+	grenades = maxi(grenades, grenades_start)
+	play_sfx("ammo_pickup", 0.05)
+
+func on_ammo_collected(amount: int, _ammo: String) -> void:
+	if amount > 0 and _pickup_cd <= 0.0:
+		play_sfx("ammo_pickup", 0.08)
+		_pickup_cd = 0.25
+
+## Waffe aufnehmen. Primärwaffe (Slot 0) wird ersetzt; die alte kommt als {id, mag, reserve} zurück
+## (der Aufrufer legt sie als Pickup ab). Panzerfaust (Slot 2) wird Waffe 3. Die neue Waffe wird gezogen.
+func give_weapon(id: String, mag: int, reserve: int) -> Dictionary:
+	var existing: Weapon = get_weapon(id)
+	if existing != null:
+		existing.add_reserve(mag + reserve)
+		return {}
+	var w: Weapon = WeaponDefs.instantiate(id)
+	if w == null or w.slot == 1:
+		if w:
+			w.free()
+		return {}
+	weapon_root.add_child(w)
+	w.setup(self)
+	w.fired.connect(_on_weapon_fired)
+	w.hit_confirmed.connect(_on_hit_confirmed)
+	w.set_active(false)
+	w.ammo_mag = clampi(mag, 0, w.mag_size)
+	w.ammo_reserve = clampi(reserve, 0, w.reserve_max)
+	var old: Dictionary = {}
+	var idx: int
+	if w.slot == 0:
+		var prev: Weapon = weapons[0]
+		old = {"id": prev.weapon_id, "mag": prev.ammo_mag, "reserve": prev.ammo_reserve}
+		prev.cancel_reload()
+		prev.set_active(false)
+		weapons[0] = w
+		prev.queue_free()
+		idx = 0
+		if weapon == prev:
+			weapon = w
+			weapon_index = 0
+	else:
+		weapons.append(w)
+		idx = weapons.size() - 1
+	# Neue Waffe sofort ziehen
+	if weapon != w:
+		weapon.cancel_reload()
+		weapon.set_active(false)
+		_last_weapon_index = weapon_index
+	weapon_index = idx
+	weapon = w
+	weapon.set_active(true)
+	_switch_phase = 2
+	_switch_t = 0.0
+	_holster = 1.0
+	play_sfx("weapon_switch")
+	return old
+
+## Wand vor der Mündung (Strahl entlang der Blickrichtung, nur Welt): Viewmodel zieht sich zurück.
+func _update_wall() -> void:
+	var reach: float = 0.95 if weapon.is_long() else 0.6
+	var from: Vector3 = camera.global_position
+	var to: Vector3 = from - camera.global_basis.z * reach
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
+	var res: Dictionary = get_world_3d().direct_space_state.intersect_ray(q)
+	var target: float = 0.0
+	if not res.is_empty() and not _mantling:
+		var d: float = from.distance_to(res.position)
+		target = clampf(1.0 - (d - reach * 0.4) / (reach * 0.6), 0.0, 1.0)
+	_wall_amt = target
+
+## Pickups in Reichweite: Munition automatisch, Waffen/Kisten per [E] (HUD-Hinweis).
+func _update_pickups(delta: float, busy: bool) -> void:
+	_pickup_cd = maxf(0.0, _pickup_cd - delta)
+	_interact_hint = ""
+	var target: Pickup = null
+	var best: float = INF
+	var fwd: Vector3 = -camera.global_basis.z
+	for n in get_tree().get_nodes_in_group("pickup"):
+		var pk: Pickup = n as Pickup
+		if pk == null or pk.is_queued_for_deletion() or not pk.in_range(self):
+			continue
+		if pk.auto_collect(self):
+			continue
+		var txt: String = pk.interact_text(self)
+		if txt == "":
+			continue
+		var dv: Vector3 = pk.global_position - camera.global_position
+		var score: float = dv.length() - 0.8 * fwd.dot(dv.normalized())
+		if score < best:
+			best = score
+			target = pk
+			_interact_hint = txt
+	if _in_interact and target != null and not busy and not dead:
+		target.interact(self)
+		_interact_hint = ""
+	_in_interact = false
+
+## Autopilot: kein Scheitern an Munitionsmangel (die Simulation prüft Bewegung/Kampf, nicht Ressourcen).
+func _bot_top_up() -> void:
+	for w in weapons:
+		if not w.is_launcher() and w.ammo_reserve < w.mag_size:
+			w.ammo_reserve = mini(w.mag_size * 2, w.reserve_max)
 
 func add_grenades(n: int) -> void:
 	grenades = mini(grenades + n, 6)
@@ -1157,8 +1342,7 @@ func respawn() -> void:
 	_mantling = false
 	_mantle_wave = 0.0
 	_prone_latched = false
-	_slide_crouch_latch = false
-	_crouch_hold_t = 0.0
+	_crouch_toggle = false
 	stance = Stance.STAND
 	is_crouching = false
 	_height_cur = stand_height
@@ -1167,6 +1351,9 @@ func respawn() -> void:
 	_holster = 0.0
 	for w in weapons:
 		w.refill()
+	_sprint_block = 0.0
+	_since_sprint = 10.0
+	_wall_amt = 0.0
 	if weapon_index != 0:
 		_do_switch(0)
 	if hud and hud.has_method("hide_death"):
@@ -1264,6 +1451,8 @@ func get_hud_info() -> Dictionary:
 		"weapon_name": weapon.display_name,
 		"weapon_index": weapon_index,
 		"weapon_names": names,
+		"interact_hint": _interact_hint,
+		"ammo_type": weapon.ammo_type,
 		"switching": _switch_phase != 0,
 		"ammo_mag": weapon.ammo_mag,
 		"mag_size": weapon.mag_size,

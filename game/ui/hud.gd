@@ -55,6 +55,7 @@ var _weapon_label: Label
 var _grenade_label: Label
 var _reload_label: Label
 var _toast_label: Label
+var _interact_label: Label
 var _death_rect: ColorRect
 var _death_label: Label
 var _hit_t: float = 0.0
@@ -136,7 +137,7 @@ func _build() -> void:
 	_ammo_label = _make_label(54, HORIZONTAL_ALIGNMENT_RIGHT)
 	_reserve_label = _make_label(22, HORIZONTAL_ALIGNMENT_RIGHT, Color(1, 1, 1, 0.65))
 	_grenade_label = _make_label(18, HORIZONTAL_ALIGNMENT_RIGHT, Color(1, 1, 1, 0.8))
-	# Waffen-Slots: "1 M4  2 P228", aktive Waffe hervorgehoben
+	# Waffen-Slots: "1 G36C  2 P228  3 PANZERFAUST 3", aktive Waffe hervorgehoben
 	_slot_box = HBoxContainer.new()
 	_slot_box.alignment = BoxContainer.ALIGNMENT_END
 	_slot_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -153,6 +154,15 @@ func _build() -> void:
 	_reload_label.offset_top = 70
 	_reload_label.offset_bottom = 100
 	add_child(_reload_label)
+	# Interaktions-Hinweis ("[E] AK-74M aufnehmen"), unter dem Nachladen-Hinweis
+	_interact_label = _make_label(20, HORIZONTAL_ALIGNMENT_CENTER, Color(1.0, 0.92, 0.7, 0.95))
+	_interact_label.set_anchors_preset(Control.PRESET_CENTER)
+	_interact_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_interact_label.offset_left = -260
+	_interact_label.offset_right = 260
+	_interact_label.offset_top = 108
+	_interact_label.offset_bottom = 136
+	add_child(_interact_label)
 	# Hinweis oben Mitte
 	_toast_label = _make_label(24, HORIZONTAL_ALIGNMENT_CENTER)
 	_toast_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -246,11 +256,15 @@ func _process(delta: float) -> void:
 	elif mag == 0 and int(_info.ammo_reserve) == 0:
 		_reload_label.text = "KEINE MUNITION"
 		_reload_label.modulate.a = 0.5 + 0.5 * sin(_time * 8.0)
-	elif mag <= int(ceil(mag_size * 0.25)) and int(_info.ammo_reserve) > 0:
+	elif mag_size > 2 and mag <= int(ceil(mag_size * 0.25)) and int(_info.ammo_reserve) > 0:
 		_reload_label.text = "NACHLADEN  [R]"
 		_reload_label.modulate.a = 0.55 + 0.45 * sin(_time * 7.0)
 	else:
 		_reload_label.modulate.a = 0.0
+	# Interaktion
+	var hint: String = str(_info.get("interact_hint", ""))
+	_interact_label.text = hint
+	_interact_label.visible = hint != "" and bool(_info.alive)
 	# Toast + Tod
 	_toast_t = maxf(0.0, _toast_t - delta)
 	_toast_label.modulate.a = clampf(_toast_t / 0.4, 0.0, 1.0)

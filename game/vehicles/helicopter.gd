@@ -594,7 +594,7 @@ func _make_wash(c0: Color, c1: Color, amount: int, life: float) -> GPUParticles3
 	pm.scale_max = 2.8
 	pm.scale_curve = VfxLib.smooth_curve_tex([[0.0, 0.4], [0.3, 1.0], [1.0, 2.0]])
 	pm.color_ramp = VfxLib.smoke_alpha_ramp(0.55, 0.1, 0.4)
-	var mat := VfxLib.smoke_mat({"smoke_color": c0, "smoke_color_end": c1, "density": 0.7, "glow": 0.0, "soft_dist": 0.8, "erosion": 0.45, "frame_span": 4.0}, true)
+	var mat := VfxLib.smoke_mat({"smoke_color": c0, "smoke_color_end": c1, "density": 1.1, "glow": 0.0, "soft_dist": 0.8, "erosion": 0.3, "frame_span": 4.0}, true)
 	var p := VfxLib.make_particles(amount, life, pm, VfxLib.quad(1.0), mat)
 	p.one_shot = false
 	p.explosiveness = 0.0

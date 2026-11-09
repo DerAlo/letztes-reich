@@ -35,6 +35,29 @@ User-Args nach `--`, abrufbar per `Game.arg("key", default)`. Beispiel:
 ## Physik-Layer
 1 `world` (Level-Geometrie, Deckung), 2 `player`, 3 `enemy`, 4 `debris` (Trümmer, kollidiert nur mit world).
 Hitscan-Raycasts treffen die Maske world+player+enemy.
+Layer 5 `move_block` (Bit 16): unsichtbare Bewegungs-Sperren, nur in der Kollisionsmaske der Körper von Player, Gegnern
+und Drohnen (`... | 16`); Hitscan, Raketen, Granaten und Pickup-Raycasts nutzen sie NICHT.
+- `PropCollision.fit_tree(level)` (`game/levels/prop_collision.gd`, läuft in `Level._ready` direkt VOR `_bake_nav()`; alle
+  `_bake_nav` parsen `geometry_collision_mask = 1 | 16`, das Navmesh sieht also genau das, woran Körper hängen): Für jeden Deckungs-Prop (StaticBody3D auf Layer 1, primitive Shapes, sichtbare Meshes,
+  max. 20 m) werden aus der Optik enge Formen gebaut (konvexe Hüllen je Mesh-Teil `FitHull`, konkave/hohle/importierte
+  Modelle als Trimesh `FitMesh`) und auf Layer 1 gelegt; die alten groben Shapes wandern in den Kind-Body `MoveBlock`
+  (Layer 16, Maske 0). Ergebnis: Kugeln treffen die sichtbare Oberfläche, Bewegung bleibt einfach.
+- Teile, die überwiegend (> 25 % der Punkte) außerhalb der alten Boxen liegen und seitlich > 0.5 m herausragen
+  (Kanonenrohre, Ausleger), bekommen wie bisher KEINE Kollision, damit sie keine bisher freien Wege versperren.
+- Übersprungen: Bodies mit eigenem Skript, Meta `no_fit` (z. B. Shapes, die zur Laufzeit abgeschaltet werden), Blocker
+  (Kollision ragt > 0.6 m über die Optik, z. B. Fundamente/Wände), Boden-/Ufer-/Rampenplatten (Optik in X und Z > 7 m
+  oder bis unter y = -1), Fassaden/Gebäude > 20 m.
+- Debug: `--debug-collisions` zeigt Schuss-Formen orange, `MoveBlock` grau; `-- --no-propfit` schaltet den Fit ab,
+  `-- --fitdebug` druckt Statistik. Audit: `res://game/levels/_collision_audit.tscn -- --level=X`,
+  Deckungstest: `res://game/levels/_test_cover.tscn`.
+
+## Pickups (`game/pickups/`)
+- `Pickup` (Node3D, Gruppe `pickup`): WEAPON (liegende Waffe, [E] tauscht die Primärwaffe, gleiche Waffe -> Munition
+  automatisch), AMMO (automatisch beim Drüberlaufen), CRATE (Munitionskiste, [E] füllt auf Startreserve, 15 s Abklingzeit),
+  PZF_CRATE ([E] Panzerfaust bzw. Raketen). Fabriken `spawn_weapon/spawn_ammo/spawn_crate`, Level-Helfer
+  `Pickup.place_pzf_set(parent, pos, yaw)` und `Pickup.place_ammo_crate(parent, pos, yaw)`.
+- `DropManager` (Kind des Players): hört auf `Events.enemy_killed` (ru -> AK-74M, reich -> G36C, 35 % Munition) und
+  `Events.checkpoint_reached` (Munitionskiste neben dem Spieler). Keine neuen Signale.
 
 ## Gruppen
 - `player`: genau ein Player-Node
@@ -65,7 +88,9 @@ func is_alive() -> bool
     "fire": false, "aim": false, "sprint": false, "crouch": false,
     "jump": false, "reload": false, "grenade": false,  # jump/reload/grenade: auf true setzen = einmal auslösen, Player setzt zurück
     "prone": false,         # Zustand: true = hinlegen (Augenhöhe ~0.35 m), false = aufstehen (nur wenn oben Platz)
-    # optional: "weapon": 1|2 -> Waffe wählen (Gewehr/Pistole, mit Wegstecken/Ziehen ~0.5 s), wird zurückgesetzt
+    # optional: "weapon": 1|2|3 -> Waffe wählen (Primärwaffe/Pistole/Panzerfaust, falls aufgenommen;
+    #           Wegstecken/Ziehen ~0.5 s), wird zurückgesetzt
+    # optional: "interact": true -> einmal [E] auslösen (Waffe aufnehmen/Kiste benutzen), Player setzt zurück
   }
   # Automatisch, ohne eigene Schlüssel:
   #  - Slide: crouch-Flanke (false->true) während sprint + vorwärts am Boden -> 0.9 s Rutschen, endet geduckt;
@@ -75,12 +100,23 @@ func is_alive() -> bool
   func set_view(yaw_deg: float, pitch_deg: float) -> void   # sofort setzen
   func look_at_point(p: Vector3) -> void                    # sofort zielen
   func get_status() -> Dictionary
-  # {alive, health, max_health, position:[x,y,z], yaw, pitch, weapon, weapon_index (1|2), ammo_mag, ammo_reserve,
+  # {alive, health, max_health, position:[x,y,z], yaw, pitch, weapon ("g36c"|"ak74m"|"pistol"|"pzf3"),
+  #  weapon_index (1|2|3), ammo_mag, ammo_reserve,
   #  grenades, reloading, aiming, stance ("stand"|"crouch"|"prone"), prone, sliding, mantling}
   var is_crouching: bool   # true bei geduckt, liegend oder rutschend (Gegner werten das wie Ducken)
   ```
-- Tasten (InputMap in `game/core/game.gd`): `prone` = Z (physisch + logisch) bzw. C lange halten,
-  `weapon_1`/`weapon_2` = 1/2, `weapon_next`/`weapon_prev` = Mausrad, `weapon_last` = Q
+- Tasten (InputMap in `game/core/game.gd`, Fallback in `player._ensure_actions`): `crouch` = C (Umschalten),
+  `crouch_hold` = Strg (geduckt halten), `prone` = Z (Umschalten), Sprint+C = Rutschen (endet geduckt, Springen/Sprinten
+  richtet auf), `interact` = E, `weapon_1`/`weapon_2`/`weapon_3` = 1/2/3, `weapon_next`/`weapon_prev` = Mausrad,
+  `weapon_last` = Q. Bot/`ext["crouch"]` bleibt ein Zustand (true = geduckt).
+- Waffen (Runde weapons2): Slot 1 Primärwaffe (Start G36C, tauschbar gegen AK-74M/G36C vom Boden), Slot 2 P228,
+  Slot 3 Panzerfaust 3 (nur als Pickup). Katalog `game/weapons/weapon_defs.gd` (`WeaponDefs`), Modelle
+  `game/weapons/gun_models.gd` (`GunModels`), Rakete `game/weapons/rocket.gd` (Projektil, Raycast-Maske 1|4,
+  Volltreffer 650 + `Combat.explode`).
+- Player-Inventar-API (für Pickups): `get_weapon(id)`, `weapon_for_ammo(type)`, `give_weapon(id, mag, reserve) -> Dictionary`
+  (ersetzte Primärwaffe als {id, mag, reserve} oder {}), `needs_ammo()`, `refill_from_crate()`, `on_ammo_collected(n, type)`.
+  `get_hud_info()` enthält zusätzlich `interact_hint` (z. B. „[E] AK-74M aufnehmen“) und `ammo_type`.
+- Mit `--autopilot` (Game.arg) fällt die Reserve der Feuerwaffen nie unter ein Magazin (Simulation testet Kampf/Bewegung).
 - Respawn am letzten Checkpoint (bzw. am `player_spawn`) nach Tod, emittiert `Events.player_respawned`
 
 ## Gegner (`res://game/enemies/{rifleman,heavy,drone}.tscn`)
@@ -113,7 +149,7 @@ Befehle: `status`, `input {...ext}`, `hold {ext..., "duration": s}` (für Dauer 
 | 5 | `berlin` | Das letzte Reich | Berlin, Regierungsviertel, 01.06.2030 22:10 | Plot-Twist: Putsch während der Siegesfeier |
 
 Story-Figuren (fiktiv): Spieler = Feldwebel **Jonas Kerner**, EU-Kampfgruppe „Nord“. Funker/Vorgesetzter = **Hauptmann Weber**. Kamerad = **Obergefreite Lena Aksoy**.
-Twist: Die **„Ordnungsfront“** unter **General Albrecht von Hagen** (fiktiv) nutzt die Siegesfeier für einen Putsch und ruft das „Letzte Reich“ aus. Teile der eigenen Truppe laufen über. Weber ist am Ende der Verräter (Cliffhanger). **Keine realen NS-Symbole, Parolen, Lieder oder realen Personen.** Ordnungsfront-Ikonografie ist frei erfunden: Emblem = stilisierter, gebrochener Ring mit senkrechter Klinge. Farben: Stahlgrau, Schwarz, Bernstein/Amber.
+Twist: Die **„Ordnungsfront“** unter **General Albrecht von Riedhammer** (fiktiv) nutzt die Siegesfeier für einen Putsch und ruft das „Letzte Reich“ aus. Teile der eigenen Truppe laufen über. Weber ist am Ende der Verräter (Cliffhanger). **Keine realen NS-Symbole, Parolen, Lieder oder realen Personen.** Ordnungsfront-Ikonografie ist frei erfunden: Emblem = stilisierter, gebrochener Ring mit senkrechter Klinge. Farben: Stahlgrau, Schwarz, Bernstein/Amber.
 
 ## Story-Signale (Events, existieren bereits)
 - `Events.story_radio(speaker, text, duration)`: Funkspruch als Untertitel. duration 0 = automatisch.

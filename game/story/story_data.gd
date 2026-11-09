@@ -37,7 +37,7 @@ const SCRIPTS := {
 		{"at": "z:-46", "lines": [[LENA, "Rakete im Anflug! Das Haus kommt runter – weg da!"]]},
 		{"at": "cp:cp_section2", "objective": "Schalte das MG-Nest an der Kreuzung aus",
 			"lines": [[WEBER, "Panzerwrack voraus, dahinter das MG. Nutzt die Deckung."],
-				[LENA, "Schon gehört? Von Hagen will nach dem Krieg in Berlin „aufräumen“. Was immer das heißt."],
+				[LENA, "Schon gehört? Von Riedhammer will nach dem Krieg in Berlin „aufräumen“. Was immer das heißt."],
 				[WEBER, "Politik ist nicht unser Job, Aksoy. Funkdisziplin."]]},
 		{"at": "cp:cp_section3", "objective": "Erreiche das Tor am Ende der Straße",
 			"lines": [[WEBER, "Fast geschafft. Das Tor am Ende, dann gehört die Straße uns."]]},
@@ -48,6 +48,6 @@ const SCRIPTS := {
 const ENDING := [
 	["Weber hatte den Funk. Er wusste, wo wir standen. Jeder Schritt, jede Nacht.", 4.5],
 	["Die Ordnungsfront hält das Regierungsviertel. Sie nennt es Ordnung.\nWir nennen es, was es ist: ein Putsch.", 5.0],
-	["General von Hagen spricht auf allen Kanälen. Er verspricht Sicherheit.\nEr hat sie mit Sprengstoff bezahlt.", 5.0],
+	["General von Riedhammer spricht auf allen Kanälen. Er verspricht Sicherheit.\nEr hat sie mit Sprengstoff bezahlt.", 5.0],
 	["Lena und ich sind noch hier. Und wir sind nicht die Einzigen.", 4.0],
 ]
