@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/enemy.gd" id="1_enemy"]
+
+[node name="Heavy" type="CharacterBody3D"]
+script = ExtResource("1_enemy")
+enemy_type = "heavy"
+max_health = 170.0
+body_scale = 1.22
+heavy_armor = true
+head_damage_multiplier = 1.5
+walk_speed = 1.5
+run_speed = 2.4
+strafe_speed = 0.6
+turn_speed = 3.5
+cover_chance = 0.25
+flank_chance = 0.1
+crouch_in_cover = false
+preferred_distance_min = 14.0
+preferred_distance_max = 24.0
+fire_while_moving = true
+suppress_without_los = true
+damage_per_hit = 6.0
+burst_min = 12
+burst_max = 24
+shot_interval = 0.075
+burst_pause_min = 1.6
+burst_pause_max = 3.2
+sfx_shot = "enemy_mg"
+type_accuracy = 0.38
+death_impulse_speed = 2.2
+color_primary = Color(0.17, 0.18, 0.15, 1)
+color_secondary = Color(0.3, 0.3, 0.32, 1)

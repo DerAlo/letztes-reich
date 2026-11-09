@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/enemy.gd" id="1_enemy"]
+
+[node name="Rifleman" type="CharacterBody3D"]
+script = ExtResource("1_enemy")
+enemy_type = "rifleman"
+max_health = 60.0
+damage_per_hit = 8.0

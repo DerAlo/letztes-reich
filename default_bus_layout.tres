@@ -1,0 +1,47 @@
+[gd_resource type="AudioBusLayout" load_steps=6 format=3]
+
+[sub_resource type="AudioEffectHardLimiter" id="lim"]
+ceiling_db = -0.5
+
+[sub_resource type="AudioEffectCompressor" id="sfx_comp"]
+threshold = -14.0
+ratio = 3.0
+attack_us = 2000.0
+release_ms = 180.0
+
+[sub_resource type="AudioEffectReverb" id="amb_rev"]
+room_size = 0.85
+damping = 0.6
+spread = 1.0
+hipass = 0.15
+dry = 1.0
+wet = 0.22
+
+[sub_resource type="AudioEffectCompressor" id="amb_comp"]
+threshold = -20.0
+ratio = 2.5
+attack_us = 20000.0
+release_ms = 600.0
+sidechain = &"SFX"
+
+[resource]
+bus/0/effect/0/effect = SubResource("lim")
+bus/0/effect/0/enabled = true
+bus/1/name = &"SFX"
+bus/1/solo = false
+bus/1/mute = false
+bus/1/bypass_fx = false
+bus/1/volume_db = 0.0
+bus/1/send = &"Master"
+bus/1/effect/0/effect = SubResource("sfx_comp")
+bus/1/effect/0/enabled = true
+bus/2/name = &"Ambient"
+bus/2/solo = false
+bus/2/mute = false
+bus/2/bypass_fx = false
+bus/2/volume_db = -3.0
+bus/2/send = &"Master"
+bus/2/effect/0/effect = SubResource("amb_rev")
+bus/2/effect/0/enabled = true
+bus/2/effect/1/effect = SubResource("amb_comp")
+bus/2/effect/1/enabled = true

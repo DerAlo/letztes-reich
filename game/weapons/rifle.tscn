@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/weapons/weapon.gd" id="1"]
+
+[node name="Rifle" type="Node3D"]
+script = ExtResource("1")
+display_name = "M4 CARBINE"
+reload_time = 1.9
+reload_time_empty = 2.3
+ads_fov = 50.0
+hip_pos = Vector3(0.14, -0.15, -0.33)
+sprint_pos = Vector3(0.1, -0.2, -0.3)
+model_path = "res://assets/weapons/m4a1/m4a1.fbx"
+has_red_dot = true
+optic_mount = Vector3(0, 0.058, -0.035)
+ads_eye_dist = 0.165
+muzzle_pos = Vector3(0, 0.036, -0.56)

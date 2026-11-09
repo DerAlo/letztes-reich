@@ -1,0 +1,11 @@
+.godot/
+telemetry/
+captures/
+tools/godot/
+*.tmp
+tools/piper/
+tools/.play/
+build/
+dist/
+*.tpz
+__pycache__/

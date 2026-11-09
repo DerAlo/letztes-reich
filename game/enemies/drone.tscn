@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/drone.gd" id="1_drone"]
+
+[node name="Drone" type="CharacterBody3D"]
+script = ExtResource("1_drone")
+enemy_type = "drone"
+max_health = 25.0
+fov_degrees = 360.0
+sight_range = 40.0
+reaction_min = 0.3
+reaction_max = 0.6
