@@ -1,21 +1,21 @@
 # Letztes Reich
 
-![Kriegsstraße – Explosion zwischen den Fassaden](docs/screenshots/02_war_street_explosion.jpg)
+![Kriegsstraße – G36C im Feuergefecht, Raketeneinschlag in der Fassade](docs/screenshots/00_hero_war_street_rocket.jpg)
 
 Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 5 Missionen mit Intro.
 
 | | |
 |---|---|
-| ![Nacht an der Grenze](docs/screenshots/01_baltic_night_firefight.jpg) | ![Die Brücke](docs/screenshots/03_river_bridge_gunship.jpg) |
-| **Nacht an der Grenze** – Feuergefecht im verschneiten Baltikum | **Die Brücke** – Kampfhubschrauber über dem Fluss, im Regen |
-| ![Reflexvisier](docs/screenshots/06_reflex_sight_camo_enemies.jpg) | ![Letzter Zug](docs/screenshots/04_rail_yard_crane.jpg) |
-| **Häuserkampf** – über das Reflexvisier in der Ruinenstraße | **Letzter Zug** – Güterbahnhof Pskow im Abendlicht |
-| ![Berlin](docs/screenshots/05_berlin_celebration_stage.jpg) | ![Intro](docs/screenshots/08_intro_baltic_map.jpg) |
-| **Das letzte Reich** – Friedensfeier in Berlin … | **Intro** – Lagebild Baltikum, 14. März 2030, 03:12 Uhr |
+| ![Holovisier](docs/screenshots/01_holo_sight_officer.jpg) | ![Panzerfaust an der Brücke](docs/screenshots/02_river_bridge_panzerfaust.jpg) |
+| **Häuserkampf** – Offizier und Sturmsoldat im Holovisier der G36C | **Die Brücke** – Panzerfaust 3 gegen den Kampfhubschrauber, im Regen |
+| ![Scharfschützen-Laser](docs/screenshots/03_baltic_night_marksman_laser.jpg) | ![Letzter Zug](docs/screenshots/04_rail_yard_evening.jpg) |
+| **Nacht an der Grenze** – der rote Laser des Scharfschützen im verschneiten Baltikum | **Letzter Zug** – Güterbahnhof Pskow im Abendlicht |
+| ![Waffen aufnehmen](docs/screenshots/05_weapon_pickup_panzerfaust.jpg) | ![Anschlag](docs/screenshots/07_berlin_stage_attack.jpg) |
+| **Nachschub** – Panzerfaust-Kiste und fallengelassene Waffen: [E] aufnehmen | **Der Anschlag** – in Berlin fliegt die Bühne mitten in der Friedensrede in die Luft |
 
 ## ▶ Spielen
 
-1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.1-win64.zip` (~510 MB)
+1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.2-win64.zip` (~550 MB)
 2. Entpacken, `LetztesReich.exe` doppelklicken. Keine Installation nötig.
 3. Falls Windows warnt („Der Computer wurde durch Windows geschützt“): **Weitere Informationen → Trotzdem ausführen** (die Datei ist nicht signiert).
 

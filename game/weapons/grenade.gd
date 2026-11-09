@@ -14,6 +14,7 @@ var _exploded: bool = false
 @onready var _audio: AudioStreamPlayer3D = $Audio
 
 func _ready() -> void:
+	collision_mask |= 16   # Levelgrenzen (move_block) halten Granaten auf
 	add_to_group("grenade")
 	_t = fuse_time
 	contact_monitor = true

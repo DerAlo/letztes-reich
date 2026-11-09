@@ -157,6 +157,9 @@ func _build_ground() -> void:
 
 func _invisible_wall(pos: Vector3, size: Vector3) -> void:
 	var b := Geo.static_body(pos)
+	# Nur Bewegungs-Sperre (Layer 5 move_block): Kugeln, Raketen und Sicht gehen durch.
+	b.collision_layer = 16
+	b.set_meta("no_fit", true)
 	Geo.add_box_shape(b, Vector3.ZERO, size)
 	world.add_child(b)
 
