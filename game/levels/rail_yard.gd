@@ -282,6 +282,8 @@ func _build_markers() -> void:
 		["rifleman", 3, -8.0, 0.05, -250.0], ["rifleman", 3, 5.5, 0.05, -253.0], ["assault", 3, 2.5, 0.05, -244.0],
 		["rifleman", 3, -11.0, 0.05, -240.0], ["heavy", 3, 9.0, 0.05, -246.0], ["rifleman", 3, 13.0, 0.05, -238.0],
 		["drone", 3, -4.0, 8.0, -236.0], ["drone", 3, 6.0, 9.0, -242.0],
+		# gepanzerte Soldaten
+		["armored", 1, 2.0, 0.05, -132.0], ["armored", 2, 6.0, 0.05, -190.0], ["armored", 3, -4.0, 0.05, -247.0],
 	]
 	for i in spawns.size():
 		var s: Array = spawns[i]
@@ -558,6 +560,7 @@ func _run_setpiece_b() -> void:
 	_b_started = true
 	_spawn_wave(3)
 	_radio("Hauptmann Weber", "Adler-Staffel im Anflug. Köpfe runter!", 3.0)
+	_later(10.0, _spawn_juggernaut)
 	await get_tree().create_timer(1.8).timeout
 	var targets: Array[Vector3] = [Vector3(-9.0, 0, -252.0), Vector3(4.0, 0, -248.0), Vector3(12.0, 0, -240.0),
 		Vector3(20.0, 0, -237.0), Vector3(-12.0, 0, -240.0)]
@@ -621,6 +624,12 @@ func _physics_process(delta: float) -> void:
 func _start_ending() -> void:
 	if _ending:
 		return
+	# Juggernaut-Finale: nach dem Luftangriff kommt er aus der Halle; das Ende wartet, bis er liegt
+	if _b_started and _jugg == null:
+		_spawn_juggernaut()
+		return
+	if _jugg != null and is_instance_valid(_jugg) and bool(_jugg.call("is_alive")):
+		return
 	_ending = true
 	_objective("")
 	var i := 0
@@ -649,6 +658,27 @@ func _start_ending() -> void:
 	_later(6.0, _launch_flares)
 	_later(12.5, func() -> void: _radio("Lena Aksoy", "Vorbei. Hörst du, Jonas? Es ist vorbei.", 4.0))
 	_later(16.5, _on_level_end)
+
+const JUGG_POS := Vector3(0.0, 0.05, -264.0)
+var _jugg: Node3D = null
+
+func _spawn_juggernaut() -> void:
+	if _jugg != null or _ending or not spawn_enemies:
+		return
+	var ps := load("res://game/enemies/juggernaut.tscn") as PackedScene
+	if ps == null:
+		return
+	_jugg = ps.instantiate() as Node3D
+	_jugg.set_meta("faction", default_faction)
+	add_child(_jugg)
+	_jugg.global_position = JUGG_POS
+	_jugg.rotation.y = 0.0
+	_objective("Juggernaut ausschalten")
+	_radio("Lena Aksoy", "Da kommt was Großes aus der Halle – ein Juggernaut! Aufs Visier zielen!", 4.5)
+	_later(6.0, func() -> void: _radio("Hauptmann Weber", "Der Tornister auf dem Rücken ist seine Schwachstelle!", 3.5))
+	var p := Game.get_player() as Node3D
+	if p != null and _jugg.has_method("alert"):
+		_jugg.call("alert", p.global_position)
 
 func _launch_flares() -> void:
 	if fx == null:

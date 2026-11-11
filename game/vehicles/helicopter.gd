@@ -157,8 +157,20 @@ func set_searchlight(on: bool) -> void:
 	if _spot:
 		_spot.visible = on
 
+## Panzerfaust-Volltreffer: ein Drittel der Lebenspunkte (3 Treffer). Die Druckwelle derselben Rakete zaehlt nicht extra.
+const ROCKET_HITS: int = 3
+var _rocket_frame: int = -1
+
+func rocket_hit(source: Node, hit_position: Vector3, hit_normal: Vector3) -> void:
+	if not _alive_mode():
+		return
+	take_damage(max_health / float(ROCKET_HITS) + 0.5, source, hit_position, hit_normal)
+	_rocket_frame = Engine.get_physics_frames()
+
 func take_damage(amount: float, source: Node, hit_position: Vector3, hit_normal: Vector3) -> void:
 	if not _alive_mode() or amount <= 0.0:
+		return
+	if _rocket_frame == Engine.get_physics_frames() and bool(Combat.get("explosion_active")):
 		return
 	health -= amount
 	_hit_flash = 1.0

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/_test_armor.gd" id="1"]
+
+[node name="ArmorTest" type="Node3D"]
+script = ExtResource("1")

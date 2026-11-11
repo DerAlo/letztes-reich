@@ -2,7 +2,7 @@
 
 ![Kriegsstraße – G36C im Feuergefecht, Raketeneinschlag in der Fassade](docs/screenshots/00_hero_war_street_rocket.jpg)
 
-Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 5 Missionen mit Intro.
+Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 17 Missionen in vier Teilen, mit Intro, Briefings und Abspann.
 
 | | |
 |---|---|
@@ -12,10 +12,14 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 5
 | **Nacht an der Grenze** – der rote Laser des Scharfschützen im verschneiten Baltikum | **Letzter Zug** – Güterbahnhof Pskow im Abendlicht |
 | ![Waffen aufnehmen](docs/screenshots/05_weapon_pickup_panzerfaust.jpg) | ![Anschlag](docs/screenshots/07_berlin_stage_attack.jpg) |
 | **Nachschub** – Panzerfaust-Kiste und fallengelassene Waffen: [E] aufnehmen | **Der Anschlag** – in Berlin fliegt die Bühne mitten in der Friedensrede in die Luft |
+| ![Stahlwerk](docs/screenshots/v03_overwatch_stahlwerk_panorama.jpg) | ![Zielfernrohr](docs/screenshots/v03_overwatch_zielfernrohr_windsack.jpg) |
+| **Kaltes Auge** – Scharfschützen-Mission im Stahlwerk Hennigsdorf | **Wind lesen** – Windsack, Geschossfall und Kugel-Kamera |
+| ![Wärmebild](docs/screenshots/v03_gunship_waermebild_25mm.jpg) | ![Fliegerhorst](docs/screenshots/v03_gunship_uebersicht_flugplatz.jpg) |
+| **Wächter** – Feuerunterstützung aus dem Gunship, Wärmebild der 25 mm | **Fliegerhorst Lindenau** – drei Geschütze, Täuschkörper gegen Raketen |
 
 ## ▶ Spielen
 
-1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.2-win64.zip` (~550 MB)
+1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.3-win64.zip`
 2. Entpacken, `LetztesReich.exe` doppelklicken. Keine Installation nötig.
 3. Falls Windows warnt („Der Computer wurde durch Windows geschützt“): **Weitere Informationen → Trotzdem ausführen** (die Datei ist nicht signiert).
 
@@ -34,7 +38,10 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 5
 | R / G | Nachladen / Granate |
 | E | Waffe aufnehmen (tauscht die Primärwaffe), Munitionskiste benutzen |
 | 1 / 2 / 3, Mausrad, Q | Primärwaffe / Pistole / Panzerfaust, Waffe wechseln, letzte Waffe |
-| Esc | Pause (Intro: Leertaste/Esc überspringt) |
+| F | Lautlos ausschalten, Tür eintreten (je nach Mission) |
+| Esc | Pause: Missionen, Episoden, Einstellungen (Intro: Leertaste/Esc überspringt) |
+
+**Gunship:** 1 / 2 / 3 oder Q / Tab Geschütz wählen · F / Leertaste Täuschkörper · T Wärmebild umschalten
 
 ## Entwicklung
 

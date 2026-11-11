@@ -47,6 +47,30 @@ func _ready() -> void:
 	Events.story_radio.connect(_on_radio)
 	Events.story_objective.connect(_on_objective)
 	Events.story_cinematic.connect(set_cinematic)
+	_init_options()
+
+# --- Optionen (Settings, Runde 6): Untertitel an/aus und Groesse. Stimmen laufen unabhaengig weiter.
+func _init_options() -> void:
+	var st := get_node_or_null("/root/Settings")
+	if st == null:
+		return
+	_apply_options(st)
+	st.connect("changed", func(_k: String, _v) -> void: _apply_options(st))
+
+func _apply_options(st: Node) -> void:
+	if not is_instance_valid(st) or _panel == null:
+		return
+	var on = st.call("get_value", "game/subtitles", true)
+	_panel.visible = bool(on) if on != null else true
+	var sz = st.call("get_value", "game/subtitle_size", 1.0)
+	var k := clampf(float(sz) if sz != null else 1.0, 0.6, 2.0)
+	var fs := roundi(21.0 * k)
+	_text.add_theme_font_size_override("normal_font_size", fs)
+	_text.add_theme_font_size_override("bold_font_size", fs)
+	var w := roundf(824.0 * minf(k, 1.3))
+	_text.custom_minimum_size = Vector2(w, 0)
+	_panel.offset_left = -(w * 0.5 + 18.0)
+	_panel.offset_right = w * 0.5 + 18.0
 
 func _build() -> void:
 	_bar_top = _bar(true)

@@ -9,6 +9,8 @@ const VIEW_LAYER_BIT: int = 1 << 19
 const RIFLE_SCENE: PackedScene = preload("res://game/weapons/g36c.tscn")
 const PISTOL_SCENE: PackedScene = preload("res://game/weapons/pistol.tscn")
 const GRENADE_SCENE: PackedScene = preload("res://game/weapons/grenade.tscn")
+## Schwierigkeitsgrad (Welle 4, game/progress/difficulty.gd): Soldat = 1.0 -> unveraendert.
+const _Difficulty = preload("res://game/progress/difficulty.gd")
 
 enum Stance { STAND, CROUCH, PRONE }
 
@@ -98,6 +100,7 @@ var ext: Dictionary = {
 
 var health: float = 100.0
 var grenades: int = 4
+var grenade_scene: PackedScene = null   # Ausruestungswahl (game/loadout): andere Granate, null = Splitter
 var weapons: Array[Weapon] = []
 var weapon_index: int = 0
 var weapon: Weapon = null
@@ -125,6 +128,7 @@ var _in_move: Vector2 = Vector2.ZERO
 var _in_fire: bool = false
 var _in_fire_edge: bool = false
 var _in_aim: bool = false
+var _aim_block_release: bool = false
 var _in_sprint: bool = false
 var _in_crouch: bool = false
 var _in_jump: bool = false
@@ -234,6 +238,48 @@ func _ready() -> void:
 	Events.checkpoint_reached.connect(_on_checkpoint)
 	if not external_input:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_init_options()
+
+# ----------------------------------------------------------------- Optionen (Settings, Runde 6)
+# Ohne gespeicherte Werte (und immer unter --autopilot/--debug-server) gelten exakt die bisherigen Werte.
+var _opt_sens: float = 1.0
+var _opt_ads_sens: float = 1.0
+var _opt_scope_sens: float = 1.0
+var _opt_invert: bool = false
+var _opt_crouch_hold: bool = false
+var _opt_aim_toggle: bool = false
+var _opt_bob: float = 1.0
+var _opt_shake: float = 1.0
+var _fov_default: float = -1.0
+var _aim_latched: bool = false
+
+func _init_options() -> void:
+	_fov_default = fov_base
+	var st := get_node_or_null("/root/Settings")
+	if st == null:
+		return
+	_load_options(st)
+	st.connect("changed", func(_k: String, _v) -> void: _load_options(st))
+
+func _opt(st: Node, key: String, dflt):
+	var v = st.call("get_value", key, dflt)
+	return dflt if v == null else v
+
+func _load_options(st: Node) -> void:
+	if not is_instance_valid(st):
+		return
+	_opt_sens = clampf(float(_opt(st, "controls/sensitivity", 1.0)), 0.05, 10.0)
+	_opt_ads_sens = clampf(float(_opt(st, "controls/ads_sensitivity", 1.0)), 0.05, 5.0)
+	_opt_scope_sens = clampf(float(_opt(st, "controls/scope_sensitivity", 1.0)), 0.05, 5.0)
+	_opt_invert = bool(_opt(st, "controls/invert_y", false))
+	_opt_crouch_hold = bool(_opt(st, "controls/crouch_hold", false))
+	var aim_t := bool(_opt(st, "controls/aim_toggle", false))
+	if aim_t != _opt_aim_toggle:
+		_aim_latched = false
+	_opt_aim_toggle = aim_t
+	_opt_bob = clampf(float(_opt(st, "game/head_bob", 1.0)), 0.0, 1.5)
+	_opt_shake = clampf(float(_opt(st, "game/screen_shake", 1.0)), 0.0, 1.5)
+	fov_base = clampf(float(_opt(st, "game/fov", _fov_default)), 50.0, 120.0)
 
 func _setup_camera() -> void:
 	camera.fov = fov_base
@@ -268,6 +314,12 @@ func _setup_camera() -> void:
 	_add_view_light("ViewRim", Vector3(-28.0, 155.0, 0.0), Color(0.85, 0.9, 1.0), 0.9, 0.6)
 	_add_view_light("ViewFill", Vector3(-12.0, -35.0, 0.0), Color(1.0, 0.92, 0.82), 0.28, 0.0)
 	weapon_viewport.transparent_bg = true
+	# Der transparente Viewport enthaelt vormultiplizierte Farben (MSAA-Kanten, additive Effekte wie das
+	# Muendungsfeuer schreiben Farbe ohne volle Deckung). Mit normalem Alpha-Blending wurden additive
+	# Effekte ueber dem Himmel fast unsichtbar und ueber der Waffe als orange Scheibe sichtbar.
+	var comp := CanvasItemMaterial.new()
+	comp.blend_mode = CanvasItemMaterial.BLEND_MODE_PREMULT_ALPHA
+	($WeaponLayer/Container as CanvasItem).material = comp
 	weapon_viewport.msaa_3d = Viewport.MSAA_4X
 	weapon_viewport.own_world_3d = false
 	weapon_viewport.handle_input_locally = false
@@ -428,6 +480,18 @@ func _read_input() -> void:
 		_in_move = Input.get_vector("move_left", "move_right", "move_back", "move_forward") if cap else Vector2.ZERO
 		_in_fire = cap and Input.is_action_pressed("fire")
 		_in_aim = cap and Input.is_action_pressed("aim")
+		# nach cancel_aim() (Killcam): erst wieder zielen, wenn die Zieltaste losgelassen wurde
+		if _aim_block_release:
+			if Input.is_action_pressed("aim"):
+				_in_aim = false
+			else:
+				_aim_block_release = false
+		if _opt_aim_toggle:
+			if not cap:
+				_aim_latched = false
+			elif Input.is_action_just_pressed("aim"):
+				_aim_latched = not _aim_latched
+			_in_aim = _aim_latched
 		_in_sprint = Input.is_action_pressed("sprint")
 		_in_crouch = cap and Input.is_action_pressed("crouch")
 		_in_crouch_hold = cap and InputMap.has_action("crouch_hold") and Input.is_action_pressed("crouch_hold")
@@ -445,7 +509,10 @@ func _process(delta: float) -> void:
 	if not dead:
 		var dyaw: float = 0.0
 		var dpitch: float = 0.0
-		var aim_scale: float = lerpf(1.0, 0.55, _ads)
+		var aim_mult: float = _opt_ads_sens
+		if weapon != null and weapon.has_method("is_scoped") and bool(weapon.call("is_scoped")):
+			aim_mult = _opt_scope_sens
+		var aim_scale: float = lerpf(1.0, 0.55 * aim_mult, _ads) * _opt_sens
 		if external_input:
 			var l: Vector2 = ext.get("look", Vector2.ZERO)
 			dyaw = -l.x * delta
@@ -453,6 +520,8 @@ func _process(delta: float) -> void:
 		else:
 			dyaw = -_mouse_accum.x * mouse_sens * aim_scale
 			dpitch = -_mouse_accum.y * mouse_sens * aim_scale
+			if _opt_invert:
+				dpitch = -dpitch
 		_mouse_accum = Vector2.ZERO
 		# Gegenzug gegen den Rückstoß "frisst" den noch offenen Rückstoß-Versatz, statt die Basis-
 		# Blickrichtung zu verschieben. So landet die Sicht nach der Salve wieder am Ausgangspunkt,
@@ -514,7 +583,7 @@ func _update_camera(delta: float) -> void:
 	# Trauma-Shake
 	trauma = maxf(0.0, trauma - trauma_decay * delta)
 	_noise_t += delta * shake_speed
-	var s: float = trauma * trauma
+	var s: float = trauma * trauma * _opt_shake
 	var sh_pitch: float = _noise.get_noise_2d(_noise_t, 0.0) * shake_max_angle * s
 	var sh_yaw: float = _noise.get_noise_2d(_noise_t, 100.0) * shake_max_angle * s
 	var sh_roll: float = _noise.get_noise_2d(_noise_t, 200.0) * shake_max_angle * 1.2 * s
@@ -549,8 +618,8 @@ func _update_camera(delta: float) -> void:
 			tv = bob_walk
 			th = bob_walk_side
 		var k: float = clampf(spd / maxf(nominal, 0.1), 0.0, 1.2)
-		tv *= k
-		th *= k
+		tv *= k * _opt_bob
+		th *= k * _opt_bob
 	_bob_v = lerpf(_bob_v, tv, 1.0 - exp(-8.0 * delta))
 	_bob_h = lerpf(_bob_h, th, 1.0 - exp(-8.0 * delta))
 	_wbob = lerpf(_wbob, clampf(spd / walk_speed, 0.0, 1.5) if walking else 0.0, 1.0 - exp(-8.0 * delta))
@@ -764,8 +833,10 @@ func _update_stance(delta: float, on_floor: bool) -> void:
 			if _prone_latched:
 				_prone_latched = false        # C aus dem Liegen -> geduckt
 				_crouch_toggle = true
-			else:
+			elif not _opt_crouch_hold:
 				_crouch_toggle = not _crouch_toggle
+		if _opt_crouch_hold:
+			_crouch_toggle = false            # Option "Ducken halten": nur solange die Taste gedrueckt ist
 		# Springen oder (neu) Sprinten steht auf
 		if _crouch_toggle and (_in_jump or sprint_edge):
 			_crouch_toggle = false
@@ -780,7 +851,7 @@ func _update_stance(delta: float, on_floor: bool) -> void:
 		want = Stance.CROUCH
 	elif _prone_latched and (on_floor or stance == Stance.PRONE):
 		want = Stance.PRONE
-	elif (_in_crouch if external_input else (_crouch_toggle or _in_crouch_hold)):
+	elif (_in_crouch if external_input else (_crouch_toggle or _in_crouch_hold or (_opt_crouch_hold and _in_crouch))):
 		want = Stance.CROUCH
 	var target_h: float = _height_for(want)
 	# Aufstehen nur, wenn oben frei
@@ -1246,7 +1317,7 @@ func _spawn_grenade() -> void:
 	if grenades <= 0 or dead:
 		return
 	grenades -= 1
-	var g := GRENADE_SCENE.instantiate() as Grenade
+	var g := (grenade_scene if grenade_scene != null else GRENADE_SCENE).instantiate() as Grenade
 	var parent: Node = get_tree().current_scene
 	if parent == null:
 		parent = get_parent()
@@ -1263,12 +1334,14 @@ func _spawn_grenade() -> void:
 
 func _update_health(delta: float) -> void:
 	_since_damage += delta
-	if health < max_health and _since_damage >= regen_delay:
-		health = minf(max_health, health + regen_rate * delta)
+	if health < max_health and _since_damage >= regen_delay * _Difficulty.regen_delay():
+		health = minf(max_health, health + regen_rate * _Difficulty.regen_rate() * delta)
 
 func take_damage(amount: float, source: Node, hit_position: Vector3, hit_normal: Vector3) -> void:
 	if dead or amount <= 0.0:
 		return
+	if source != self:
+		amount *= _Difficulty.damage_taken()
 	health = maxf(0.0, health - amount)
 	_since_damage = 0.0
 	Events.player_damaged.emit(amount, source)
@@ -1295,11 +1368,18 @@ func take_damage(amount: float, source: Node, hit_position: Vector3, hit_normal:
 func is_alive() -> bool:
 	return not dead
 
+## Autopilot-Hook (Level 7 "overwatch"): Das Level faehrt den Spieler mit eigenem Bot, wenn es
+## bot_drives_player() = true meldet. Alle anderen Level haben die Methode nicht -> false.
+func autopilot_self_driven() -> bool:
+	var lv := get_tree().get_first_node_in_group("level")
+	return lv != null and lv.has_method("bot_drives_player") and bool(lv.call("bot_drives_player"))
+
 func heal(amount: float) -> void:
 	health = minf(max_health, health + amount)
 
 func _die() -> void:
 	dead = true
+	_aim_latched = false
 	_respawn_t = respawn_delay
 	_death_roll = 0.0
 	weapon.cancel_reload()
@@ -1379,11 +1459,11 @@ func _on_explosion(pos: Vector3, radius: float, _strength: float) -> void:
 # ----------------------------------------------------------------- Audio
 
 ## SFX-Hook: bleibt stumm, solange res://assets/sfx/<name>.ogg|.wav fehlt.
-func play_sfx(sfx_name: String, pitch_jitter: float = 0.0, vol_jitter_db: float = 0.0) -> void:
+func play_sfx(sfx_name: String, pitch_jitter: float = 0.0, vol_jitter_db: float = 0.0, vol_offset_db: float = 0.0) -> void:
 	if Sfx.get_variants(sfx_name).is_empty():
 		return
 	_sfx_i = (_sfx_i + 1) % sfx_nodes.size()
-	Sfx.play_on(sfx_nodes[_sfx_i], sfx_name, pitch_jitter, vol_jitter_db)
+	Sfx.play_on(sfx_nodes[_sfx_i], sfx_name, pitch_jitter, vol_jitter_db, vol_offset_db)
 
 # ================================================================= Öffentliche API
 
@@ -1468,3 +1548,10 @@ func get_hud_info() -> Dictionary:
 		"stance": _stance_name(),
 		"sliding": _sliding,
 	}
+
+## Zielen sofort beenden (z. B. Killcam des Zielfernrohrgewehrs). Gehaltene Zieltaste muss neu gedrueckt werden.
+func cancel_aim() -> void:
+	_ads = 0.0
+	_in_aim = false
+	_aim_latched = false
+	_aim_block_release = true

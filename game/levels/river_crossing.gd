@@ -478,6 +478,7 @@ func _build_markers() -> void:
 		["rifleman", 2, -7.0, 0.05, -199.0], ["heavy", 2, 0.5, 0.05, -197.0],
 		["rifleman", 3, -7.0, 0.05, -250.0], ["rifleman", 3, 7.5, 0.05, -256.0], ["officer", 3, -4.0, 0.05, -270.0],
 		["heavy", 3, 3.0, 0.05, -280.0], ["drone", 3, 0.0, 8.0, -262.0], ["rifleman", 3, 8.0, 0.05, -289.0],
+		["armored", 2, -4.5, 0.05, -192.0], ["armored", 3, 4.5, 0.05, -265.0],   # gepanzerte Soldaten
 	]
 	for i in spawns.size():
 		var s: Array = spawns[i]
@@ -906,6 +907,7 @@ func _build_atmosphere() -> void:
 # ------------------------------------------------------------------ Navigation / Artillerie
 
 func _bake_nav() -> void:
+	preload("res://game/systems/destructible_placements.gd").place(self)  # zerstoerbare Deckung (systeme-c), vor dem Bake
 	var nm := NavigationMesh.new()
 	nm.agent_radius = 0.5
 	nm.agent_height = 1.75

@@ -4,7 +4,7 @@ extends Node3D
 ## Annäherungszünder an Fahrzeugen. Volltreffer: direkter Schaden auf das Ziel + Combat.explode.
 
 const HIT_MASK: int = 1 | 4
-const DIRECT_DAMAGE: float = 650.0      # Tank (300) zerstört, Helikopter (360..600) zerstört
+const DIRECT_DAMAGE: float = 650.0      # Ziele ohne rocket_hit(); Panzer/Helikopter: rocket_hit() = 1/3 HP (3 Treffer)
 const BLAST_RADIUS: float = 6.5
 const BLAST_DAMAGE: float = 220.0
 
@@ -155,7 +155,10 @@ func _explode(pos: Vector3, collider: Object, normal: Vector3) -> void:
 	_exploded = true
 	var target: Node = _find_damageable(collider)
 	if target != null and target != source:
-		target.take_damage(DIRECT_DAMAGE, source, pos, normal)
+		if target.has_method("rocket_hit"):
+			target.call("rocket_hit", source, pos, normal)
+		else:
+			target.take_damage(DIRECT_DAMAGE, source, pos, normal)
 	Combat.explode(pos + normal * 0.2, BLAST_RADIUS, BLAST_DAMAGE, source, 1.6)
 	# Rauchspur stehen lassen, Rakete entfernen
 	if _trail:
@@ -172,7 +175,8 @@ func _find_damageable(n: Object) -> Node:
 	var node: Node = n as Node
 	var depth: int = 0
 	while node and depth < 6:
-		if node.has_method("take_damage") and not node.is_in_group("player"):
+		# Panzerungs-Collider (vehicle_armor.gd: is_alive() = false) ueberspringen -> das Fahrzeug darueber trifft
+		if node.has_method("take_damage") and not node.is_in_group("player") 				and not (node.has_method("is_alive") and not node.call("is_alive") and node is CollisionObject3D and node.get_parent().has_method("take_damage")):
 			return node
 		node = node.get_parent()
 		depth += 1

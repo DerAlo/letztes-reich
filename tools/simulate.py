@@ -28,6 +28,8 @@ def run_one(skill, idx, ts, a):
     args += ["--level=" + a.level, "--autopilot", "--skill=" + skill, "--timescale=%g" % a.timescale,
              "--max-time=%g" % a.max_time, "--max-deaths=%d" % a.max_deaths, "--out=" + out_file,
              "--seed=%d" % (a.seed + idx * 101 + sum(map(ord, skill)) % 97)]
+    if getattr(a, "difficulty", None):
+        args.append("--difficulty=" + a.difficulty)
     args += a.extra
     t0 = time.time()
     status = "ok"
@@ -158,6 +160,7 @@ def main():
     ap.add_argument("--max-deaths", type=int, default=15)
     ap.add_argument("--real-timeout", type=float, default=1200.0)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--difficulty", default=None, help="recruit|soldier|veteran (Standard: soldier)")
     ap.add_argument("extra", nargs="*", help="weitere User-Args fuers Spiel")
     a = ap.parse_args()
 

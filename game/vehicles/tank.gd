@@ -86,7 +86,7 @@ func _build() -> void:
 	_armor.name = "Armor"
 	_armor.collision_layer = VF.LAYER_WORLD
 	_armor.collision_mask = 0
-	_armor.sync_to_physics = true
+	_armor.sync_to_physics = false   # true: Collider blieb am Ursprung haengen (Raketen flogen durch)
 	_armor.set_meta("surface", "metal")
 	add_child(_armor)
 	_add_shape(Vector3(0, 0.95, 0.1), Vector3(3.5, 1.5, 7.0))
@@ -171,8 +171,24 @@ func destroy() -> void:
 	remove_from_group("damageable")
 	call_deferred("_do_destroy")
 
+## Panzerfaust-Volltreffer: genau ein Drittel der Lebenspunkte (3 Treffer). Die Druckwelle derselben Rakete
+## zaehlt danach nicht noch einmal (sonst reichen 2).
+const ROCKET_HITS: int = 3
+var _rocket_frame: int = -1
+
+func rocket_hit(source: Node, hit_position: Vector3, hit_normal: Vector3) -> void:
+	if dead:
+		return
+	var prev := bool(Combat.get("explosion_active"))
+	Combat.set("explosion_active", true)
+	take_damage(max_health / float(ROCKET_HITS) + 0.5, source, hit_position, hit_normal)
+	Combat.set("explosion_active", prev)
+	_rocket_frame = Engine.get_physics_frames()
+
 func take_damage(amount: float, _source: Node, _hit_position: Vector3, _hit_normal: Vector3) -> void:
 	if dead or amount <= 0.0:
+		return
+	if _rocket_frame == Engine.get_physics_frames() and bool(Combat.get("explosion_active")):
 		return
 	# Nur Explosionen (oder Skript-Schaden >= 500) zaehlen; Kugeln prallen ab.
 	if not bool(Combat.get("explosion_active")) and amount < 500.0:
@@ -317,7 +333,7 @@ func _turret(delta: float) -> void:
 		var dir := (to - from) / maxf(d, 0.01)
 		var up := Vector3.UP if absf(dir.y) < 0.95 else Vector3.RIGHT
 		var bas := Basis.looking_at(dir, up) * Basis(Vector3.RIGHT, PI * 0.5)
-		_laser.global_transform = Transform3D(bas.scaled(Vector3(1, d, 1)), from + dir * d * 0.5)
+		_laser.global_transform = Transform3D(bas * Basis.from_scale(Vector3(1, d, 1)), from + dir * d * 0.5)
 		_laser_mat.albedo_color.a = 0.25 + 0.25 * sin(_t * 30.0)
 
 ## Waehlt den Einschlagpunkt: einige Meter neben dem Ziel, bevorzugt zwischen Panzer und Ziel.

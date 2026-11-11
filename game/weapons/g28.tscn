@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/weapons/marksman_rifle.gd" id="1"]
+
+[node name="G28" type="Node3D"]
+script = ExtResource("1")
+weapon_id = "g28"
+display_name = "G28 DMR"
+model_kind = "rifle"
+ammo_type = "762"
+rpm = 200.0
+full_auto = false
+mag_size = 10
+reserve_start = 60
+reserve_max = 120
+damage = 80.0
+headshot_mult = 3.0
+max_range = 900.0
+spread_hip = 2.5
+spread_ads = 0.015
+spread_move = 1.6
+spread_per_shot = 0.15
+spread_bloom_max = 0.6
+spread_recover = 3.0
+viewkick = 0.06
+viewkick_rot = 5.0
+shot_trauma = 0.12
+reload_time = 2.3
+reload_time_empty = 2.8
+recoil_pattern = PackedVector2Array(0, 3.0)
+ads_recoil_mult = 0.6
+ads_fov = 12.5
+ads_speed = 6.0
+move_speed_mult = 0.92
+hip_pos = Vector3(0.14, -0.17, -0.34)
+sprint_pos = Vector3(0.1, -0.22, -0.3)
+sprint_to_fire = 0.22
+ads_eye_dist = 0.09
+shell_len = 0.06
+sfx_fire = "overwatch_dmr_fire"

@@ -12,6 +12,7 @@ extends RefCounted
 ## Material: gun_surface.gdshader (objektraum-triplanare Mikrostruktur + Kantenabnutzung, ohne UVs).
 
 const AK_PATH: String = "res://assets/weapons/ak47/ak47.glb"
+const PISTOL_PATH: String = "res://assets/weapons/service_pistol/service_pistol.glb"   # Poly Haven, CC0
 const SURFACE_SHADER: Shader = preload("res://game/weapons/gun_surface.gdshader")
 
 static var _mats: Dictionary = {}
@@ -147,9 +148,16 @@ static func _init_mats() -> void:
 	# AK-74M (CC0-Modell mit eigenen UVs): brueniertes Metall, schwarzes Polymer, pflaumenfarbenes Magazin
 	var n1 := _noise_tex(0.06, 17)
 	var n2 := _noise_tex(0.18, 11)
-	_mats["ak_metal"] = _ak_pbr(Color(0.075, 0.075, 0.08), 0.8, 0.42, n1, 5.0)
-	_mats["ak_poly"] = _ak_pbr(Color(0.04, 0.04, 0.042), 0.0, 0.66, n2, 9.0)
-	_mats["ak_mag"] = _ak_pbr(Color(0.3, 0.12, 0.07), 0.0, 0.5, n2, 9.0)
+	_mats["ak_metal_std"] = _ak_pbr(Color(0.075, 0.075, 0.08), 0.8, 0.42, n1, 5.0)
+	_mats["ak_poly_std"] = _ak_pbr(Color(0.04, 0.04, 0.042), 0.0, 0.66, n2, 9.0)
+	_mats["ak_mag_std"] = _ak_pbr(Color(0.3, 0.12, 0.07), 0.0, 0.5, n2, 9.0)
+	# Wie G36: gun_surface-Shader (Kantenmaske wird in build_ak aus den Normalen gebacken)
+	_mats["ak_metal"] = _surf(Color(0.062, 0.062, 0.066), Color(0.44, 0.44, 0.46), 0.75, 1.0, 0.46, 0.24, 0.6, 9.0, 0.28,
+		{"dirt_amount": 0.22, "color_var": 0.1})
+	_mats["ak_poly"] = _surf(Color(0.038, 0.038, 0.04), Color(0.15, 0.15, 0.148), 0.0, 0.0, 0.64, 0.42, 0.5, 8.0, 0.24,
+		{"dirt_amount": 0.2, "color_var": 0.08, "specular_level": 0.4})
+	_mats["ak_mag"] = _surf(Color(0.25, 0.095, 0.055), Color(0.42, 0.24, 0.15), 0.0, 0.0, 0.52, 0.36, 0.5, 8.0, 0.2,
+		{"dirt_amount": 0.25, "color_var": 0.12})
 	_mats["metal"] = _mats["park"]
 	_mats["metal_worn"] = _mats["steel"]
 
@@ -991,6 +999,7 @@ static func build_ak() -> Node3D:
 	for mi: Node in model.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var nm: String = m.name.to_lower()
+		m.mesh = _ak_baked(m.mesh)
 		if nm.begins_with("wood"):
 			m.material_override = mat("ak_poly")
 		elif nm.begins_with("magazine"):
@@ -998,6 +1007,37 @@ static func build_ak() -> Node3D:
 		else:
 			m.material_override = mat("ak_metal")
 	return model
+
+## AK-Meshes ohne UV/Vertexfarben: Kantenmaske fuer gun_surface (COLOR.r = Kante, G = AO) aus harten
+## Kanten backen – Vertices gleicher Position mit abweichenden Normalen gelten als Kante. Gecacht.
+static func _ak_baked(src: Mesh) -> Mesh:
+	if src == null:
+		return src
+	var key := "ak_bake_%d" % src.get_instance_id()
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var out := ArrayMesh.new()
+	for si in src.get_surface_count():
+		var arr: Array = src.surface_get_arrays(si)
+		var pos: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		var acc: Dictionary = {}
+		var keys: Array[Vector3i] = []
+		keys.resize(pos.size())
+		for i in pos.size():
+			var k := Vector3i((pos[i] * 4000.0).round())
+			keys[i] = k
+			acc[k] = (acc.get(k, Vector3.ZERO) as Vector3) + nrm[i]
+		var cols := PackedColorArray()
+		cols.resize(pos.size())
+		for i in pos.size():
+			var avg: Vector3 = (acc[keys[i]] as Vector3).normalized()
+			var e := clampf((1.0 - nrm[i].dot(avg)) * 5.0, 0.0, 1.0)
+			cols[i] = Color(e, 0.9 - e * 0.15, 0.0, 1.0)
+		arr[Mesh.ARRAY_COLOR] = cols
+		out.add_surface_from_arrays(src.surface_get_primitive_type(si), arr)
+	_mesh_cache[key] = out
+	return out
 
 ## Weltmodell fuer Pickups (Layer 1, wirft Schatten). Laenge in Metern als Meta "length".
 static func build_world(weapon_id: String) -> Node3D:
@@ -1014,10 +1054,17 @@ static func build_world(weapon_id: String) -> Node3D:
 			n = build_pzf()
 		"pistol":
 			n = Node3D.new()
-			var b := MeshInstance3D.new()
-			b.mesh = rbox(Vector3(0.03, 0.12, 0.19), 0.004)
-			b.material_override = mat("park")
-			n.add_child(b)
+			var ps := load(PISTOL_PATH) as PackedScene if ResourceLoader.exists(PISTOL_PATH) else null
+			if ps != null:
+				var pm := ps.instantiate() as Node3D
+				pm.rotation_degrees = Vector3(0, 90, 0)
+				pm.scale = Vector3.ONE * 0.85
+				n.add_child(pm)
+			else:
+				var b := MeshInstance3D.new()
+				b.mesh = rbox(Vector3(0.03, 0.12, 0.19), 0.004)
+				b.material_override = mat("park")
+				n.add_child(b)
 	if n == null:
 		n = build_g36c()
 		# Liegende Waffe: Holo-Visier mit dazu

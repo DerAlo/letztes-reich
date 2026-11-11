@@ -5,7 +5,7 @@
 [node name="Pistol" type="Node3D"]
 script = ExtResource("1")
 weapon_id = "pistol"
-display_name = "P228"
+display_name = "P1"
 sfx_prefix = "pistol"
 model_kind = "pistol"
 ammo_type = "9mm"
@@ -40,11 +40,11 @@ sprint_pos = Vector3(0.08, -0.19, -0.28)
 sprint_rot = Vector3(-22, 26, -14)
 holster_time = 0.16
 draw_time = 0.26
-model_path = "res://assets/weapons/pistol/sig_p228.glb"
-model_offset = Vector3(0, -0.024, -0.05)
-model_rot_deg = Vector3(0, 180, 0)
-model_scale = 0.207
-muzzle_pos = Vector3(0, 0.025, -0.135)
-eject_pos = Vector3(0.012, 0.03, -0.06)
+model_path = "res://assets/weapons/service_pistol/service_pistol.glb"
+model_offset = Vector3(0, -0.0195, 0.004)
+model_rot_deg = Vector3(0, 90, 0)
+model_scale = 0.85
+muzzle_pos = Vector3(0, 0.0335, -0.146)
+eject_pos = Vector3(0.012, 0.0365, -0.05)
 shell_len = 0.019
 sprint_to_fire = 0.12

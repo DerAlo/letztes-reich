@@ -5,6 +5,7 @@ extends "res://game/levels/level.gd"
 ## Abschnitt 3: Dorfplatz mit brennender Scheune, Wasserturm-Set-Piece (Welle 3), Ende am Bahnuebergang.
 
 const NightProps = preload("res://game/levels/night_props.gd")
+const PH = preload("res://game/levels/ph_props.gd")
 const NightFx = preload("res://game/levels/night_fx.gd")
 const WaterTower = preload("res://game/levels/water_tower.gd")
 const FuelTank = preload("res://game/levels/fuel_tank.gd")
@@ -97,7 +98,7 @@ func _setup_environment() -> void:
 	env.volumetric_fog_length = 110.0
 	env.volumetric_fog_gi_inject = 0.4
 	env.volumetric_fog_ambient_inject = 0.15
-	env.volumetric_fog_sky_affect = 0.0
+	env.volumetric_fog_sky_affect = 0.7
 	env.glow_hdr_threshold = 1.0
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.04
@@ -240,7 +241,9 @@ func _build_trench() -> void:
 		l.light_volumetric_fog_energy = 0.6
 		l.position = Vector3(lx, TRENCH_FLOOR + 1.1, 0.95)
 		t.add_child(l)
-		t.add_child(Geo.box_mesh_node(Vector3(0.14, 0.2, 0.14), NightProps.glow(Color(1.0, 0.6, 0.25), 6.0), l.position))
+		# Sturmlaterne (Poly Haven "Lantern_01", 1,3-fach = 38 cm) am Haken, Flamme als kleiner Leuchtkoerper
+		PH.place(t, "lantern_01", PH.xform(l.position + Vector3(0, -0.2, 0), rng.randf_range(0.0, 360.0), Vector3.ONE * 1.3), -1.0, {"shadows": false})
+		t.add_child(Geo.box_mesh_node(Vector3(0.025, 0.05, 0.025), NightProps.glow(Color(1.0, 0.6, 0.25), 8.0), l.position + Vector3(0, -0.075, 0)))
 
 func _build_drifts() -> void:
 	var gb := Geo.batch()
@@ -350,7 +353,7 @@ func _build_props() -> void:
 	NightProps.knife_rest(p, Vector3(4.8, 0, -45.5), 70.0, covers)
 	# Liegengebliebener Schuetzenpanzer (eigene Kraefte), Heck zum Graben
 	NightProps.ifv(p, Vector3(-7.5, 0, -36.0), 160.0, covers)
-	Props.tank_wreck(p, Vector3(15.0, 0, -57.0), 200.0, covers)
+	Props.tank_wreck(p, Vector3(15.0, 0, -57.0), 200.0, covers, true)
 	# Feindliche Schuetzenloecher (Sandsack-Boegen) fuer Welle 0
 	NightProps.sandbags(p, Vector3(-6.0, 0, -52.0), 75.0, 3.4, 4, rng, covers)
 	NightProps.sandbags(p, Vector3(8.0, 0, -55.0), 100.0, 3.6, 4, rng, covers)
@@ -373,22 +376,32 @@ func _build_props() -> void:
 	# Gefaellter Mast am Feldrand rechts (liegt)
 	Geo.solid_box(p, Vector3(22.0, 0.2, -60.0), Vector3(0.28, 0.28, 8.5), NightProps.planks(Color(0.3, 0.25, 0.2), 0.5), 25.0, true)
 	# --- Wald: umgestuerzte Staemme und Felsen als Deckung ---
-	var logm := NightProps.bark()
+	# Umgestuerzte Staemme (Poly Haven "dead_tree_trunk", auf ~0,72 m Dicke skaliert) mit Wurzelstubben
+	# am feldseitigen Ende (Poly Haven "tree_stump_01"); Kollision/Deckung wie bisher
 	for lg in [[Vector3(-7.5, 0.35, -76.0), 70.0, 6.0], [Vector3(7.5, 0.35, -86.0), 110.0, 5.0], [Vector3(-7.5, 0.35, -99.0), 95.0, 5.5], [Vector3(7.0, 0.35, -104.0), 60.0, 4.5], [Vector3(-11.0, 0.35, -90.0), 20.0, 6.0]]:
 		var b := Geo.static_body(lg[0], lg[1])
-		b.add_child(Geo.cylinder_node(0.36, lg[2], logm, Vector3.ZERO, Vector3(90, 0, 0), 9))
+		var len_s: float = float(lg[2]) / 3.05
+		PH.place(b, "dead_tree_trunk", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(len_s, 2.55, 2.55)), Vector3(0.08, -0.27, 0)), 0.5)
 		Geo.add_box_shape(b, Vector3.ZERO, Vector3(0.75, 0.75, lg[2]))
 		p.add_child(b)
 		var bs := Basis(Vector3.UP, deg_to_rad(lg[1]))
-		covers.append((lg[0] as Vector3) * Vector3(1, 0, 1) + bs * Vector3(1.1, 0, 0))
-		covers.append((lg[0] as Vector3) * Vector3(1, 0, 1) + bs * Vector3(-1.1, 0, 0))
-	var rock := NightProps.snowy(OLD_ROCK, Color(0.4, 0.4, 0.42), 0.4, 0.55)
+		var base: Vector3 = (lg[0] as Vector3) * Vector3(1, 0, 1)
+		covers.append(base + bs * Vector3(1.1, 0, 0))
+		covers.append(base + bs * Vector3(-1.1, 0, 0))
+		var e1 := base + bs * Vector3(0, 0, float(lg[2]) * 0.5 + 0.55)
+		var e2 := base - bs * Vector3(0, 0, float(lg[2]) * 0.5 + 0.55)
+		var se := e1 if absf(e1.x) > absf(e2.x) else e2
+		if absf(se.x) > 9.0:
+			PH.place(p, "tree_stump_01", PH.xform(se + Vector3(0, -0.06, 0), rng.randf_range(0.0, 360.0), Vector3.ONE * rng.randf_range(0.8, 1.0)), 0.38)
+	# Felsbrocken (Poly Haven "rock_moss_set_01", Einzelsteine, verschneit); Kollision/Deckung wie bisher
+	var rocks: Array = [["rock03", 0.95, 0.41], ["rock04", 0.75, 0.66], ["rock06", 0.8, 0.53], ["rock02", 0.72, 0.47]]
+	var ri := 0
 	for rp: Vector3 in [Vector3(6.0, 0, -73.0), Vector3(-5.5, 0, -92.0), Vector3(9.0, 0, -97.0), Vector3(-9.0, 0, -82.0)]:
 		var rb := Geo.static_body(rp)
-		var rbb := Geo.batch()
-		for k in 3:
-			rbb.add_ball(Vector3(rng.randf_range(-0.6, 0.6), 0.4 + k * 0.1, rng.randf_range(-0.6, 0.6)), Vector3(rng.randf_range(1.2, 2.0), rng.randf_range(0.9, 1.4), rng.randf_range(1.2, 2.0)), Basis(Vector3.UP, rng.randf() * TAU))
-		NightProps.add_batch(rb, rbb, rock)
+		var rk: Array = rocks[ri % rocks.size()]
+		ri += 1
+		var rs: float = rk[1]
+		PH.place(rb, "rock_moss_set_01", PH.xform(Vector3(0, float(rk[2]) * rs - 0.12, 0), rng.randf_range(0.0, 360.0), Vector3.ONE * rs), 0.42, {"only": rk[0], "center": true})
 		Geo.add_box_shape(rb, Vector3(0, 0.55, 0), Vector3(1.8, 1.1, 1.8))
 		p.add_child(rb)
 		covers.append(rp + Vector3(0, 0, 1.4))

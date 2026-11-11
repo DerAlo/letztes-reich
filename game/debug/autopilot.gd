@@ -192,6 +192,11 @@ func _physics_process(delta: float) -> void:
 		_player = Game.get_player() as Node3D
 		if _player == null:
 			return
+	# Level-Hook (Runde 5): Spieler-Modi mit eigenem Bot (z. B. Gunship) steuern sich selbst;
+	# der Autopilot zaehlt dann nur Zeit/Telemetrie.
+	if _player.has_method("autopilot_self_driven") and bool(_player.call("autopilot_self_driven")):
+		_last_pos = _player.global_position
+		return
 	if _level == null or not is_instance_valid(_level):
 		_level = _find_level()
 		_read_level_info()
@@ -441,6 +446,8 @@ func _check_progress() -> void:
 
 
 func _check_stuck(wants_move: bool, delta: float) -> void:
+	if _route_done_time >= 0.0 and _boss_alive():
+		_route_done_time = _sim_time   # Level-Ende wartet auf den Boss: Zeitfenster laeuft erst danach
 	if _route_done_time >= 0.0 and _sim_time - _route_done_time > 40.0:
 		_finish("stuck")  # Ende nicht erreicht
 		return
@@ -475,6 +482,13 @@ func _check_stuck(wants_move: bool, delta: float) -> void:
 		_stuck_wanted_time += delta
 
 
+func _boss_alive() -> bool:
+	for b in get_tree().get_nodes_in_group("boss"):
+		if b.has_method("is_alive") and bool(b.call("is_alive")) and bool(b.get("boss_engaged")):
+			return true
+	return false
+
+
 # --------------------------------------------------------------------------- Wahrnehmung / Ziel
 
 func _get_cam() -> Camera3D:
@@ -486,6 +500,8 @@ func _get_cam() -> Camera3D:
 
 
 func _aim_point_of(e: Node3D) -> Vector3:
+	if e.has_method("get_aim_point"):   # gepanzerte Gegner / Juggernaut: Schwachstelle statt Platte
+		return e.call("get_aim_point")
 	var id: int = e.get_instance_id()
 	var shape: Node3D = null
 	if _aim_cache.has(id) and is_instance_valid(_aim_cache[id]):
@@ -724,6 +740,8 @@ func _on_enemy_killed(enemy: Node) -> void:
 
 
 func _on_enemy_damaged(_enemy: Node, _amount: float) -> void:
+	if _enemy != null and is_instance_valid(_enemy) and _enemy.is_in_group("boss"):
+		_last_progress_t = _sim_time   # Bosskampf zaehlt als Fortschritt (viele Treffer bis zum Kill)
 	if absi(Engine.get_physics_frames() - _last_expl_frame) <= 1:
 		_t_expl_hits += 1
 	else:

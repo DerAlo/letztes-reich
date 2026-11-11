@@ -6,12 +6,22 @@ extends Node3D
 ## Rig/Animationen: assets/characters/soldier/soldier_rig.scn (gebacken mit tools/bake_soldier.gd).
 
 const RIG_PATH := "res://assets/characters/soldier/soldier_rig.scn"
+## Realistische Soldaten (MakeHuman/MPFB-CC0-Koerper, M1-Helm, Quaternius-UAL-Animationen), drei Koerper-
+## Varianten; gebacken mit game/enemies/tools/bake_soldier_mh.gd. Fallback auf das SWAT-Modell, wenn die
+## Grafik-Option "Realistische Soldaten" aus ist oder die Dateien fehlen (gepanzerte Typen bleiben SWAT).
+const MH_RIG_PATH := "res://assets/characters/soldier_mh/soldier_mh_%s.scn"
+const MH_VARIANTS := ["a", "b", "c"]
+const MH_TEX := "res://assets/characters/soldier_mh/tex/"
+const MH_SHADER := "res://game/enemies/soldier_mh_cloth.gdshader"
+const MH_SKIN_SHADER := "res://game/enemies/soldier_mh_skin.gdshader"
+const MHG = preload("res://game/enemies/soldier_mh_gear.gd")
 const RIFLE_PATH := "res://assets/characters/weapons/rifle_ar_west.glb"
 const MG_PATH := "res://assets/characters/weapons/rifle_ar_quaternius.glb"
 ## Fraktion "reich" (fiktive Ordnungsfront): Armbinde mit erfundenem Emblem (gebrochener Ring + Klinge)
 const REICH_ARMBAND_TEX := "res://assets/characters/faction/reich_armband.png"
 const REICH_EMBLEM_TEX := "res://assets/environment/berlin/emblem.png"
 const SG = preload("res://game/enemies/soldier_gear.gd")
+const MuzzleFx = preload("res://game/graphics/muzzle_fx.gd")
 const MAX_RAGDOLLS := 10
 const RELOAD_TIME := 2.3
 
@@ -35,7 +45,7 @@ const RAGDOLL := [
 	["LowerLeg.R", "Foot.R", 0.065, 4.0, "hinge", 0.0, 130.0],
 ]
 
-static var _tree_root: AnimationNodeBlendTree = null
+static var _trees: Dictionary = {}    # kind -> AnimationNodeBlendTree
 static var _mat_cache: Dictionary = {}
 static var _weapon_cache: Dictionary = {}
 static var active_ragdolls: int = 0
@@ -54,7 +64,8 @@ var head_attach: BoneAttachment3D = null
 var sim: PhysicalBoneSimulator3D = null
 var bones: Array[PhysicalBone3D] = []
 
-var _flash_mesh: MeshInstance3D = null
+var _muzzle_fx: Node3D = null   # Muendungsfeuer (game/graphics/muzzle_fx.gd)
+var _flash_prev: float = 0.0
 var _weapon_attach: BoneAttachment3D = null
 var _loco := Vector2.ZERO
 var _last_flinch: float = 0.0
@@ -73,6 +84,11 @@ var _meshes: Array[GeometryInstance3D] = []
 var _weapon_body: RigidBody3D = null
 var role: String = "rifleman"
 var scope_tip: Node3D = null      ## Marksman: Objektiv (Glint-Position)
+var kind: String = "swat"         ## "swat" (altes Modell) oder "mh" (realistisch)
+var variant: String = ""
+## Kopf-Hitbox relativ zum Kopfknochen (enemy.gd)
+var head_hit_offset := Vector3(0.0, 0.1, 0.03)
+var _mh_f: float = 1.0            ## Hoehenfaktor der MH-Variante gegenueber Variante a
 
 ## Waffenlaenge (z-Skalierung des Gewehrmodells) und Magazin je Gegnertyp
 const ROLE_WEAPON_Z := {"assault": 0.74, "marksman": 1.3, "officer": 0.86}
@@ -85,16 +101,30 @@ func setup(e: Enemy) -> void:
 	role = e.enemy_type
 	_mag_size = 100 if heavy else int(ROLE_MAG.get(role, 30))
 	name = "Visual"
-	rig = (load(RIG_PATH) as PackedScene).instantiate() as Node3D
+	var path := RIG_PATH
+	if use_mh(e):
+		variant = MH_VARIANTS[absi(hash("%s|%s|%s" % [e.name, e.enemy_type, e.global_position.snapped(Vector3.ONE * 0.5)])) % MH_VARIANTS.size()]
+		if ResourceLoader.exists(MH_RIG_PATH % variant):
+			path = MH_RIG_PATH % variant
+			kind = "mh"
+	rig = (load(path) as PackedScene).instantiate() as Node3D
 	add_child(rig)
 	rig.rotation.y = PI  # Modell blickt nach +Z, Gegner nach -Z
 	rig.scale = Vector3.ONE * vis_scale
 	skeleton = rig.get_node("Skeleton3D") as Skeleton3D
+	if kind == "mh":
+		_mh_f = skeleton.get_bone_global_rest(skeleton.find_bone("Hips")).origin.y / MHG.REF_HIPS_Y
+		head_hit_offset = Vector3(0.0, 0.04, 0.012)
 	_apply_materials()
 	if role == "officer":
 		var sh := skeleton.get_node_or_null("Swat_Head") as Node3D
 		if sh != null:
 			sh.visible = false
+	if kind == "mh":
+		# M1-Helm aus dem Bake ersetzt: prozeduraler Helm/Muetze in soldier_mh_gear.gd (Kopf-Baugruppe)
+		var hm := skeleton.get_node_or_null("Helmet") as Node3D
+		if hm != null:
+			hm.visible = false
 	_build_gear()
 	_build_weapon()
 	_build_tree()
@@ -103,6 +133,14 @@ func setup(e: Enemy) -> void:
 	skeleton.add_child(ik)
 	_config_ik()
 	head_attach = _attach("Head")
+
+## Realistisches Modell verwenden? (Grafik-Option, nicht fuer gepanzerte Typen, Dateien vorhanden)
+static func use_mh(e: Enemy) -> bool:
+	if e is ArmoredEnemy:
+		return false
+	if not bool(Settings.get_value("graphics/real_soldiers", true)):
+		return false
+	return ResourceLoader.exists(MH_RIG_PATH % MH_VARIANTS[0])
 
 # ---------------------------------------------------------------- Aufbau
 
@@ -115,7 +153,7 @@ func _attach(bone: String) -> BoneAttachment3D:
 
 func _apply_materials() -> void:
 	var reich := enemy.faction == "reich"
-	var key := "%s|%s|%s|%s" % [enemy.enemy_type, enemy.color_primary.to_html(), enemy.color_secondary.to_html(), enemy.faction]
+	var key := "%s|%s|%s|%s|%s|%s" % [enemy.enemy_type, enemy.color_primary.to_html(), enemy.color_secondary.to_html(), enemy.faction, kind, variant if kind == "mh" else ""]
 	if not _mat_cache.has(key):
 		var m := {}
 		var fat := enemy.color_primary.lerp(enemy.color_secondary, 0.35) * 1.35
@@ -139,12 +177,15 @@ func _apply_materials() -> void:
 			m["Skin"] = SG.cloth_mat(enemy.faction, 1, gc[0].lerp(gc[1], 0.15) * 1.1, "carrier")   # Plattentraeger/Hemd
 			m["plate"] = SG.flat_gear(gc[0].lerp(gc[2], 0.5), 0.6 if not reich else 0.45, 0.0 if not reich else 0.3)
 			m["dark"] = SG.flat_gear(gc[1], 0.8)
+		if kind == "mh":
+			_mh_materials(m)
 		_mat_cache[key] = m
 	var mats: Dictionary = _mat_cache[key]
 	for c in skeleton.get_children():
 		if c is MeshInstance3D:
 			var mi := c as MeshInstance3D
-			SG.prepare_mesh(mi, skeleton)
+			if kind == "swat":
+				SG.prepare_mesh(mi, skeleton)   # MH-Meshes haben die Ruhepose-Daten schon (Bake, mit LODs)
 			_meshes.append(mi)
 			for s in mi.mesh.get_surface_count():
 				var sm := mi.mesh.surface_get_material(s)
@@ -182,6 +223,101 @@ func _reich_materials(m: Dictionary) -> void:
 		patch.albedo_color = enemy.color_armband
 	m["patch"] = patch
 
+## Original-Material (Bake) einer Oberflaeche des MH-Modells, per Name
+func _mh_bake_mat(nm: String) -> Material:
+	for c in skeleton.get_children():
+		if c is MeshInstance3D:
+			var mesh := (c as MeshInstance3D).mesh
+			for s in mesh.get_surface_count():
+				var sm := mesh.surface_get_material(s)
+				if sm != null and sm.resource_name == nm:
+					return sm
+	return null
+
+## MH-Modell: Uniform/Helm ueber soldier_mh_cloth.gdshader (Tarnmuster ru/reich, sonst Fraktionsfarben).
+func _mh_materials(m: Dictionary) -> void:
+	# SWAT: "Skin" = Plattentraeger-Stoff; MH: echte Haut -> Haut-Shader (waermer, Sturm mit Halstuch)
+	var base_skin := _mh_bake_mat("Skin") as BaseMaterial3D
+	var sk := ShaderMaterial.new()
+	sk.shader = load(MH_SKIN_SHADER)
+	if base_skin:
+		sk.set_shader_parameter("albedo_tex", base_skin.albedo_texture)
+		sk.set_shader_parameter("skin_rough", base_skin.roughness)
+	sk.set_shader_parameter("head_off", skeleton.get_bone_global_rest(skeleton.find_bone("Head")).origin - MHG.REF_HEAD)
+	if role == "assault":
+		var gcol := MHG.gaiter_color(enemy.faction)
+		sk.set_shader_parameter("gaiter_on", true)
+		sk.set_shader_parameter("gaiter_col", Color(gcol.r, gcol.g, gcol.b))
+	m["Skin"] = sk
+	# Haar-Karten: matter (wirkten wie glaenzende Kappe), dunkler Haaransatz darunter kommt aus dem Haut-Shader
+	var base_hair := _mh_bake_mat("Hair") as BaseMaterial3D
+	if base_hair:
+		var hm := base_hair.duplicate() as BaseMaterial3D
+		hm.roughness = 1.0
+		hm.metallic_specular = 0.12
+		hm.albedo_color = Color(0.8, 0.78, 0.76)
+		m["Hair"] = hm
+	var sh := load(MH_SHADER) as Shader
+	var camo_path: String = SG.CAMO_TEX.get(enemy.faction, "")
+	var camo: Texture2D = load(camo_path) if camo_path != "" and ResourceLoader.exists(camo_path) else null
+	var top := enemy.color_primary.lerp(enemy.color_secondary, 0.25) * 0.95
+	var trou := enemy.color_primary.lerp(enemy.color_secondary, 0.5) * 0.85
+	if enemy.faction == "garde":
+		top *= 0.78   # Stadtgrau statt Hellgrau (Stoff wirkt mit Detailkarte sonst fast weiss)
+		trou *= 0.78
+	var u := ShaderMaterial.new()
+	u.shader = sh
+	u.set_shader_parameter("detail_tex", load(MH_TEX + "suit.jpg"))
+	u.set_shader_parameter("normal_tex", load(MH_TEX + "suit_n.jpg"))
+	u.set_shader_parameter("mode", 0)
+	u.set_shader_parameter("col_top", Color(top.r, top.g, top.b))
+	u.set_shader_parameter("col_trou", Color(trou.r, trou.g, trou.b))
+	if camo != null:
+		u.set_shader_parameter("camo_tex", camo)
+		u.set_shader_parameter("use_camo", true)
+		u.set_shader_parameter("camo_mul", Color(0.85, 0.85, 0.85) if enemy.faction == "reich" else Color(1, 1, 1))
+	if enemy.faction == "garde_winter":
+		u.set_shader_parameter("dirt_amount", 0.15)
+	# Armbinde eng am Oberarm (Ruhepose: Schulter- und Ellbogengelenk je Seite)
+	u.set_shader_parameter("arm_on", true)
+	u.set_shader_parameter("arm_col", Color(enemy.color_armband.r, enemy.color_armband.g, enemy.color_armband.b))
+	for side in ["L", "R"]:
+		var a0 := skeleton.get_bone_global_rest(skeleton.find_bone("UpperArm." + side)).origin
+		var a1 := skeleton.get_bone_global_rest(skeleton.find_bone("LowerArm." + side)).origin
+		u.set_shader_parameter("arm_a_" + side.to_lower(), a0)
+		u.set_shader_parameter("arm_b_" + side.to_lower(), a1)
+	if enemy.faction == "reich" and ResourceLoader.exists(REICH_ARMBAND_TEX):
+		u.set_shader_parameter("arm_tex", load(REICH_ARMBAND_TEX))
+		u.set_shader_parameter("arm_use_tex", true)
+		u.set_shader_parameter("arm_col", Color.WHITE)
+	m["Uniform"] = u
+	var h := ShaderMaterial.new()
+	h.shader = sh
+	h.set_shader_parameter("detail_tex", load(MH_TEX + "helmet.jpg"))
+	h.set_shader_parameter("normal_tex", load(MH_TEX + "helmet_n.jpg"))
+	h.set_shader_parameter("mode", 1)
+	h.set_shader_parameter("dirt_amount", 0.0)
+	h.set_shader_parameter("normal_depth", 0.8)
+	var gc := MHG.colors(enemy.faction)
+	if enemy.faction == "reich":
+		# Ordnungsfront: stahlgrau lackiert, leicht metallisch
+		h.set_shader_parameter("col_top", Color(0.3, 0.31, 0.33))
+		h.set_shader_parameter("shade_strength", 0.5)
+		h.set_shader_parameter("rough", 0.5)
+		h.set_shader_parameter("metal", 0.3)
+	elif camo != null:
+		# ru: Helmbezug im Tarnmuster
+		h.set_shader_parameter("camo_tex", camo)
+		h.set_shader_parameter("use_camo", true)
+		h.set_shader_parameter("camo_mul", Color(0.9, 0.9, 0.9))
+		h.set_shader_parameter("camo_scale", 3.0)
+		h.set_shader_parameter("shade_strength", 0.6)
+	else:
+		var hc := gc[0].lerp(enemy.color_secondary, 0.5) if enemy.faction != "garde_winter" else enemy.color_primary * 1.1
+		h.set_shader_parameter("col_top", Color(hc.r, hc.g, hc.b))
+		h.set_shader_parameter("rough", 0.7)
+	m["Helmet"] = h
+
 func _std(c: Color, rough: float, metal: float = 0.0) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
@@ -217,6 +353,9 @@ func _cyl(r_top: float, r_bot: float, h: float, seg: int = 12) -> CylinderMesh:
 
 func _build_gear() -> void:
 	var mats: Dictionary = get_meta("mats")
+	if kind == "mh":
+		_build_gear_mh(mats)
+		return
 	# Fraktions-Armbinden (ru: nur Farbe; reich: fiktives Emblem der Ordnungsfront)
 	for side in ["L", "R"]:
 		var ba := _attach("UpperArm." + side)
@@ -248,6 +387,40 @@ func _build_gear() -> void:
 		_part(sh, sm, plate, Vector3(0, 0.02, 0), Vector3.ZERO, Vector3(1.1, 0.8, 1.1))                    # Schulterpanzer
 	var hd := _attach("Head")
 	_part(hd, _boxm(Vector3(0.16, 0.11, 0.018)), mats["Visor"], Vector3(0, 0.02, 0.115), Vector3(0.25, 0, 0))  # Gesichtsschild
+
+## MH-Modell: Armbinden am Oberarm, Brustabzeichen (reich), Plattentraeger/Koppel/Kopfausruestung
+## (soldier_mh_gear.gd) an ruhepose-ausgerichteten Rahmen; Hoehe je Variante skaliert.
+func _build_gear_mh(mats: Dictionary) -> void:
+	# Armbinden: im Uniform-Shader auf den Aermel projiziert (soldier_mh_cloth.gdshader, _mh_materials)
+	var gm := MHG.gear_mat(enemy.faction)
+	for grp: String in MHG.GROUP_BONE:
+		var bone: String = MHG.GROUP_BONE[grp]
+		var bi := skeleton.find_bone(bone)
+		var gmesh := MHG.mesh(enemy.faction, role, heavy, grp)
+		if gmesh == null:
+			continue
+		var ba := _attach(bone)
+		var frame := Node3D.new()
+		frame.name = "Kit_" + grp
+		var place := Transform3D(Basis.from_scale(Vector3(1.0, _mh_f, 1.0)), Vector3.ZERO)
+		if grp == "head":
+			# Kopfgroesse ist bei allen Varianten gleich -> nur verschieben (Kopfknoten-Differenz), nicht strecken
+			place = Transform3D(Basis.IDENTITY, skeleton.get_bone_global_rest(bi).origin - MHG.REF_HEAD)
+		frame.transform = skeleton.get_bone_global_rest(bi).affine_inverse() * place
+		ba.add_child(frame)
+		var mi := MeshInstance3D.new()
+		mi.name = "Kit"
+		mi.mesh = gmesh
+		mi.material_override = gm
+		frame.add_child(mi)
+		_meshes.append(mi)
+		if grp == "chest" and mats.has("patch") and enemy.faction != "resistance":
+			var q := QuadMesh.new()
+			q.size = Vector2(0.06, 0.06)
+			var y := 1.37
+			var z := MHG._front_z(y, heavy) + (0.045 if heavy else 0.035) * 0.5 + 0.0045
+			var pm := _part(frame, q, mats["patch"], Vector3(0.075, y, z), Vector3(deg_to_rad(MHG.FRONT_TILT), 0, 0))
+			pm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 ## Zusatz-Ausruestung (soldier_gear.gd): je Baugruppe ein Mesh an einem ruhepose-ausgerichteten Rahmen.
 func _build_kit() -> void:
@@ -360,28 +533,12 @@ func _build_weapon() -> void:
 	flash_light.light_energy = 0.0
 	flash_light.shadow_enabled = false
 	muzzle.add_child(flash_light)
-	_flash_mesh = MeshInstance3D.new()
-	var fm := StandardMaterial3D.new()
-	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	fm.albedo_color = Color(1.0, 0.7, 0.3, 0.9)
-	fm.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var q := QuadMesh.new()
-	q.size = Vector2(0.12, 0.3)
-	q.center_offset = Vector3(0, 0.15, 0)
-	_flash_mesh.mesh = q
-	_flash_mesh.material_override = fm
-	_flash_mesh.rotation = Vector3(-PI * 0.5, 0, 0)
-	_flash_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_flash_mesh.visible = false
-	muzzle.add_child(_flash_mesh)
-	var q2 := MeshInstance3D.new()
-	q2.mesh = q
-	q2.material_override = fm
-	q2.rotation = Vector3(0, PI * 0.5, 0)
-	q2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_flash_mesh.add_child(q2)
+	# Muendungsfeuer: dieselben prozeduralen Flash-Sprites/Funken wie die Spielerwaffe (Welt-Layer,
+	# mit Tiefentest), etwas groesser fuer die Lesbarkeit auf Distanz
+	_muzzle_fx = MuzzleFx.new()
+	_muzzle_fx.name = "MuzzleFx"
+	muzzle.add_child(_muzzle_fx)
+	_muzzle_fx.call("setup", false, false, 1, 1.35, false)
 	_weapon_attach = _attach("Wrist.R")
 	_weapon_attach.add_child(weapon)
 
@@ -422,16 +579,22 @@ func _config_ik() -> void:
 		ik.grip_r = Transform3D(SoldierIK.hand_basis(Vector3(-0.15, 0.3, -1.0), Vector3(1.0, 0.15, 0.05)), Vector3(0.025, -0.075, 0.085))
 		var zs: float = float(ROLE_WEAPON_Z.get(role, 1.0))
 		ik.grip_l = Transform3D(SoldierIK.hand_basis(Vector3(0.3, 0.5, -0.8), Vector3(-0.6, -0.8, 0.0)), Vector3(-0.04, -0.05, -0.2 * minf(zs, 1.15)))
+	if kind == "mh":
+		# Kolben in der rechten Schultertasche (auf dem Plattentraeger), aus der Ruhepose der Variante
+		var ci := skeleton.find_bone("Chest")
+		var ua := skeleton.get_bone_global_rest(skeleton.find_bone("UpperArm.R")).origin
+		var pocket := Vector3(ua.x * 0.68, ua.y - 0.01 * _mh_f, 0.17)
+		ik.shoulder_pocket = skeleton.get_bone_global_rest(ci).affine_inverse() * pocket
 	weapon.transform = ik.grip_r.affine_inverse()
 
 func _build_tree() -> void:
-	if _tree_root == null:
-		_tree_root = _make_tree_root()
+	if not _trees.has(kind):
+		_trees[kind] = _make_tree_root(rig.get_meta("loco_speed", {}) if kind == "mh" else {})
 	anim_tree = AnimationTree.new()
 	anim_tree.name = "AnimationTree"
 	rig.add_child(anim_tree)
 	anim_tree.anim_player = NodePath("../AnimationPlayer")
-	anim_tree.tree_root = _tree_root
+	anim_tree.tree_root = _trees[kind]
 	anim_tree.active = true
 	anim_tree.set("parameters/life/transition_request", "alive")
 
@@ -440,19 +603,26 @@ static func _anim(n: String) -> AnimationNodeAnimation:
 	a.animation = n
 	return a
 
-static func _make_tree_root() -> AnimationNodeBlendTree:
+## speeds leer = SWAT-Rig (LOCO_POINTS); sonst MH-Rig mit gemessenen Clip-Geschwindigkeiten (Bake-Meta
+## "loco_speed": Animation -> m/s, Fussgleiten minimal) und zusaetzlichem Sprint-Punkt.
+static func _make_tree_root(speeds: Dictionary = {}) -> AnimationNodeBlendTree:
 	var bt := AnimationNodeBlendTree.new()
 	var loco := AnimationNodeBlendSpace2D.new()
 	loco.min_space = Vector2(-5, -5)
 	loco.max_space = Vector2(5, 5)
-	for p in LOCO_POINTS:
+	var pts: Array = LOCO_POINTS
+	if not speeds.is_empty():
+		pts = [["idle", Vector2.ZERO], ["walk", Vector2(0, float(speeds.get("walk", 1.4)))],
+			["run_fwd", Vector2(0, float(speeds.get("run_fwd", 2.4)))], ["sprint", Vector2(0, float(speeds.get("sprint", 4.2)))],
+			["run_back", Vector2(0, -2.6)], ["run_left", Vector2(-2.6, 0)], ["run_right", Vector2(2.6, 0)]]
+	for p in pts:
 		loco.add_blend_point(_anim(p[0]), p[1], -1, StringName(p[0]))
 	bt.add_node("loco", loco, Vector2(0, 0))
 	var cr := AnimationNodeBlendSpace1D.new()
 	cr.min_space = 0.0
 	cr.max_space = 4.0
 	cr.add_blend_point(_anim("crouch_idle"), 0.0, -1, &"crouch_idle")
-	cr.add_blend_point(_anim("crouch_walk"), 1.6, -1, &"crouch_walk")
+	cr.add_blend_point(_anim("crouch_walk"), float(speeds.get("crouch_walk", 1.6)), -1, &"crouch_walk")
 	bt.add_node("crouch", cr, Vector2(0, 200))
 	bt.add_node("crouch_mix", AnimationNodeBlend2.new(), Vector2(250, 100))
 	var hs := AnimationNodeTransition.new()
@@ -537,10 +707,13 @@ func tick(delta: float) -> void:
 		ik.reload_t = -1.0
 	# Muendungsfeuer
 	var flash := e._flash_timer > 0.0
-	_flash_mesh.visible = flash
 	if flash:
-		_flash_mesh.rotation.y = e.rng.randf() * TAU
-		_flash_mesh.scale = Vector3.ONE * e.rng.randf_range(0.7, 1.2)
+		# RNG-Verbrauch wie bisher beibehalten (deterministische Gegner-Zufallsfolge)
+		e.rng.randf()
+		e.rng.randf_range(0.7, 1.2)
+		if e._flash_timer > _flash_prev:
+			_muzzle_fx.call("fire")
+	_flash_prev = e._flash_timer
 
 func start_reload() -> void:
 	_reload_left = RELOAD_TIME
@@ -554,7 +727,7 @@ func die(explosive: bool) -> void:
 		return
 	_dead = true
 	_explosive = explosive
-	_flash_mesh.visible = false
+	_muzzle_fx.call("stop")
 	flash_light.light_energy = 0.0
 	var can_ragdoll := active_ragdolls < MAX_RAGDOLLS
 	if can_ragdoll:
@@ -611,6 +784,8 @@ func _start_ragdoll() -> void:
 	var sk_g := skeleton.global_transform
 	for r in RAGDOLL:
 		var bi := skeleton.find_bone(r[0])
+		if bi < 0 and r[4] == "root":
+			bi = skeleton.find_bone("Hips")   # MH-Rig: kein "Body"-Knochen
 		if bi < 0:
 			continue
 		var g_rest := skeleton.get_bone_global_rest(bi)
@@ -624,7 +799,7 @@ func _start_ragdoll() -> void:
 		var dir := end_local / maxf(length, 0.001)
 		var pb := PhysicalBone3D.new()
 		pb.name = "PB_" + String(r[0]).replace(".", "_")
-		pb.bone_name = r[0]
+		pb.bone_name = skeleton.get_bone_name(bi)
 		pb.collision_layer = Enemy.LAYER_DEBRIS
 		pb.collision_mask = Enemy.LAYER_WORLD
 		pb.mass = r[3]

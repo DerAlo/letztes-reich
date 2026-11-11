@@ -81,6 +81,32 @@ func _ready() -> void:
 	if player == null:
 		player = get_tree().get_first_node_in_group("player") as Player
 	Events.checkpoint_reached.connect(func(_id: String) -> void: toast("CHECKPOINT"))
+	_init_options()
+
+# ---------------------------------------------------------------- Optionen (Settings, Runde 6)
+# Fadenkreuz-Stil: 0 Standard, 1 Punkt, 2 Kreuz ohne Punkt, 3 Kreis, 4 Aus. Farbe: 0 = line_color (Standard).
+const XH_COLORS := [Color(1, 1, 1), Color(0.3, 1.0, 0.35), Color(1.0, 0.92, 0.2), Color(0.25, 0.95, 1.0),
+	Color(1.0, 0.25, 0.2), Color(1.0, 0.3, 0.95)]
+var _xh_style: int = 0
+var _xh_color: int = 0
+var _hitmarkers: bool = true
+
+func _init_options() -> void:
+	var st := get_node_or_null("/root/Settings")
+	if st == null:
+		return
+	_load_options(st)
+	st.connect("changed", func(_k: String, _v) -> void: _load_options(st))
+
+func _load_options(st: Node) -> void:
+	if not is_instance_valid(st):
+		return
+	var v = st.call("get_value", "game/crosshair", 0)
+	_xh_style = int(v) if v != null else 0
+	v = st.call("get_value", "game/crosshair_color", 0)
+	_xh_color = int(v) if v != null else 0
+	v = st.call("get_value", "game/hitmarkers", true)
+	_hitmarkers = bool(v) if v != null else true
 
 # ---------------------------------------------------------------- Aufbau
 
@@ -137,7 +163,7 @@ func _build() -> void:
 	_ammo_label = _make_label(54, HORIZONTAL_ALIGNMENT_RIGHT)
 	_reserve_label = _make_label(22, HORIZONTAL_ALIGNMENT_RIGHT, Color(1, 1, 1, 0.65))
 	_grenade_label = _make_label(18, HORIZONTAL_ALIGNMENT_RIGHT, Color(1, 1, 1, 0.8))
-	# Waffen-Slots: "1 G36C  2 P228  3 PANZERFAUST 3", aktive Waffe hervorgehoben
+	# Waffen-Slots: "1 G36C  2 P1  3 PANZERFAUST 3", aktive Waffe hervorgehoben
 	_slot_box = HBoxContainer.new()
 	_slot_box.alignment = BoxContainer.ALIGNMENT_END
 	_slot_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -195,6 +221,8 @@ func _build() -> void:
 # ---------------------------------------------------------------- Öffentliche API
 
 func show_hitmarker(kill: bool, headshot: bool = false) -> void:
+	if not _hitmarkers:
+		return
 	_hit_kill = kill
 	_hit_head = headshot
 	_hit_t = kill_time if (kill or headshot) else hit_time
@@ -335,15 +363,28 @@ func _draw_crosshair(c: Vector2, size: Vector2) -> void:
 	var sprint: float = float(_info.sprint)
 	# Beim Zielen ausblenden (Red Dot / Kimme übernimmt)
 	var a: float = clampf(1.0 - ads * 1.8, 0.0, 1.0) * (1.0 - 0.6 * sprint)
-	if a <= 0.01:
+	if a <= 0.01 or _xh_style == 4:
 		return
 	var col := Color(line_color.r, line_color.g, line_color.b, line_color.a * a)
+	if _xh_color > 0 and _xh_color < XH_COLORS.size():
+		var xc: Color = XH_COLORS[_xh_color]
+		col = Color(xc.r, xc.g, xc.b, col.a)
+	if _xh_style == 1:
+		_overlay.draw_rect(Rect2(c - Vector2(2.5, 2.5), Vector2(5, 5)), Color(0, 0, 0, col.a * 0.5))
+		_overlay.draw_rect(Rect2(c - Vector2(1.5, 1.5), Vector2(3, 3)), col)
+		return
+	if _xh_style == 3:
+		_overlay.draw_arc(c, gap + 2.0, 0.0, TAU, 48, Color(0, 0, 0, col.a * 0.45), 3.0, true)
+		_overlay.draw_arc(c, gap + 2.0, 0.0, TAU, 48, col, 1.5, true)
+		_overlay.draw_rect(Rect2(c - Vector2(1, 1), Vector2(2, 2)), Color(col.r, col.g, col.b, col.a * 0.9))
+		return
 	var l: float = crosshair_len * (1.0 - 0.3 * ads)
 	_line(c + Vector2(gap, 0), c + Vector2(gap + l, 0), col)
 	_line(c - Vector2(gap, 0), c - Vector2(gap + l, 0), col)
 	_line(c + Vector2(0, gap), c + Vector2(0, gap + l), col)
 	_line(c - Vector2(0, gap), c - Vector2(0, gap + l), col)
-	_overlay.draw_rect(Rect2(c - Vector2(1, 1), Vector2(2, 2)), Color(col.r, col.g, col.b, col.a * 0.8))
+	if _xh_style != 2:
+		_overlay.draw_rect(Rect2(c - Vector2(1, 1), Vector2(2, 2)), Color(col.r, col.g, col.b, col.a * 0.8))
 
 func _draw_hitmarker(c: Vector2) -> void:
 	if _hit_t <= 0.0:

@@ -107,7 +107,7 @@ func _update_aim(k: float) -> void:
 		return
 	_laser.visible = true
 	var basis := Basis.looking_at((to - from) / d, Vector3.UP if absf((to - from).normalized().y) < 0.98 else Vector3.RIGHT)
-	_laser.global_transform = Transform3D(basis.scaled(Vector3(1, 1, d)), (from + to) * 0.5)
+	_laser.global_transform = Transform3D(basis * Basis.from_scale(Vector3(1, 1, d)), (from + to) * 0.5)
 	_laser_mat.albedo_color = Color(LASER_COLOR, lerpf(0.85, 0.3, k))
 	_glint.visible = true
 	var pulse := 0.75 + 0.25 * sin(_age * 18.0)

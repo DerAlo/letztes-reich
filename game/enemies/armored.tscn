@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/enemies/armored_enemy.gd" id="1_armored"]
+
+[node name="Armored" type="CharacterBody3D"]
+script = ExtResource("1_armored")
+enemy_type = "armored"
+max_health = 80.0
+walk_speed = 2.0
+run_speed = 3.5
+strafe_speed = 1.0
+turn_speed = 5.0
+cover_chance = 0.55
+flank_chance = 0.15
+preferred_distance_min = 10.0
+preferred_distance_max = 22.0
+damage_per_hit = 8.0
+burst_min = 3
+burst_max = 6
+shot_interval = 0.14
+type_accuracy = 0.9
+death_impulse_speed = 2.8
+color_primary = Color(0.19, 0.21, 0.15, 1)
+color_secondary = Color(0.24, 0.25, 0.24, 1)

@@ -41,12 +41,12 @@ static func get_stream(sfx_name: String) -> AudioStream:
 ## Spielt einen Sound auf dem gegebenen Player (falls Datei vorhanden).
 ## pitch_jitter: +- Tonhöhe; vol_jitter_db: +- Lautstärke in dB.
 static func play_on(player: AudioStreamPlayer3D, sfx_name: String, pitch_jitter: float = 0.0,
-		vol_jitter_db: float = 0.0) -> void:
+		vol_jitter_db: float = 0.0, vol_offset_db: float = 0.0) -> void:
 	var s := get_stream(sfx_name)
 	if s == null or player == null:
 		return
 	player.stream = s
 	player.bus = &"SFX"
 	player.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
-	player.volume_db = randf_range(-vol_jitter_db, vol_jitter_db)
+	player.volume_db = vol_offset_db + randf_range(-vol_jitter_db, vol_jitter_db)
 	player.play()

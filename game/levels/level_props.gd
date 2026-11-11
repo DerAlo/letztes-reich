@@ -5,6 +5,9 @@ extends RefCounted
 
 const Geo = preload("res://game/levels/level_geo.gd")
 const FireScene: PackedScene = preload("res://game/vfx/fire.tscn")
+const TankWreck = preload("res://game/vehicles/models/tank_wreck_model.gd")
+const CarModel = preload("res://game/vehicles/models/car_model.gd")
+const PH = preload("res://game/levels/ph_props.gd")
 
 static func _rot(yaw_deg: float) -> Basis:
 	return Basis(Vector3.UP, deg_to_rad(yaw_deg))
@@ -72,37 +75,15 @@ static func vehicle(parent: Node3D, pos: Vector3, yaw_deg: float, kind: String, 
 			_cover_sides(covers, pos, yaw_deg, width / 2.0, length / 2.0, 1.0, true)
 			return b
 	var ride := 0.32
-	var batch := Geo.batch()
-	batch.add(Vector3(0, ride + body_h / 2.0, 0), Vector3(width, body_h, length))
-	var glass := Geo.batch()
 	var total_h := ride + body_h
-	if cab_len > 0.0 and kind == "car":
-		batch.add(Vector3(0, ride + body_h + cab_h / 2.0, cab_off), Vector3(width - 0.2, cab_h, cab_len))
-		glass.add(Vector3(0, ride + body_h + cab_h / 2.0 + 0.03, cab_off), Vector3(width - 0.14, cab_h - 0.2, cab_len - 0.5))
+	if kind == "car":
 		total_h += cab_h
 	elif kind == "truck":
-		batch.add(Vector3(0, ride + 1.1, cab_off + 0.2), Vector3(width, 2.2, cab_len))
-		batch.add(Vector3(0, ride + body_h + 0.1, -1.0), Vector3(width, 0.3, length - cab_len - 0.6))
-		glass.add(Vector3(0, ride + 1.5, cab_off + 1.15), Vector3(width - 0.1, 0.8, 0.1))
 		total_h = ride + 2.5
-	else:
-		# Fensterband bei Van/Bus
-		var bh := 0.8 if kind == "van" else 0.9
-		glass.add(Vector3(0, ride + body_h * 0.62, 0), Vector3(width + 0.04, bh, length - 1.4))
-	root.add_child(Geo.mesh_node(batch.build(), paint))
-	if glass.count > 0:
-		root.add_child(Geo.mesh_node(glass.build(), _dark_glass()))
-	# Raeder
-	var wheel_r := 0.36 if kind == "car" else 0.5
-	var wz: Array[float] = [length * 0.34, -length * 0.34]
-	if kind == "bus":
-		wz = [4.0, -3.4]
-	for z in wz:
-		for sx in [-1.0, 1.0]:
-			if burnt and randf() < 0.5:
-				continue
-			var w := Geo.cylinder_node(wheel_r, 0.28, _rubber(), Vector3(sx * (width / 2.0 - 0.05), wheel_r - 0.02, z), Vector3(0, 0, 90))
-			root.add_child(w)
+	# Karosserie aus Seitenprofilen mit Radlaeufen, Greenhouse, Saeulen, Raeder/Felgen (CarModel)
+	var glass_m: Material = Geo.flat(Color(0.025, 0.022, 0.02), 0.95) if burnt else _dark_glass()
+	var rim_m: Material = paint if burnt else Geo.flat(Color(0.5, 0.5, 0.52), 0.4, 0.8)
+	CarModel.build(root, kind, paint, glass_m, _rubber(), rim_m, burnt)
 	var half_h := total_h / 2.0
 	root.rotation_degrees.z = roll_deg
 	if flipped:
@@ -115,35 +96,16 @@ static func vehicle(parent: Node3D, pos: Vector3, yaw_deg: float, kind: String, 
 
 # --- Panzer -------------------------------------------------------------------
 
-static func tank_wreck(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Array) -> StaticBody3D:
+## Ausgebranntes Panzerwrack (detailliertes TankModel, verkohlt/rostig, Turm verdreht, Kette abgeworfen).
+## snow = Schneeauflage (Winterlevels). Kollision und Deckungspunkte wie bisher.
+static func tank_wreck(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Array, snow: bool = false) -> StaticBody3D:
 	var b := Geo.static_body(pos, yaw_deg)
-	var m := Geo.mat("rusty_metal_02", Color(0.3, 0.29, 0.22), 0.4, 1.0)
-	var burnt := Geo.mat("rusty_metal_02", Color(0.11, 0.1, 0.09), 0.4, 1.0)
-	var hull := Geo.batch()
-	hull.add(Vector3(0, 1.05, 0), Vector3(3.0, 1.05, 6.4))
-	hull.add(Vector3(0, 0.78, 3.3), Vector3(2.8, 0.7, 0.9), Basis(Vector3.RIGHT, deg_to_rad(-28.0)))
-	hull.add(Vector3(0, 1.0, -3.3), Vector3(2.9, 0.8, 0.5), Basis(Vector3.RIGHT, deg_to_rad(22.0)))
-	for sx in [-1.0, 1.0]:
-		hull.add(Vector3(sx * 1.75, 0.62, 0.0), Vector3(0.75, 1.0, 7.0))
-		hull.add(Vector3(sx * 1.75, 1.25, 0.0), Vector3(0.9, 0.12, 7.2))
-	b.add_child(Geo.mesh_node(hull.build(), m))
-	var track_mat := Geo.flat(Color(0.07, 0.065, 0.06), 0.8, 0.3)
-	for sx in [-1.0, 1.0]:
-		for k in 7:
-			b.add_child(Geo.cylinder_node(0.4, 0.5, track_mat, Vector3(sx * 1.78, 0.45, -2.9 + k * 0.97), Vector3(0, 0, 90.0), 14))
-	# Turm, verdreht und angekippt, Rohr geknickt
-	var tur := Node3D.new()
-	tur.position = Vector3(0.1, 1.95, -0.3)
-	tur.rotation_degrees = Vector3(3.0, 24.0, -4.0)
-	var tb := Geo.batch()
-	tb.add(Vector3(0, 0, 0), Vector3(2.5, 0.85, 3.0))
-	tb.add(Vector3(0, 0.1, 1.6), Vector3(1.4, 0.7, 0.5))
-	tb.add(Vector3(0.5, 0.58, -0.3), Vector3(0.7, 0.3, 0.7))
-	tur.add_child(Geo.mesh_node(tb.build(), m))
-	tur.add_child(Geo.cylinder_node(0.1, 4.6, burnt, Vector3(0, 0.1, 3.9), Vector3(86.0, 0, 0), 10))
-	b.add_child(tur)
-	# Russwand ueber dem Motorraum
-	b.add_child(Geo.box_mesh_node(Vector3(2.4, 0.06, 2.0), burnt, Vector3(0, 1.6, -2.0)))
+	var model := Node3D.new()
+	model.name = "WreckModel"
+	# TankModel: Front = -Z; das alte Wrack hatte die Front bei +Z -> 180 Grad drehen
+	model.rotation_degrees = Vector3(0, 180.0, 0)
+	b.add_child(model)
+	TankWreck.build(model, snow)
 	Geo.add_box_shape(b, Vector3(0, 1.05, 0), Vector3(3.0, 1.2, 6.5))
 	Geo.add_box_shape(b, Vector3(1.75, 0.65, 0), Vector3(0.8, 1.3, 7.1))
 	Geo.add_box_shape(b, Vector3(-1.75, 0.65, 0), Vector3(0.8, 1.3, 7.1))
@@ -155,36 +117,17 @@ static func tank_wreck(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Arr
 # --- Barrieren ----------------------------------------------------------------
 
 static func jersey(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Array) -> void:
-	var mat := Geo.mat("concrete_wall_008", Color(0.55, 0.54, 0.52), 0.5, 1.0)
+	# Poly-Haven "concrete_road_barrier" (1,55 m Segment), auf 2,4 x 1,08 m gebracht; Laenge entlang lokal z
 	var b := Geo.static_body(pos, yaw_deg)
-	var bb := Geo.batch()
-	bb.add(Vector3(0, 0.22, 0), Vector3(0.8, 0.44, 2.4))
-	bb.add(Vector3(0, 0.44 + 0.33, 0), Vector3(0.45, 0.66, 2.3))
-	bb.add(Vector3(0, 0.44 + 0.15, 0), Vector3(0.62, 0.3, 2.35))
-	b.add_child(Geo.mesh_node(bb.build(), mat))
+	PH.place(b, "concrete_road_barrier", Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(1.55, 1.31, 1.25)), Vector3(-0.03, 0.01, 0)))
 	Geo.add_box_shape(b, Vector3(0, 0.55, 0), Vector3(0.8, 1.1, 2.4))
 	parent.add_child(b)
 	_cover_sides(covers, pos, yaw_deg, 0.4, 1.2, 0.9)
 
-static func _sand_mat() -> StandardMaterial3D:
-	var m := Geo.flat(Color(0.52, 0.45, 0.31), 1.0)
-	return m
-
 static func sandbags(parent: Node3D, pos: Vector3, yaw_deg: float, length: float, rng: RandomNumberGenerator, covers: Array) -> void:
+	# Gefuellte Jutesaecke (ph_props.gd, ein MultiMesh je Wall), 4 Lagen, zwei Reihen
 	var b := Geo.static_body(pos, yaw_deg)
-	var bb := Geo.batch()
-	var n := int(length / 0.55)
-	for layer in 4:
-		var off := 0.27 if layer % 2 == 1 else 0.0
-		var cnt := n if off == 0.0 else n - 1
-		for i in cnt:
-			var z := -length / 2.0 + 0.3 + off + i * ((length - 0.6) / maxf(n - 1, 1))
-			var sz := Vector3(rng.randf_range(0.44, 0.52), rng.randf_range(0.24, 0.3), rng.randf_range(0.58, 0.66))
-			var rot := Basis(Vector3.UP, rng.randf_range(-0.1, 0.1)) * Basis(Vector3.RIGHT, rng.randf_range(-0.12, 0.12))
-			# Zwei Reihen hintereinander (Wanddicke)
-			for row in [-1.0, 1.0]:
-				bb.add_ball(Vector3(row * 0.24 + rng.randf_range(-0.03, 0.03), 0.14 + layer * 0.23, z), sz, rot)
-	b.add_child(Geo.mesh_node(bb.build(), _sand_mat()))
+	PH.sandbag_wall(b, length, 4, rng)
 	Geo.add_box_shape(b, Vector3(0, 0.46, 0), Vector3(0.9, 0.92, length))
 	parent.add_child(b)
 	_cover_sides(covers, pos, yaw_deg, 0.45, length / 2.0, 0.9)
@@ -271,41 +214,79 @@ static func crater(parent: Node3D, pos: Vector3, radius: float, rng: RandomNumbe
 # --- Lampen, Feuer, Nebel --------------------------------------------------------
 
 ## cone: zusaetzlicher Spot nach unten, der im Volumetric Fog einen sichtbaren Lichtkegel zeichnet.
+## Berliner Gaslaterne (Poly-Haven "street_lamp_01", 4,6 m). lit = Glaskoerper leuchtet + Licht,
+## cone = zusaetzlicher Lichtkegel nach unten, lean_deg = verbogener Mast.
 static func lamp(parent: Node3D, pos: Vector3, yaw_deg: float, lit: bool, lean_deg: float = 0.0, cone: bool = false) -> void:
-	var metal := Geo.mat("rusty_metal_02", Color(0.2, 0.2, 0.19), 0.5, 1.0)
+	const SC := 1.2
+	const HEAD := 3.33 * SC        # Mitte des Laternenkopfs
 	var b := Geo.static_body(pos, yaw_deg)
 	var root := Node3D.new()
 	root.rotation_degrees.z = lean_deg
 	b.add_child(root)
-	root.add_child(Geo.cylinder_node(0.09, 6.4, metal, Vector3(0, 3.2, 0), Vector3.ZERO, 8))
-	root.add_child(Geo.box_mesh_node(Vector3(0.1, 0.1, 1.5), metal, Vector3(0, 6.35, 0.6), Vector3(8, 0, 0)))
-	var head_mat: Material = Geo.flat(Color(0.05, 0.04, 0.03), 0.8, 0.0, Color(1.0, 0.72, 0.4), 3.0) if lit else metal
-	root.add_child(Geo.box_mesh_node(Vector3(0.35, 0.14, 0.7), head_mat, Vector3(0, 6.25, 1.25)))
+	var m := PH.place(root, "street_lamp_01", Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * SC), Vector3.ZERO))
 	if lit:
+		for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
+			if mi.mesh.get_surface_count() > 2:
+				# Gluehstrumpf hell, Glasscheiben warm durchscheinend (wie eine brennende Gaslaterne)
+				mi.set_surface_override_material(1, _lamp_glass())
+				mi.set_surface_override_material(2, _lamp_bulb())
+			# eigene Render-Ebene: das Laternenlicht sitzt im Glaskoerper und wuerde das Glas aus 10 cm
+			# Abstand ueberstrahlen (weisses Quadrat) -> Laternenlichter beleuchten die Laternen selbst nicht
+			mi.layers = LAMP_LAYER
 		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.72, 0.42)
-		l.light_energy = 3.2
-		l.omni_range = 15.0
+		l.light_color = Color(1.0, 0.74, 0.46)
+		l.light_energy = 3.0
+		l.omni_range = 14.0
+		l.omni_attenuation = 1.2
 		l.light_volumetric_fog_energy = 1.5
 		l.shadow_enabled = false
-		l.position = Vector3(0, 5.9, 1.25)
+		l.position = Vector3(0, HEAD, 0)
+		l.light_cull_mask = 0xFFFFF & ~LAMP_LAYER
 		root.add_child(l)
 		if cone:
-			l.light_energy = 1.4
+			l.light_energy = 1.2
 			l.light_volumetric_fog_energy = 0.4
 			var sp := SpotLight3D.new()
-			sp.light_color = Color(1.0, 0.74, 0.46)
-			sp.light_energy = 5.0
-			sp.spot_range = 9.0
-			sp.spot_angle = 42.0
+			sp.light_color = Color(1.0, 0.76, 0.5)
+			sp.light_energy = 4.0
+			sp.spot_range = 8.0
+			sp.spot_angle = 58.0
 			sp.spot_angle_attenuation = 0.8
-			sp.light_volumetric_fog_energy = 2.2
+			sp.light_volumetric_fog_energy = 2.0
 			sp.shadow_enabled = false
-			sp.position = Vector3(0, 6.12, 1.25)
+			sp.position = Vector3(0, HEAD - 0.15, 0)
+			sp.light_cull_mask = 0xFFFFF & ~LAMP_LAYER
 			sp.rotation_degrees = Vector3(-90.0, 0, 0)
 			root.add_child(sp)
-	Geo.add_box_shape(b, Vector3(0, 3.2, 0), Vector3(0.3, 6.4, 0.3))
+	Geo.add_box_shape(b, Vector3(0, 2.3, 0), Vector3(0.36, 4.6, 0.36))
 	parent.add_child(b)
+
+static var _glow: Dictionary = {}
+const LAMP_LAYER := 1 << 13
+
+## Leuchtende Gluehstruempfe / Glas der Gaslaterne (geteilt).
+static func _lamp_bulb() -> Material:
+	if not _glow.has("bulb"):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1.0, 0.86, 0.62)
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.78, 0.5)
+		m.emission_energy_multiplier = 4.0
+		_glow["bulb"] = m
+	return _glow["bulb"]
+
+static func _lamp_glass() -> Material:
+	if not _glow.has("glass"):
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(1.0, 0.82, 0.58, 0.55)
+		m.roughness = 0.35
+		m.emission_enabled = true
+		m.emission = Color(1.0, 0.7, 0.4)
+		m.emission_energy_multiplier = 1.4
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_glow["glass"] = m
+	return _glow["glass"]
 
 static func fire(parent: Node3D, pos: Vector3, size: float, light: bool = true, smoke_height: float = 1.0, light_energy: float = 6.0, burn_time: float = 0.0) -> Node3D:
 	var f: Node3D = FireScene.instantiate()

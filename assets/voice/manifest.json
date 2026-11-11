@@ -1,4 +1,34 @@
 {
+ "0019af22d4e1": {
+  "asr": "Schüsse, alle Einheiten, Alarmstufe Rot.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.53,
+  "slot": 3.8000000000000003,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Schüsse! Alle Einheiten, Alarmstufe Rot!",
+  "wer": 0.0
+ },
+ "0288555226cf": {
+  "asr": "Hier Brand. Ich kreise über der Warnow Lichter aus. Offiziell ist das ein Werkstattflug.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.0,
+  "slot": 6.550000000000001,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Hier Brandt. Ich kreise über der Warnow, Lichter aus. Offiziell ist das ein Werkstattflug.",
+  "wer": 0.071
+ },
+ "028b3aa582ac": {
+  "asr": "Hier im Steuerraum. Ein Fahrplan Nachzug Innsbruck, Wien heute Abend mit Webers Handschrift angestrichen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.12,
+  "slot": 7.65,
+  "speaker": "Lena Aksoy",
+  "text": "Hier, im Steuerraum. Ein Fahrplan – Nachtzug Innsbruck–Wien, heute Abend, mit Webers Handschrift angestrichen.",
+  "wer": 0.071
+ },
  "02ebd99c07bd": {
   "asr": "»Kontakt am Brückenkopf. Die halten die Auffahrt, Deckung hinter den Drax.«",
   "cast": "f7dad8c0",
@@ -19,6 +49,26 @@
   "text": "…zwei Jahre Krieg. Und heute Nacht sagen wir: Europa hat gehalten!",
   "wer": 0.0
  },
+ "042258cc1ab4": {
+  "asr": "Wer auch immer da unten war, ich weiß, wohin der Schacht führt. Oben warte ich.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 5.6,
+  "slot": 5.945,
+  "speaker": "Oberst Falk",
+  "text": "Wer auch immer da unten war: Ich weiß, wohin der Schacht führt. Oben warte ich.",
+  "wer": 0.0
+ },
+ "0488cebec1f2": {
+  "asr": "Kerne, ich hätte wissen müssen, dass Forst dich schickt.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.39,
+  "slot": 4.5,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner. Ich hätte wissen müssen, dass Voss dich schickt.",
+  "wer": 0.222
+ },
  "04a412f313a5": {
   "asr": "Güterbahnhof Pskov. Da hinten steht ihr Munitionszug. Der fährt heute nirgendwo mehr hin.",
   "cast": "55a3695c",
@@ -28,6 +78,66 @@
   "speaker": "Hauptmann Weber",
   "text": "Güterbahnhof Pskow. Da hinten steht ihr Munitionszug. Der fährt heute nirgendwo mehr hin.",
   "wer": 0.077
+ },
+ "04bf222a7b2d": {
+  "asr": "Ich lebe, der Rabe nicht.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.9,
+  "slot": 2.975,
+  "speaker": "Kerner",
+  "text": "Ich lebe. Der Rabe nicht.",
+  "wer": 0.0
+ },
+ "05598e691de4": {
+  "asr": "Dann fahren wir mit.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.52,
+  "slot": 2.7,
+  "speaker": "Kerner",
+  "text": "Dann fahren wir mit.",
+  "wer": 0.0
+ },
+ "05a05ffadd06": {
+  "asr": "kappt die Leitung im Sendesaal sofort.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 3.15,
+  "slot": 3.5,
+  "speaker": "Oberst Falk",
+  "text": "Kappt die Leitung im Sendesaal! Sofort!",
+  "wer": 0.0
+ },
+ "05f0b58aa4fb": {
+  "asr": "Sie sind festgenommen, Weber, die Akte geht ans Gericht und sie auch.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.81,
+  "slot": 5.505,
+  "speaker": "Kerner",
+  "text": "Sie sind festgenommen, Weber. Die Akte geht ans Gericht – und Sie auch.",
+  "wer": 0.0
+ },
+ "0663776c787b": {
+  "asr": "Kerne, ihr seid hartnäckig, aber Nordlicht ist größer als ihr alle.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.99,
+  "slot": 5.34,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner? Ihr seid hartnäckig. Aber Nordlicht ist größer als ihr alle.",
+  "wer": 0.091
+ },
+ "06baea16bbd9": {
+  "asr": "Tanklager brennt, Lindenau, bitte kommen, Lindenau?",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.69,
+  "slot": 4.515000000000001,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Tanklager brennt … Lindenau, bitte kommen … Lindenau?",
+  "wer": 0.0
  },
  "087d15bdac2c": {
   "asr": "Bewegung bei den Sandsäcken, 12 Uhr.",
@@ -49,6 +159,46 @@
   "text": "Jonas… er war es die ganze Zeit.",
   "wer": 0.0
  },
+ "08c43a32193b": {
+  "asr": "Danke, weiter zur nächsten Querreihe.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.83,
+  "slot": 3.6350000000000002,
+  "speaker": "Lena Aksoy",
+  "text": "Danke. Weiter zur nächsten Querreihe.",
+  "wer": 0.0
+ },
+ "09502d2c24dd": {
+  "asr": "Ich hab noch eine Panzerfaust aus dem Rabe. Kopf runter!",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.17,
+  "slot": 4.68,
+  "speaker": "Konrad Voss",
+  "text": "Ich hab noch eine Panzerfaust aus dem Rabe. Kopf runter!",
+  "wer": 0.0
+ },
+ "0acd6d1e9c07": {
+  "asr": "Suche ergebnislos. Alle Posten zurück auf Streife.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.83,
+  "slot": 4.35,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Suche ergebnislos. Alle Posten zurück auf Streife.",
+  "wer": 0.0
+ },
+ "0b0fee249036": {
+  "asr": "Terminal gefunden. Übertragung läuft 22 Sekunden.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.34,
+  "slot": 5.0649999999999995,
+  "speaker": "Kerner",
+  "text": "Terminal gefunden. Übertragung läuft – zweiundzwanzig Sekunden.",
+  "wer": 0.0
+ },
  "0c30c3f914dc": {
   "asr": "Sie werfen die Waffen weg, die rennen.",
   "cast": "f7dad8c0",
@@ -57,6 +207,54 @@
   "slot": 3.5,
   "speaker": "Lena Aksoy",
   "text": "Sie werfen die Waffen weg ... die rennen!",
+  "wer": 0.0
+ },
+ "0c5b93f5f8a6": {
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.74,
+  "slot": 7.210000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, ich bin auf dem Dach gegenüber. Ab hier gilt Ausgangssperre – wer sich bewegt, wird erschossen."
+ },
+ "0d4f5899a7f3": {
+  "asr": "Becken ist frei. Weiter zur Hubbrücke.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.28,
+  "slot": 3.69,
+  "speaker": "Lena Aksoy",
+  "text": "Becken ist frei. Weiter zur Hubbrücke!",
+  "wer": 0.0
+ },
+ "0d986b2069d7": {
+  "asr": "Er springt in ein Boot, Liegeplatz 7.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.13,
+  "slot": 3.91,
+  "speaker": "Lena Aksoy",
+  "text": "Er springt in ein Boot! Liegeplatz sieben!",
+  "wer": 0.0
+ },
+ "0da4d88743ce": {
+  "asr": "Ich bleibe am Einstieg und halte den Funk. Unten keine Hast. Wasser trägt jedes Geräusch.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 5.08,
+  "slot": 6.495000000000001,
+  "speaker": "Konrad Voss",
+  "text": "Ich bleibe am Einstieg und halte den Funk. Unten keine Hast. Wasser trägt jedes Geräusch.",
+  "wer": 0.0
+ },
+ "0e2abee3d574": {
+  "asr": "Dann ist es vorbei.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 3.29,
+  "slot": 2.645,
+  "speaker": "General von Riedhammer",
+  "text": "Dann ist es vorbei.",
   "wer": 0.0
  },
  "0f09759bc476": {
@@ -69,6 +267,46 @@
   "text": "Letzte Stellung unter dem Kran. MG und Panzerabwehr.",
   "wer": 0.222
  },
+ "0f282c50204f": {
+  "asr": "12. Juni 2090, 23.11. Drei Tage nach der Ausstrahlung ist Hauptmann Leber auf der Flucht mit der Akte Nordlicht im Gepäck. Ein Hinweis führt in den Überseehafen Rostock, Liegeplatz 7. Forst bleibt in Berlin. Brand fliegt euch inoffiziell an die Küste. Kerner liegt mit der Ganten 80 auf einem Portalkran, Lena geht unten durch das Containerlager. Es regnet, der Seewind ist beug und ihr seid nicht die einzigen, Falks Gardejäger in grauen Mänteln suchen Weber ebenfalls. Weber wird lebend gebraucht und die Akte mit ihm.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 28.8,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "12. Juni 2030, 23:10. Drei Tage nach der Ausstrahlung ist Hauptmann Weber auf der Flucht, mit der Akte Nordlicht im Gepäck. Ein Hinweis führt in den Überseehafen Rostock, Liegeplatz sieben. Voss bleibt in Berlin. Brandt fliegt euch inoffiziell an die Küste. Kerner liegt mit der G28 auf einem Portalkran, Lena geht unten durch das Containerlager. Es regnet, der Seewind ist böig. Und ihr seid nicht die Einzigen: Falks Garde-Jäger in grauen Mänteln suchen Weber ebenfalls. Weber wird lebend gebraucht, und die Akte mit ihm.",
+  "wer": 0.115
+ },
+ "0f3095bc6c8d": {
+  "asr": "Zu spät, Kerner. Der General ist dort, wo sie ihn nie erreichen und unter ihren Füßen liegt genug Sprengstoff für den ganzen Spreebogen.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 7.96,
+  "slot": 8.0,
+  "speaker": "Oberst Falk",
+  "text": "Zu spät, Kerner. Der General ist dort, wo Sie ihn nie erreichen. Und unter Ihren Füßen liegt genug Sprengstoff für den ganzen Spreebogen.",
+  "wer": 0.0
+ },
+ "0f5f23e03c8d": {
+  "asr": "Wir werden überrannt. Rückzug. Sofort.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.95,
+  "slot": 3.69,
+  "speaker": "Konrad Voss",
+  "text": "Wir werden überrannt! Rückzug, sofort!",
+  "wer": 0.0
+ },
+ "0f9f1d47f53d": {
+  "asr": "Sie steigen aus hinter den Ilkwa Jonas, nimm sie runter.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.18,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Sie steigen aus – hinter den Lkw! Jonas, nimm sie runter!",
+  "wer": 0.1
+ },
  "0fd258065eed": {
   "asr": "Er dreht ab, weiter, weiter.",
   "cast": "f7dad8c0",
@@ -77,6 +315,126 @@
   "slot": 3.0,
   "speaker": "Lena Aksoy",
   "text": "Er dreht ab – weiter, weiter!",
+  "wer": 0.0
+ },
+ "100e0e3a4805": {
+  "asr": "Die Akte jetzt.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.22,
+  "slot": 2.5,
+  "speaker": "Kerner",
+  "text": "Die Akte. Jetzt.",
+  "wer": 0.0
+ },
+ "105561837ef9": {
+  "asr": "25. Juni 2030. Ul 1,50. Die loyalen Divisionen stehen noch am Spreebogen, das Kanzleramt ist in Riethamers Hand. Voss führt Kerner zu einem vergessenen Versorgungsgang im Tiergarten, von dort geht es durch den alten Sammler unter dem Reichstag. Stockdunkel, knietiefes Wasser, Gardestreifen mit Lampen, an den Fundamentpfeilern hängen Ladungen mit Lichtschranken und auf dem Gardefunk spricht Oberst Falk. Lautlos bleiben, entschärfen oder umgehen und am Ende die Leiter hoch in den Keller des Kanzleramts.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 26.4,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "25. Juni 2030, 01:50. Die loyalen Divisionen stehen noch am Spreebogen, das Kanzleramt ist in Riedhammers Hand. Voss führt Kerner zu einem vergessenen Versorgungsgang im Tiergarten – von dort geht es durch den alten Sammler unter dem Reichstag. Stockdunkel, knietiefes Wasser, Gardestreifen mit Lampen. An den Fundamentpfeilern hängen Ladungen mit Lichtschranken, und auf dem Gardefunk spricht Oberst Falk. Lautlos bleiben, entschärfen oder umgehen – und am Ende die Leiter hoch in den Keller des Kanzleramts.",
+  "wer": 0.027
+ },
+ "11b5364bdf37": {
+  "asr": "Eindringling gesichtet. Alarm.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.05,
+  "slot": 3.25,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Eindringling gesichtet! Alarm!",
+  "wer": 0.0
+ },
+ "11f6e17265b0": {
+  "asr": "Schützenpanzer kommt aus dem Fahrzeugpark. Den knacken nur die 105er.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.0,
+  "slot": 5.835000000000001,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Schützenpanzer kommt aus dem Fahrzeugpark. Den knacken nur die Hundertfünfer.",
+  "wer": 0.2
+ },
+ "1227928849ef": {
+  "asr": "18. Juni 2030, 20,156 Tage hat Lena gebraucht, um Weber Spur aus dem Rostocker Hafen bis an den Traunsee zu verfolgen. Die Villa am Westufer gehört einem Strohmann des Konsortiums, Bootshaus, Steg, ein Wasserflugzeug startbereit, privater Wachdienst mit Kameras. Weber ist seit Mittag im Haus. Kerner klärt vom Hang mit der Drohne auf und geht dann rein, leise über Bootshaus und Garten oder durch die Einfahrt. Brand kreist mit dem Hubschrauber südlich über dem Wald. Diesmal will Kerner antworten, keine Verfolgungsjagd.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 27.16,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "18. Juni 2030, 20:15. Sechs Tage hat Lena gebraucht, um Webers Spur aus dem Rostocker Hafen bis an den Traunsee zu verfolgen. Die Villa am Westufer gehört einem Strohmann des Konsortiums: Bootshaus, Steg, ein Wasserflugzeug startbereit, privater Wachdienst mit Kameras. Weber ist seit Mittag im Haus. Kerner klärt vom Hang mit der Drohne auf und geht dann rein – leise über Bootshaus und Garten oder durch die Einfahrt. Brandt kreist mit dem Hubschrauber südlich über dem Wald. Diesmal will Kerner Antworten, keine Verfolgungsjagd.",
+  "wer": 0.048
+ },
+ "123f658beac2": {
+  "asr": "Neues Boot, gleicher Kurs. Ich bleib über euch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.36,
+  "slot": 4.1850000000000005,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Neues Boot, gleicher Kurs. Ich bleib über euch.",
+  "wer": 0.0
+ },
+ "12574ed082bc": {
+  "asr": "Dann reden wir ihm rein. Ich gehe über die Messe. Du hältst den Elkwe an der Ostseite warm.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 5.29,
+  "slot": 5.5,
+  "speaker": "Kerner",
+  "text": "Dann reden wir ihm rein. Ich geh über die Messe, du hältst den Lkw an der Ostseite warm.",
+  "wer": 0.111
+ },
+ "130ae7da84a6": {
+  "asr": "Sie fahren genau dorthin, wo ich sie haben will, Kerner.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.33,
+  "slot": 4.68,
+  "speaker": "Oberst Falk",
+  "text": "Sie fahren genau dorthin, wo ich Sie haben will, Kerner.",
+  "wer": 0.0
+ },
+ "137ed4634069": {
+  "asr": "Fragen Sie sich lieber, wie die so schnell hier sein können.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.28,
+  "slot": 4.9,
+  "speaker": "Hptm. Weber",
+  "text": "Fragen Sie sich lieber, wie die so schnell hier sein können.",
+  "wer": 0.0
+ },
+ "13cb1a063aa4": {
+  "asr": "Kerner, pünktlich wie immer, setzen Sie sich, wir haben weniger Zeit, als Sie glauben.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 6.03,
+  "slot": 6.385,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner. Pünktlich wie immer. Setzen Sie sich – wir haben weniger Zeit, als Sie glauben.",
+  "wer": 0.0
+ },
+ "14f15dc1ae6e": {
+  "asr": "Motoren. Der Konvoi kommt, drei LKW und ein schwarzer Wagen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.66,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Motoren. Der Konvoi kommt – drei Lkw und ein schwarzer Wagen.",
+  "wer": 0.0
+ },
+ "1615a684c195": {
+  "asr": "Lass ihn. Wir sind wegen Brandt hier.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.43,
+  "slot": 3.0,
+  "speaker": "Konrad Voss",
+  "text": "Lass ihn. Wir sind wegen Brandt hier.",
   "wer": 0.0
  },
  "163e7d57f2d2": {
@@ -89,6 +447,96 @@
   "text": "Tut mir leid, Kerner. Deutschland braucht Ordnung.",
   "wer": 0.0
  },
+ "16be76b899eb": {
+  "asr": "Ignorier ihn. Panzer zuerst.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.8,
+  "slot": 3.14,
+  "speaker": "Lena Aksoy",
+  "text": "Ignorier ihn. Panzer zuerst!",
+  "wer": 0.0
+ },
+ "18669888c112": {
+  "asr": "Kolonne Nord an Leitstelle passieren Werkstraße Hennigsdorf keine Vorkommnisse.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.79,
+  "slot": 4.5,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Kolonne Nord an Leitstelle: Passieren Werkstraße Hennigsdorf, keine Vorkommnisse.",
+  "wer": 0.0
+ },
+ "18d8b54b54da": {
+  "asr": "Pfarr und Lena, gute Sendung.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.83,
+  "slot": 3.0,
+  "speaker": "Kerner",
+  "text": "Fahr. Und Lena – gute Sendung.",
+  "wer": 0.2
+ },
+ "191d35c55dee": {
+  "asr": "»Panzerglas, Jonas, die Tür ist gepanzert, spar dir die Munition.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.16,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Panzerglas, Jonas! Die Tür ist gepanzert – spar dir die Munition.",
+  "wer": 0.0
+ },
+ "1a52d26237fd": {
+  "asr": "Bin oben. Aufzugshaus, Ministeriumsdach. Ich sehe den ganzen Platz.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.57,
+  "slot": 5.23,
+  "speaker": "Lena Aksoy",
+  "text": "Bin oben. Aufzugshaus, Ministeriumsdach. Ich seh den ganzen Platz.",
+  "wer": 0.111
+ },
+ "1a6038c54e51": {
+  "asr": "22 Juni 2030, 05.11. Zwei Wochen nach der Ausstrahlung der Protokolle liegt der Belagerungsring um das Regierungsviertel. Kerner und Lena sind gerade erst von der Jagd auf Weber zurück. Am Traunsee ist er ihnen entkommen. Jetzt führt der Schützenpanzer Rave den Durchbruch von Molabi zur Moldkebrücke an. Voss fährt, Lena kommandiert. Kerner sitzt am Turm. In den Fenstern warten Panzerfaustrupps, in den Seitenstraßen die Garde. Die Brücke muss bis Sonnenaufgang in unserer Hand sein.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 36.09,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "24. Juni 2030, 05:10. Zwei Wochen nach der Ausstrahlung der Protokolle liegt der Belagerungsring um das Regierungsviertel. Kerner und Lena sind gerade erst von der Jagd auf Weber zurück – am Traunsee ist er ihnen entkommen. Jetzt führt der Schützenpanzer „Rabe“ den Durchbruch von Moabit zur Moltkebrücke an: Voss fährt, Lena kommandiert, Kerner sitzt am Turm. In den Fenstern warten Panzerfaust-Trupps, in den Seitenstraßen die Garde. Die Brücke muss bis Sonnenaufgang in unserer Hand sein.",
+  "wer": 0.092
+ },
+ "1a768958425d": {
+  "asr": "Hubschrauber über dem Ufer, hoch mit dem Rohr.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.08,
+  "slot": 4.13,
+  "speaker": "Lena Aksoy",
+  "text": "Hubschrauber über dem Ufer! Hoch mit dem Rohr!",
+  "wer": 0.0
+ },
+ "1b4197ae70ad": {
+  "asr": "Ich hab sie. Bleib unten.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.54,
+  "slot": 2.975,
+  "speaker": "Kerner",
+  "text": "Ich hab sie. Bleib unten.",
+  "wer": 0.0
+ },
+ "1be29ff580f3": {
+  "asr": "notiert und Weber, sie sind ein nützlicher Mann noch.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.16,
+  "slot": 4.5,
+  "speaker": "Oberst Falk",
+  "text": "Notiert. Und Weber – Sie sind ein nützlicher Mann. Noch.",
+  "wer": 0.0
+ },
  "1cd1de34457d": {
   "asr": "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer, nur Munition.",
   "cast": "f7dad8c0",
@@ -97,6 +545,86 @@
   "slot": 5.0,
   "speaker": "Lena Aksoy",
   "text": "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer – nur Munition.",
+  "wer": 0.0
+ },
+ "1e7758303f60": {
+  "asr": "Kerner, das war ich.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.85,
+  "slot": 2.7,
+  "speaker": "Lena Aksoy",
+  "text": "Kerner! Das war ich!",
+  "wer": 0.0
+ },
+ "1eec85ffe5b7": {
+  "asr": "Brücke ist frei. Festhalten.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.41,
+  "slot": 3.14,
+  "speaker": "Lena Aksoy",
+  "text": "Brücke ist frei. Festhalten!",
+  "wer": 0.0
+ },
+ "1ef1693b13f4": {
+  "asr": "»Nochmal, Jonas, der Lift ist wieder oben.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.04,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Noch mal, Jonas. Der Lift ist wieder oben.",
+  "wer": 0.25
+ },
+ "2015c62b287f": {
+  "asr": "»Jonas, nein, nicht so, nicht heute Nacht.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.18,
+  "slot": 3.9650000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas! – Nein. Nicht so. Nicht heute Nacht.",
+  "wer": 0.0
+ },
+ "20c27637548a": {
+  "asr": "Raus da Jonas über die Bandbrücke zur Ofenbühne.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.36,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Raus da, Jonas – über die Bandbrücke zur Ofenbühne!",
+  "wer": 0.0
+ },
+ "2127a22e3e9a": {
+  "asr": "Druckausgleich läuft, drei Sekunden. Dahinter liegt die Technikebene.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.81,
+  "slot": 5.45,
+  "speaker": "Lena Aksoy",
+  "text": "Druckausgleich läuft … drei Sekunden. Dahinter liegt die Technikebene.",
+  "wer": 0.0
+ },
+ "212bfc021853": {
+  "asr": "Mann am Boden. Alle Posten, Sperrgebiet absuchen.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.01,
+  "slot": 4.295,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Mann am Boden! Alle Posten: Sperrgebiet absuchen!",
+  "wer": 0.0
+ },
+ "2195da69f4e1": {
+  "asr": "»Ich mach die Ladetür auf. Da hängt ein MG an der Halterung. Nimm es.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.79,
+  "slot": 5.395,
+  "speaker": "Lena Aksoy",
+  "text": "Ich mach die Ladetür auf. Da hängt ein MG an der Halterung – nimm es!",
   "wer": 0.0
  },
  "21e4564e7479": {
@@ -108,6 +636,56 @@
   "speaker": "Hptm. Weber",
   "text": "Politik ist nicht unser Job, Aksoy. Funkdisziplin.",
   "wer": 0.143
+ },
+ "22854ae9082a": {
+  "asr": "Riedheimer hat sich mit seiner Garde im Regierungsviertel verschanzt. Er spricht jetzt nur noch nachts. Seine Stimme ist leiser geworden.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 7.01,
+  "slot": 8.0,
+  "speaker": "Kerner",
+  "text": "Riedhammer hat sich mit seiner Garde im Regierungsviertel verschanzt.\nEr spricht jetzt nur noch nachts. Seine Stimme ist leiser geworden.",
+  "wer": 0.05
+ },
+ "22f086a8e890": {
+  "asr": "Ich beobachte sie seit der Ausstrahlung. Rostock, die Alpen der Traunsee. Beeindruckend für einen Unteroffizier.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 7.53,
+  "slot": 7.870000000000001,
+  "speaker": "Oberst Falk",
+  "text": "Ich beobachte Sie seit der Ausstrahlung. Rostock, die Alpen, der Traunsee. Beeindruckend, für einen Unteroffizier.",
+  "wer": 0.0
+ },
+ "23426d0aca02": {
+  "asr": "Sie haben dich. Lampe aus, raus aus ihrem Licht oder kämpf dich durch.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.36,
+  "slot": 5.5600000000000005,
+  "speaker": "Lena Aksoy",
+  "text": "Sie haben dich! Lampe aus, raus aus ihrem Licht – oder kämpf dich durch.",
+  "wer": 0.0
+ },
+ "2369c469276f": {
+  "asr": "Gepäckwagen. Vorsicht, die haben einen schweren dabei.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.58,
+  "slot": 4.57,
+  "speaker": "Lena Aksoy",
+  "text": "Gepäckwagen. Vorsicht, die haben einen Schweren dabei.",
+  "wer": 0.0
+ },
+ "244c606da61a": {
+  "asr": "Hier, die Hälfte der Akte Nordlicht, Konten, Strohmänner, das Konsortium. Die andere Hälfte ist meine Lebensversicherung.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 7.95,
+  "slot": 8.0,
+  "speaker": "Hptm. Weber",
+  "text": "Hier. Die Hälfte der Akte Nordlicht. Konten, Strohmänner, das Konsortium. Die andere Hälfte ist meine Lebensversicherung.",
+  "wer": 0.0
  },
  "2461329fdff7": {
   "asr": "weiter Lagerhallen und Kranbahnen, bevor die sich neu sortieren.",
@@ -129,6 +707,16 @@
   "text": "Das sind unsere Leute – mit Armbinden. Ordnungsfront! Die schießen auf alles, was sich bewegt.",
   "wer": 0.071
  },
+ "24ec10b39c26": {
+  "asr": "»Bewegung am schwarzen Wagen, hintere Tür Jonas«,",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.16,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Bewegung am schwarzen Wagen. Hintere Tür, Jonas.",
+  "wer": 0.0
+ },
  "252f70772819": {
   "asr": "Weber hatte den Funk. Er wusste, wo wir standen. Jeder Schritt, jede Nacht.",
   "cast": "cf45251b",
@@ -137,6 +725,84 @@
   "slot": 4.5,
   "speaker": "Kerner",
   "text": "Weber hatte den Funk. Er wusste, wo wir standen. Jeder Schritt, jede Nacht.",
+  "wer": 0.0
+ },
+ "25d5001fc222": {
+  "asr": "Falk hat Jäger auf ihn gehetzt. Jetzt reden sie miteinander. Später. Er ist der Sender.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.72,
+  "slot": 5.5,
+  "speaker": "Kerner",
+  "text": "Falk hat Jäger auf ihn gehetzt. Jetzt reden sie miteinander. Später. Erst der Sender.",
+  "wer": 0.143
+ },
+ "263ee84f07d3": {
+  "asr": "Du schießt auf Glas, Junge. Wie in Berlin, Du siehst nur, was ich Dich sehen lasse.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.69,
+  "slot": 5.5,
+  "speaker": "Hptm. Weber",
+  "text": "Du schießt auf Glas, Junge. Wie in Berlin – du siehst nur, was ich dich sehen lasse.",
+  "wer": 0.0
+ },
+ "26500d5d8139": {
+  "asr": "Ferner, hartnäckig, wie immer. Grüßen Sie Falk von mir, falls er Sie vorher nicht erwischt.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 6.04,
+  "slot": 6.605,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner. Hartnäckig wie immer. Grüßen Sie Falk von mir – falls er Sie vorher nicht erwischt.",
+  "wer": 0.067
+ },
+ "269bff5c9529": {
+  "asr": "Wir sind drin. Einspeisen läuft. Haltet sie uns vom Leib.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.68,
+  "slot": 4.79,
+  "speaker": "Konrad Voss",
+  "text": "Wir sind drin. Einspeisung läuft. Haltet sie uns vom Leib!",
+  "wer": 0.1
+ },
+ "26dd24e851ea": {
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.76,
+  "slot": 2.81,
+  "speaker": "Kerner",
+  "text": "Verstanden. Kein Lärm."
+ },
+ "275a78eed55b": {
+  "asr": "auf ihre Weste. Ich wusste, dass sie sie tragen.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.88,
+  "slot": 4.24,
+  "speaker": "Hptm. Weber",
+  "text": "Auf Ihre Weste. Ich wusste, dass Sie sie tragen.",
+  "wer": 0.0
+ },
+ "27fc5164df4e": {
+  "asr": "Hangar gesichert. Wir gehen rüber zum Tower.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.12,
+  "slot": 4.02,
+  "speaker": "Lena Aksoy",
+  "text": "Hangar gesichert. Wir gehen rüber zum Tower.",
+  "wer": 0.0
+ },
+ "28c3c0ff8daa": {
+  "asr": "Das war knapp.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.72,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Das war knapp.",
   "wer": 0.0
  },
  "28d8f8aa4ecf": {
@@ -149,6 +815,64 @@
   "text": "Halt ihn beschaeftigt – Fliegerfaust ist raus!",
   "wer": 0.0
  },
+ "29a6787e3981": {
+  "asr": "Die Zündleitung ist tot, Herr General. Ich habe sie vor einer Stunde selbst gekappt.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.55,
+  "slot": 6.220000000000001,
+  "speaker": "Hptm. Weber",
+  "text": "Die Zündleitung ist tot, Herr General. Ich habe sie vor einer Stunde selbst gekappt.",
+  "wer": 0.0
+ },
+ "2a6e3dc1e31e": {
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 6.89,
+  "slot": 6.880000000000001,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Bürger Berlins: Die Ausgangssperre dient Ihrem Schutz. Verstöße werden ohne Vorwarnung geahndet."
+ },
+ "2ab3ad340c42": {
+  "asr": "Kerner, das sind unsere Leute hellblaue Binden. Noch einmal und wir brechen ab.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.16,
+  "slot": 4.5,
+  "speaker": "Konrad Voss",
+  "text": "Kerner! Das sind unsere Leute – hellblaue Binden! Noch einmal und wir brechen ab.",
+  "wer": 0.0
+ },
+ "2ad8ab4225eb": {
+  "asr": "Hartmann ist bei uns, Kerner. Der Bunker hat einen zweiten Zugang unter der Spree. Lena hat die Haustechnik. Tür Nordost ist offen zur Panzertür.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 7.72,
+  "slot": 8.0,
+  "speaker": "Konrad Voss",
+  "text": "Hartmann ist bei uns, Kerner. Der Bunker hat einen zweiten Zugang – unter der Spree. Lena hat die Haustechnik: Tür Nordost ist offen. Zur Panzertür!",
+  "wer": 0.0
+ },
+ "2b700f503696": {
+  "asr": "Kerner, hier Voss. Der Konvoi ist 20 Minuten raus. Rauf auf den Übergabeturm, bevor der Nebel sich hebt.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 5.66,
+  "slot": 6.0,
+  "speaker": "Konrad Voss",
+  "text": "Kerner, hier Voss. Der Konvoi ist zwanzig Minuten raus. Rauf auf den Übergabeturm, bevor der Nebel sich hebt.",
+  "wer": 0.0
+ },
+ "2b7f7fb8b594": {
+  "asr": "Alle runter, wir warten auf die Ladung. Kerner, du nimmst, wer aussteigt.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.3,
+  "slot": 5.0,
+  "speaker": "Konrad Voss",
+  "text": "Alle runter. Wir warten auf die Ladung. Kerner, du nimmst, wer aussteigt.",
+  "wer": 0.0
+ },
  "2be5d160bdd6": {
   "asr": "Tut so, jetzt rüber, bleibt nicht auf dem Stahl stehen,",
   "cast": "55a3695c",
@@ -158,6 +882,46 @@
   "speaker": "Hptm. Weber",
   "text": "Gut so. Jetzt rueber – bleibt nicht auf dem Stahl stehen!",
   "wer": 0.1
+ },
+ "2c4dd712b0b3": {
+  "asr": "Neu ansetzen. Wir fliegen die Kurve noch einmal.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.29,
+  "slot": 4.24,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Neu ansetzen. Wir fliegen die Kurve noch einmal.",
+  "wer": 0.0
+ },
+ "2ccd76450138": {
+  "asr": "Sie werden von mir hören, Kerner. Oder von denen, die auf der Liste stehen.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.37,
+  "slot": 5.725,
+  "speaker": "Hptm. Weber",
+  "text": "Sie werden von mir hören, Kerner. Oder von denen, die auf der Liste stehen.",
+  "wer": 0.0
+ },
+ "2deccbaf51b8": {
+  "asr": "Bewegung in der Sinne westlich von euch. Graue Mäntel, Falks, Garde, Jäger. Die wollen zur Bergstation vor euch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 6.19,
+  "slot": 7.76,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Bewegung in der Rinne westlich von euch. Graue Mäntel – Falks Garde-Jäger. Die wollen zur Bergstation, vor euch.",
+  "wer": 0.056
+ },
+ "2e8a89c91bf4": {
+  "asr": "Daneben, sag mir die Korrektur. Weiter, kürzer, links, rechts.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.84,
+  "slot": 5.0649999999999995,
+  "speaker": "Lena Aksoy",
+  "text": "Daneben. Sag mir die Korrektur – weiter, kürzer, links, rechts.",
+  "wer": 0.0
  },
  "2f0bd1a41dad": {
   "asr": "Sprennladung an die Wanne, Kerner, links an ihm vorbei, er sieht dich schlecht.",
@@ -169,6 +933,36 @@
   "text": "Sprengladung an die Wanne, Kerner! Links an ihm vorbei, er sieht dich schlecht!",
   "wer": 0.077
  },
+ "2f2ca8c7a95f": {
+  "asr": "Weber ist getroffen. Das war's, Abbruch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 2.97,
+  "slot": 3.8000000000000003,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Weber ist getroffen. Das war's, Abbruch!",
+  "wer": 0.0
+ },
+ "302b533f06b0": {
+  "asr": "Die Seilbahn läuft, Weber sitzt in der Kabine. Nicht darauf schießen, er muss lebend vor Gericht.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 6.03,
+  "slot": 6.99,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Die Seilbahn läuft – Weber sitzt in der Kabine! Nicht darauf schießen, er muss lebend vor Gericht.",
+  "wer": 0.0
+ },
+ "303a32ea1cc7": {
+  "asr": "Wir sind drin. Weber reist als Heuerbrenner Schlafwagen Abteil 9, 7 Wagen bis vorn.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.58,
+  "slot": 6.824999999999999,
+  "speaker": "Lena Aksoy",
+  "text": "Wir sind drin. Weber reist als ‚Herr Brenner‘, Schlafwagen, Abteil neun. Sieben Wagen bis vorn.",
+  "wer": 0.133
+ },
  "309f3873564f": {
   "asr": "Vorbei, hörst du, Jonas? Es ist vorbei.",
   "cast": "f7dad8c0",
@@ -179,6 +973,74 @@
   "text": "Vorbei. Hörst du, Jonas? Es ist vorbei.",
   "wer": 0.0
  },
+ "310eac0153f1": {
+  "asr": "Netter Versuch Kerner",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 2.1,
+  "slot": 2.5,
+  "speaker": "Hptm. Weber",
+  "text": "Netter Versuch, Kerner.",
+  "wer": 0.0
+ },
+ "315707d16a11": {
+  "asr": "Moldgebrücke voraus. Sieht leer aus. Zu leer.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.63,
+  "slot": 4.075,
+  "speaker": "Konrad Voss",
+  "text": "Moltkebrücke voraus. Sieht leer aus. Zu leer.",
+  "wer": 0.143
+ },
+ "318cc0d68f18": {
+  "asr": "Einer weniger.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.98,
+  "slot": 2.5,
+  "speaker": "Kerner",
+  "text": "Einer weniger.",
+  "wer": 0.0
+ },
+ "322d1a916d0a": {
+  "asr": "»Mein Vater war Schornsteinfeger in Mitte. Er hat gesagt, man lernt nicht, keine Angst zu haben. Man lernt nur, wohin man schaut.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.64,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Mein Vater war Schornsteinfeger in Mitte. Er hat gesagt: Man lernt nicht, keine Angst zu haben – man lernt nur, wohin man schaut.",
+  "wer": 0.0
+ },
+ "333ab4e9bfff": {
+  "asr": "»Die Gasse sehe ich nicht ein. Schick die Drohne, Lena.«",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.16,
+  "slot": 4.515000000000001,
+  "speaker": "Kerner",
+  "text": "Die Gasse seh ich nicht ein. Schick die Drohne, Lena.",
+  "wer": 0.1
+ },
+ "344f0d052573": {
+  "asr": "Der andere hat ihn fallen sehen, schnell.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.43,
+  "slot": 3.91,
+  "speaker": "Lena Aksoy",
+  "text": "Der andere hat ihn fallen sehen – schnell!",
+  "wer": 0.0
+ },
+ "34a4883b1b50": {
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 16.03,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Brandt hat die „Wächter“ wieder in die Luft gebracht – ein umgebauter A400M mit drei Geschützen und Wärmebild. Lena und Voss stürmen den Fliegerhorst Lindenau, wo die Ordnungsfront Jets für Angriffe auf aufständische Städte betankt und der Sendemast steht. Kerner sitzt am Feuerleitstand; eigene Leute tragen IR-Blinker."
+ },
  "34d9e911ac75": {
   "asr": "Dann lassen wir es hochgehen bei denen...",
   "cast": "f7dad8c0",
@@ -187,6 +1049,16 @@
   "slot": 3.8000000000000003,
   "speaker": "Lena Aksoy",
   "text": "Dann lassen wir es hochgehen. Bei denen.",
+  "wer": 0.0
+ },
+ "356d3a815b98": {
+  "asr": "Wir sind auf Sendung. Landesweit.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.34,
+  "slot": 3.415,
+  "speaker": "Konrad Voss",
+  "text": "Wir sind auf Sendung. Landesweit.",
   "wer": 0.0
  },
  "35718131d121": {
@@ -199,6 +1071,96 @@
   "text": "Unsere Jets! Endlich!",
   "wer": 0.0
  },
+ "35d726d6f04b": {
+  "asr": "unterwegs.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.95,
+  "slot": 2.5,
+  "speaker": "Kerner",
+  "text": "Unterwegs.",
+  "wer": 0.0
+ },
+ "36c8c35e1518": {
+  "asr": "Bis zum Morgen hatten drei Divisionen die Ordnungsfront verlassen. In Leipzig öffneten Soldaten die Kasernentore. In Hamburg drehten sie die Kanonen um.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 7.95,
+  "slot": 8.0,
+  "speaker": "Kerner",
+  "text": "Bis zum Morgen hatten drei Divisionen die Ordnungsfront verlassen.\nIn Leipzig öffneten Soldaten die Kasernentore. In Hamburg drehten sie die Kanonen um.",
+  "wer": 0.0
+ },
+ "37653e90962f": {
+  "asr": "Nicht auf Weber schießen. Wir brauchen ihn lebend und die Akte auch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.82,
+  "slot": 5.395,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Nicht auf Weber schießen! Wir brauchen ihn lebend, und die Akte auch.",
+  "wer": 0.0
+ },
+ "37990dcd36dc": {
+  "asr": "Oberst Falk, Garde, merken Sie sich den Namen.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 3.64,
+  "slot": 4.13,
+  "speaker": "Oberst Falk",
+  "text": "Oberst Falk. Garde. Merken Sie sich den Namen.",
+  "wer": 0.0
+ },
+ "3824dfef111f": {
+  "asr": "Das ist Falk im schweren Anzug, erst das Visier, dann der Tornister auf dem Rücken,",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.91,
+  "slot": 6.275,
+  "speaker": "Lena Aksoy",
+  "text": "Das ist Falk – im schweren Anzug! Erst das Visier, dann der Tornister auf dem Rücken.",
+  "wer": 0.0
+ },
+ "386b97d38c46": {
+  "asr": "Kühlturm ist sauber.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.16,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Kühlturm ist sauber.",
+  "wer": 0.0
+ },
+ "38b9a58b25d5": {
+  "asr": "Falks Vorhut am Fuß, Eckviel von Süden, ich geb dir Deckung.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.87,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Falks Vorhut am Fuß, Lkw von Süden! Ich geb dir Deckung!",
+  "wer": 0.091
+ },
+ "38ec7712da0d": {
+  "asr": "Sie ziehen sich zurück, Jonas, der Steg. Weber will zum Wasserflugzeug.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.62,
+  "slot": 5.5600000000000005,
+  "speaker": "Lena Aksoy",
+  "text": "Sie ziehen sich zurück – Jonas, der Steg! Weber will zum Wasserflugzeug!",
+  "wer": 0.0
+ },
+ "3a2801b33057": {
+  "asr": "Scheinwerfer hat ihn. Alarm, Alarm.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 3.99,
+  "slot": 3.5250000000000004,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Scheinwerfer hat ihn! Alarm, Alarm!",
+  "wer": 0.0
+ },
  "3a579101f54e": {
   "asr": "Kleben links und rechts der Straße, bleib auf dem Asphalt, Jonas.",
   "cast": "f7dad8c0",
@@ -208,6 +1170,16 @@
   "speaker": "Lena Aksoy",
   "text": "Graeben links und rechts der Strasse. Bleib auf dem Asphalt, Jonas.",
   "wer": 0.091
+ },
+ "3aff30faae4b": {
+  "asr": "trauen sie. Dann holen wir ihn dort.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.5,
+  "slot": 3.47,
+  "speaker": "Kerner",
+  "text": "Traunsee. Dann holen wir ihn dort.",
+  "wer": 0.333
  },
  "3b6ca55085b1": {
   "asr": "Das letzte Reich, gefeiert mit Sprengstoff unter der Bühne.",
@@ -219,6 +1191,192 @@
   "text": "„Das letzte Reich.“ Gefeiert mit Sprengstoff unter der Bühne.",
   "wer": 0.0
  },
+ "3bed93ec4709": {
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.7,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Der Platz. Drohne in der Luft, Scheinwerfer auf dem Anbau. Rechts hinten die Lieferzufahrt – das Rolltor steht halb offen."
+ },
+ "3d07e8ffd2f7": {
+  "asr": "Kampfpanzer aus dem Fahrzeugpark Richtung Bunker 105 bereithalten.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.43,
+  "slot": 5.779999999999999,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Kampfpanzer aus dem Fahrzeugpark, Richtung Bunker. Hundertfünf bereithalten.",
+  "wer": 0.125
+ },
+ "3de0c0dffa77": {
+  "asr": "Hab sie, alles drauf.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.13,
+  "slot": 2.755,
+  "speaker": "Kerner",
+  "text": "Hab sie. Alles drauf.",
+  "wer": 0.0
+ },
+ "3e58ea187f79": {
+  "asr": "Beide markiert, Jonas. »Ich sag dir, wann sie wegsehen.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.47,
+  "slot": 4.57,
+  "speaker": "Lena Aksoy",
+  "text": "Beide markiert, Jonas. Ich sag dir, wann sie wegsehen.",
+  "wer": 0.0
+ },
+ "3e6d4250949d": {
+  "asr": "Weber",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.12,
+  "slot": 2.5,
+  "speaker": "Kerner",
+  "text": "Weber.",
+  "wer": 0.0
+ },
+ "3e8341efc42a": {
+  "asr": "Hubschrauber aus Richtung Warnemünde, Garde Kennung. Der ist schwerer bewaffnet als ich.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.7,
+  "slot": 6.4399999999999995,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Hubschrauber aus Richtung Warnemünde, Garde-Kennung! Der ist schwerer bewaffnet als ich.",
+  "wer": 0.0
+ },
+ "3eebf4b5f293": {
+  "asr": "Und Falks Leute?",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.44,
+  "slot": 2.5,
+  "speaker": "Kerner",
+  "text": "Und Falks Leute?",
+  "wer": 0.0
+ },
+ "3f48241ff872": {
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.58,
+  "slot": 6.880000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Du bist drin. Vorsicht: Löst du hier drin Alarm aus, löschen sie die Server. Dann ist alles weg."
+ },
+ "4124ea3323ab": {
+  "asr": "Sechs Blinker, Waldrand Süd. Ich hab euch.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.92,
+  "slot": 3.91,
+  "speaker": "Kerner",
+  "text": "Sechs Blinker, Waldrand Süd. Ich hab euch.",
+  "wer": 0.0
+ },
+ "436dada786fe": {
+  "asr": "Kerner. Wir bringen Sie raus, Frau Präsidentin.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.69,
+  "slot": 4.1850000000000005,
+  "speaker": "Kerner",
+  "text": "Kerner. Wir bringen Sie raus, Frau Präsidentin.",
+  "wer": 0.0
+ },
+ "43aa67b87dc5": {
+  "asr": "Nein, ich bleibe auf meinem Posten.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.25,
+  "slot": 3.5250000000000004,
+  "speaker": "General von Riedhammer",
+  "text": "Nein. Ich bleibe auf meinem Posten.",
+  "wer": 0.0
+ },
+ "43c0909a941b": {
+  "asr": "Halt, einer kommt dir entgegen, Taschenlampe. Duck dich in den Hauseingang.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.86,
+  "slot": 5.725,
+  "speaker": "Lena Aksoy",
+  "text": "Halt. Einer kommt dir entgegen, Taschenlampe. Duck dich in den Hauseingang.",
+  "wer": 0.0
+ },
+ "448865691299": {
+  "asr": "16 Juni 2030, 22.40, Weber ist am Pass entkommen. Lena hat ihn auf der Buchungsliste des Nachtzugs Innsbruck wie in der Alpen Donaubahn gefunden, Schlafwagen Abteil 9 unter falschen Namen. Kerner und Lena steigen in Innsbruck zu. Falks Gardejäger in grauen Mänteln sind ebenfalls an Bord. Im Zug sitzen Reisende, die mit allem nichts zu tun haben, kein unbeteiligter Darts getroffen werden. Waggon für Waggon nach vorn, notfalls über das Dach. Weber wird lebend gebraucht.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 23.6,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "16. Juni 2030, 22:40. Weber ist am Pass entkommen. Lena hat ihn auf der Buchungsliste des Nachtzugs Innsbruck–Wien der Alpen-Donau-Bahn gefunden: Schlafwagen, Abteil neun, unter falschem Namen. Kerner und Lena steigen in Innsbruck zu. Falks Garde-Jäger in grauen Mänteln sind ebenfalls an Bord. Im Zug sitzen Reisende, die mit alldem nichts zu tun haben – kein Unbeteiligter darf getroffen werden. Waggon für Waggon nach vorn, notfalls über das Dach. Weber wird lebend gebraucht.",
+  "wer": 0.117
+ },
+ "45589e678e63": {
+  "asr": "24 Juni 2030. 21,40, sechs Tage nachdem Weber am Traunsee entkommen ist, spricht General von Riethammer heute Nacht vom Turm an der Messe zu ganz Berlin. Die Garde hält das Messiegelände und den Turm. Kerner stürmt die Plaza, steigt durch Betonkern und Stahlgitter auf 60 Meter, kappt die Sendung und hält das Pult, bis Lena ihre eigene Botschaft auf Sendung gebracht hat. Danach bleibt nur der Fassadenlift, bevor Oberst Falk den Turmfuß abriegelt.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 23.84,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "24. Juni 2030, 21:40. Sechs Tage nachdem Weber am Traunsee entkommen ist, spricht General von Riedhammer heute Nacht vom Funkturm an der Messe zu ganz Berlin. Die Garde hält das Messegelände und den Turm. Kerner stürmt die Plaza, steigt durch Betonkern und Stahlgitter auf 60 Meter, kappt die Sendung und hält das Pult, bis Lena ihre eigene Botschaft auf Sendung gebracht hat. Danach bleibt nur der Fassadenlift – bevor Oberst Falk den Turmfuß abriegelt.",
+  "wer": 0.041
+ },
+ "458da059acfd": {
+  "asr": "Sie haben gelöscht, aber der Nachtlauf spielt die Sicherung zurück. Noch ein Versuch, Jonas. Leiser.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.07,
+  "slot": 7.154999999999999,
+  "speaker": "Lena Aksoy",
+  "text": "Sie haben gelöscht – aber der Nachtlauf spielt die Sicherung zurück. Noch ein Versuch, Jonas. Leiser.",
+  "wer": 0.0
+ },
+ "45ff5b155f46": {
+  "asr": "Kerner. Ich hatte gehofft, dass sie es sind. Hinter jeder Tür hier steht einer meiner Männer mit einer Pistole. Klopfen Sie ruhig an.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 7.66,
+  "slot": 8.0,
+  "speaker": "Oberst Falk",
+  "text": "Kerner. Ich hatte gehofft, dass Sie es sind. Hinter jeder Tür hier steht einer meiner Männer mit einer Pistole. Klopfen Sie ruhig an.",
+  "wer": 0.0
+ },
+ "465751bfc53a": {
+  "asr": "Er ist an der Gangway. Ich habe keinen Schuss, ohne ihn umzubringen.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.82,
+  "slot": 5.285,
+  "speaker": "Kerner",
+  "text": "Er ist an der Gangway. Ich hab keinen Schuss, ohne ihn umzubringen.",
+  "wer": 0.083
+ },
+ "46fee5cc9c05": {
+  "asr": "Schützen auf der Hubbrücke. Lena, halt davor an, sonst schießen sie euch von oben in den Kahn.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.76,
+  "slot": 6.77,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Schützen auf der Hubbrücke! Lena, halt davor an, sonst schießen sie euch von oben in den Kahn.",
+  "wer": 0.0
+ },
+ "47aab01d755b": {
+  "asr": "»Da drin zählt einer laut runter, Jonas. Die machen ernst, geh rein jetzt.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.76,
+  "slot": 5.725,
+  "speaker": "Lena Aksoy",
+  "text": "Da drin zählt einer laut runter, Jonas. Die machen ernst – geh rein, jetzt!",
+  "wer": 0.0
+ },
  "480735f93f68": {
   "asr": "Lena und ich sind noch hier und wir sind nicht die einzigen.",
   "cast": "cf45251b",
@@ -227,6 +1385,26 @@
   "slot": 4.0,
   "speaker": "Kerner",
   "text": "Lena und ich sind noch hier. Und wir sind nicht die Einzigen.",
+  "wer": 0.0
+ },
+ "48e4d99174f7": {
+  "asr": "»Gesehen, gegen Scharfschütze, Dachkante, wenn er blitzt, geh ich runter.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.7,
+  "slot": 5.505,
+  "speaker": "Lena Aksoy",
+  "text": "Gesehen. Gegenscharfschütze, Dachkante. Wenn er blitzt, geh ich runter.",
+  "wer": 0.222
+ },
+ "4929ebb84c38": {
+  "asr": "Weber, sie Verräter.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 3.42,
+  "slot": 2.755,
+  "speaker": "General von Riedhammer",
+  "text": "Weber … Sie Verräter.",
   "wer": 0.0
  },
  "49d0e25242e0": {
@@ -249,6 +1427,112 @@
   "text": "Bürger Berlins. Ausländische Kräfte haben unsere Feier angegriffen. Die Ordnungsfront übernimmt ab sofort den Schutz des Landes.",
   "wer": 0.0
  },
+ "4a6347bad774": {
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 13.6,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Die Ordnungsfront verlegt Gefangene aus Spandau nach Norden – unter ihnen Oberstleutnant Brandt. Der Konvoi passiert im Morgennebel das stillgelegte Stahlwerk Hennigsdorf. Voss’ Leute legen sich an der Werksstraße in den Hinterhalt, Kerner deckt sie mit dem Zielfernrohr vom Übergabeturm."
+ },
+ "4a7c72bdde57": {
+  "asr": "Rethimer ist hinter der Panzertür. Er hat sich eingemauert.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.68,
+  "slot": 4.955,
+  "speaker": "Kerner",
+  "text": "Riedhammer ist hinter der Panzertür. Er hat sich eingemauert.",
+  "wer": 0.111
+ },
+ "4a95bf15524e": {
+  "asr": "nicht auf die Reisenden, noch einmal und wir brechen ab.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.77,
+  "slot": 4.735,
+  "speaker": "Lena Aksoy",
+  "text": "Nicht auf die Reisenden! Noch einmal, und wir brechen ab!",
+  "wer": 0.0
+ },
+ "4a9ecdd548cf": {
+  "asr": "Moment, in seinem Abteil ein Gepäckschein. Zustellung an vieler Seeblick, Altmünster am Traunsee.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.38,
+  "slot": 7.1,
+  "speaker": "Lena Aksoy",
+  "text": "Moment. In seinem Abteil – ein Gepäckschein. Zustellung an ‚Villa Seeblick, Altmünster am Traunsee‘.",
+  "wer": 0.077
+ },
+ "4b670a097ac3": {
+  "asr": "graue Mäntel an den Betonsperren. Das ist keine Hafenwache, Jonas. Das sind Gardejäger.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.18,
+  "slot": 6.4399999999999995,
+  "speaker": "Lena Aksoy",
+  "text": "Graue Mäntel an den Betonsperren. Das ist keine Hafenwache, Jonas. Das sind Garde-Jäger.",
+  "wer": 0.143
+ },
+ "4c8371013366": {
+  "asr": "Wir machen den Rest. Kerner, Augen nach oben.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.16,
+  "slot": 3.0,
+  "speaker": "Konrad Voss",
+  "text": "Wir machen den Rest. Kerner, Augen nach oben!",
+  "wer": 0.0
+ },
+ "4e9bdbe4bf61": {
+  "asr": "Wir laufen voll. Brandt. Zieh uns raus.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.78,
+  "slot": 3.745,
+  "speaker": "Lena Aksoy",
+  "text": "Wir laufen voll! Brandt, zieh uns raus!",
+  "wer": 0.0
+ },
+ "4ff2f08d9689": {
+  "asr": "Mörser, die haben dich angepeilt, Kerner.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.8,
+  "slot": 3.0,
+  "speaker": "Konrad Voss",
+  "text": "Mörser! Die haben dich angepeilt, Kerner!",
+  "wer": 0.0
+ },
+ "50aedd25fa20": {
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 14.32,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "Seit dem Putsch gilt in Berlin nächtliche Ausgangssperre – Streifen der Ordnungsfront schießen ohne Warnung. In der Fernmeldestelle des Innenministeriums liegen Hauptmann Webers Funkprotokolle aus der Nacht des Anschlags. Kerner muss ungesehen hinein, die Daten ziehen und durch den alten U-Bahn-Tunnel zu Konrad Voss entkommen."
+ },
+ "5198f530f0ec": {
+  "asr": "Meine Leitung steht. Ich gehe auf Sendung.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.15,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Meine Leitung steht. Ich geh auf Sendung.",
+  "wer": 0.143
+ },
+ "51c06cae150a": {
+  "asr": "»Herne, ich hab mir gedacht, dass Sie das sind. Schöne Aussicht da oben, nicht? Genießen Sie sie!«",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 6.16,
+  "slot": 6.5,
+  "speaker": "Oberst Falk",
+  "text": "Kerner. Ich hab mir gedacht, dass Sie das sind. Schöne Aussicht da oben, nicht? Genießen Sie sie.",
+  "wer": 0.059
+ },
  "51e548356d0d": {
   "asr": "Das erste Feld ist weg. Kein Weg-zurück-Kerner, nur nach vorn.",
   "cast": "55a3695c",
@@ -258,6 +1542,66 @@
   "speaker": "Hptm. Weber",
   "text": "Das erste Feld ist weg. Kein Weg zurueck, Kerner – nur nach vorn.",
   "wer": 0.083
+ },
+ "52d26032b034": {
+  "asr": "Das war Weber. Vor sechs Tagen ist er uns am Traunsee entwischt und jetzt gibt er Falk Koordinaten?",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.76,
+  "slot": 6.5,
+  "speaker": "Lena Aksoy",
+  "text": "Das war Weber. Vor sechs Tagen ist er uns am Traunsee entwischt – und jetzt gibt er Falk Koordinaten?",
+  "wer": 0.0
+ },
+ "53034f82f71e": {
+  "asr": "Ich bin drin. Halt durch. Das dauert. Die merken das sofort.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.72,
+  "slot": 4.5,
+  "speaker": "Lena Aksoy",
+  "text": "Ich bin drin. Halt durch, das dauert. Die merken das sofort.",
+  "wer": 0.0
+ },
+ "53a86105dfde": {
+  "asr": "Weg ist frei, bis zum Platz, dort muss ich umziehen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.34,
+  "slot": 4.515000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Weg ist frei. Bis zum Platz – dort muss ich umziehen.",
+  "wer": 0.0
+ },
+ "543e38dd3528": {
+  "asr": "Nicht auf Webers Boot. Wir brauchen ihn und die Akte, nicht ein Wrack.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.27,
+  "slot": 5.45,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Nicht auf Webers Boot! Wir brauchen ihn und die Akte, nicht ein Wrack.",
+  "wer": 0.0
+ },
+ "555da2faf82f": {
+  "asr": "Eindringling in der Fernmeldestelle, Server löschen sofort.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.28,
+  "slot": 4.955,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Eindringling in der Fernmeldestelle! Server löschen – sofort!",
+  "wer": 0.0
+ },
+ "56202425b678": {
+  "asr": "Nachschub ist da, vier Salven.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.73,
+  "slot": 3.25,
+  "speaker": "Lena Aksoy",
+  "text": "Nachschub ist da. Vier Salven.",
+  "wer": 0.0
  },
  "564498f31e43": {
   "asr": "Panther ist erledigt. Brückenkopf sichern bis zur Fabrik.",
@@ -269,6 +1613,26 @@
   "text": "Panzer ist erledigt! Brueckenkopf sichern – bis zur Fabrik!",
   "wer": 0.125
  },
+ "568e146190e9": {
+  "asr": "Gegen Scharfschütze erledigt.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.06,
+  "slot": 3.14,
+  "speaker": "Lena Aksoy",
+  "text": "Gegenscharfschütze erledigt.",
+  "wer": 1.0
+ },
+ "56918bba2b87": {
+  "asr": "Zentrale an Anbau B, unautorisierter Zugriff auf Fernmeldestelle 4 Streife nachsehen.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 7.25,
+  "slot": 6.385,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Zentrale an Anbau B: unautorisierter Zugriff auf Fernmeldestelle 4. Streife, nachsehen.",
+  "wer": 0.0
+ },
  "57818f5cda81": {
   "asr": "Adler Staffel im Anflug. Köpfe runter.",
   "cast": "55a3695c",
@@ -277,6 +1641,46 @@
   "slot": 3.0,
   "speaker": "Hauptmann Weber",
   "text": "Adler-Staffel im Anflug. Köpfe runter!",
+  "wer": 0.0
+ },
+ "57a8cbae5e18": {
+  "asr": "Das ist die Akte Nordlicht. Wer Riedhammer bezahlt hat, Konto für Konto. Damit fallen nicht nur Uniformen.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 7.08,
+  "slot": 7.43,
+  "speaker": "Hptm. Weber",
+  "text": "Das ist die Akte Nordlicht. Wer Riedhammer bezahlt hat, Konto für Konto. Damit fallen nicht nur Uniformen.",
+  "wer": 0.0
+ },
+ "57d112fe4c05": {
+  "asr": "Markiert, einer in der Gasse, er läuft auf und ab.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.08,
+  "slot": 4.405,
+  "speaker": "Lena Aksoy",
+  "text": "Markiert. Einer in der Gasse – er läuft auf und ab.",
+  "wer": 0.0
+ },
+ "591dc5fb4df5": {
+  "asr": "Zwei kommen über den Platz Richtung Anlieferung. Die erreichen das Tor nicht.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.48,
+  "slot": 5.890000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Zwei kommen über den Platz, Richtung Anlieferung. Die erreichen das Tor nicht.",
+  "wer": 0.0
+ },
+ "596872116e36": {
+  "asr": "Er ist unten. Funk aus. Gewehr runter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.76,
+  "slot": 3.69,
+  "speaker": "Lena Aksoy",
+  "text": "Er ist unten. Funk aus, Gewehr runter.",
   "wer": 0.0
  },
  "59ce3d1f8140": {
@@ -289,6 +1693,26 @@
   "text": "Heilige ... das ganze Gleis brennt!",
   "wer": 0.0
  },
+ "59e6ecbc0d98": {
+  "asr": "Schlafwagen. Hier liegen Leute in den Betten, kein einziger Fehlschuss.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.28,
+  "slot": 5.5600000000000005,
+  "speaker": "Lena Aksoy",
+  "text": "Schlafwagen. Hier liegen Leute in den Betten – kein einziger Fehlschuss!",
+  "wer": 0.0
+ },
+ "5a25c301449b": {
+  "asr": "Die Tür ist zerschossen, weg da!«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.46,
+  "slot": 3.3600000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "Die Tür ist zerschossen, weg da!",
+  "wer": 0.0
+ },
  "5a4d9e1b90f5": {
   "asr": "Schon gehört? Von Riethammer will nach dem Krieg in Berlin aufräumen, was immer das heißt.",
   "cast": "f7dad8c0",
@@ -298,6 +1722,186 @@
   "speaker": "Lena Aksoy",
   "text": "Schon gehört? Von Riedhammer will nach dem Krieg in Berlin „aufräumen“. Was immer das heißt.",
   "wer": 0.067
+ },
+ "5a9c820a57bc": {
+  "asr": "Drin, halt dich fest.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.66,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Drin! Halt dich fest!",
+  "wer": 0.0
+ },
+ "5b25f5bb6310": {
+  "asr": "»Schwere Panzerung auf der Brücke. Das ist ein Juggernaut. Panzerfaust. Kerner.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.75,
+  "slot": 5.890000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Schwere Panzerung auf der Brücke! Das ist ein Juggernaut. Panzerfaust, Kerner!",
+  "wer": 0.0
+ },
+ "5b36e83e8e07": {
+  "asr": "Verstanden. Ich nehme sie mir leise.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.24,
+  "slot": 3.5250000000000004,
+  "speaker": "Kerner",
+  "text": "Verstanden. Ich nehm sie mir leise.",
+  "wer": 0.167
+ },
+ "5bd71c3468f2": {
+  "asr": "»Schuss im Haum! Sie haben eine Geisel erschossen!« »Zu langsam, Jonas! Zurück, noch mal!«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.34,
+  "slot": 6.385,
+  "speaker": "Lena Aksoy",
+  "text": "Schuss im Raum – sie haben eine Geisel erschossen. Zu langsam, Jonas. Zurück, noch mal.",
+  "wer": 0.071
+ },
+ "5c94089f7468": {
+  "asr": "vor Gericht Kerner, damit Leute wie sie über mich urteilen.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.42,
+  "slot": 4.9,
+  "speaker": "General von Riedhammer",
+  "text": "Vor Gericht, Kerner? Damit Leute wie Sie über mich urteilen?",
+  "wer": 0.0
+ },
+ "5d1960653827": {
+  "asr": "Tunnel voraus, runter sofort.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.76,
+  "slot": 3.25,
+  "speaker": "Lena Aksoy",
+  "text": "Tunnel voraus! Runter, sofort!",
+  "wer": 0.0
+ },
+ "5d535cd311f2": {
+  "asr": "Du hast ihn laufen lassen. Jonas",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.57,
+  "slot": 3.47,
+  "speaker": "Lena Aksoy",
+  "text": "Du hast ihn laufen lassen? Jonas …",
+  "wer": 0.0
+ },
+ "5d686c68a965": {
+  "asr": "Kerner, sie fahren nicht bis Wien, das garantiere ich ihnen.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.58,
+  "slot": 4.9,
+  "speaker": "Oberst Falk",
+  "text": "Kerner, Sie fahren nicht bis Wien. Das garantiere ich Ihnen.",
+  "wer": 0.0
+ },
+ "5d8c73903b81": {
+  "asr": "Kontrollpunkt ist frei. Durch die Schranke Jonas und nicht stehen bleiben.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.04,
+  "slot": 5.779999999999999,
+  "speaker": "Lena Aksoy",
+  "text": "Kontrollpunkt ist frei. Durch die Schranke, Jonas, und nicht stehen bleiben.",
+  "wer": 0.0
+ },
+ "5d8e75b94c2d": {
+  "asr": "Abbruch. Lena, zurück in die letzte Deckung. Wir setzen neu an.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.06,
+  "slot": 5.0649999999999995,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Abbruch! Lena, zurück in die letzte Deckung. Wir setzen neu an.",
+  "wer": 0.0
+ },
+ "5de09146985c": {
+  "asr": "»Nimm das Nachtsichtgerät, die Lampe siehst du besser, aber jeder Gardist sieht dich auch.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.05,
+  "slot": 6.550000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Nimm das Nachtsichtgerät. Die Lampe siehst du besser – aber jeder Gardist sieht dich auch.",
+  "wer": 0.0
+ },
+ "5e1051155d49": {
+  "asr": "Tower an Wache. Sie kommen über das Vorfeld. Haltet die Treppe.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.32,
+  "slot": 5.0649999999999995,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Tower an Wache: Sie kommen über das Vorfeld! Haltet die Treppe!",
+  "wer": 0.0
+ },
+ "5ef433139946": {
+  "asr": "Schornstein ist frei. Danke, Jonas.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.49,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Schornstein ist frei. Danke, Jonas.",
+  "wer": 0.0
+ },
+ "5f0613c851db": {
+  "asr": "»Komm nach oben, Jonas. Die Sonne geht auf.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.92,
+  "slot": 3.91,
+  "speaker": "Lena Aksoy",
+  "text": "Komm nach oben, Jonas. Die Sonne geht auf.",
+  "wer": 0.0
+ },
+ "5ffd3aabbc83": {
+  "asr": "Mehr von denen vorn auf dem nächsten Wagen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.62,
+  "slot": 4.02,
+  "speaker": "Lena Aksoy",
+  "text": "Mehr von denen, vorn auf dem nächsten Wagen!",
+  "wer": 0.0
+ },
+ "600a5e1a5fd1": {
+  "asr": "»Bote an beiden Seiten, Kerner erst den Vogel.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.1,
+  "slot": 4.1850000000000005,
+  "speaker": "Lena Aksoy",
+  "text": "Boote an beiden Seiten! Kerner, erst den Vogel!",
+  "wer": 0.125
+ },
+ "60b28c53552b": {
+  "asr": "Kontakt. Kontakt-Werkstraße, Hinterhalt von Norden.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.31,
+  "slot": 3.0,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Kontakt! Kontakt Werkstraße! Hinterhalt von Norden!",
+  "wer": 0.0
+ },
+ "6137606b389a": {
+  "asr": "Der Mörserzug meldet Munition alle. Sie schicken Nachschub hoch.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.76,
+  "slot": 5.175000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Der Mörserzug meldet: Munition alle. Sie schicken Nachschub hoch.",
+  "wer": 0.0
  },
  "638211bda786": {
   "asr": "Gut so. Ein Bildschirm weniger, der lügt.",
@@ -309,6 +1913,16 @@
   "text": "Gut so. Ein Bildschirm weniger, der lügt.",
   "wer": 0.0
  },
+ "6393999acb07": {
+  "asr": "Rabe an alle, Abmarsch, Foss fährt, Kerner sitzt am Turm, Zielen, Moltkebrücke.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.36,
+  "slot": 5.779999999999999,
+  "speaker": "Lena Aksoy",
+  "text": "Rabe an alle: Abmarsch. Voss fährt, Kerner sitzt am Turm. Ziel Moltkebrücke.",
+  "wer": 0.167
+ },
  "63b9934ef41f": {
   "asr": "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin. Ich warte auf Euch.",
   "cast": "55a3695c",
@@ -317,6 +1931,26 @@
   "slot": 4.0,
   "speaker": "Hptm. Weber",
   "text": "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin – ich warte auf euch.",
+  "wer": 0.0
+ },
+ "63dfb0377231": {
+  "asr": "»Vors Leute kommen runter. Es ist vorbei, Jonas.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.96,
+  "slot": 4.24,
+  "speaker": "Lena Aksoy",
+  "text": "Voss' Leute kommen runter. Es ist vorbei, Jonas.",
+  "wer": 0.125
+ },
+ "642f3e791a2a": {
+  "asr": "Das Pult im Sendesaal. Halt den Schalter, bis ich seine Leitung überschrieben hab.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.6,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Das Pult im Sendesaal. Halt den Schalter, bis ich seine Leitung überschrieben hab.",
   "wer": 0.0
  },
  "64c06e1c4dbe": {
@@ -329,6 +1963,46 @@
   "text": "Er geht runter! Direkt in den Fluss!",
   "wer": 0.0
  },
+ "64cd2779a1d3": {
+  "asr": "Schulterrakete vom Kasernendach. Täuschkörper.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.77,
+  "slot": 4.13,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Schulterrakete vom Kasernendach! Täuschkörper!",
+  "wer": 0.0
+ },
+ "65dbc556341b": {
+  "asr": "Stellung auf dem Portalkran. Ich habe die ganze Hauptgasse im Glas.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.65,
+  "slot": 5.23,
+  "speaker": "Kerner",
+  "text": "Stellung auf dem Portalkran. Ich hab die ganze Hauptgasse im Glas.",
+  "wer": 0.091
+ },
+ "65f2fe9b84b9": {
+  "asr": "Nur ich komme noch an ihn ran.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 2.22,
+  "slot": 3.25,
+  "speaker": "Hptm. Weber",
+  "text": "Nur ich komme noch an ihn ran.",
+  "wer": 0.0
+ },
+ "6614dce728a9": {
+  "asr": "Aufzug ist tot. Ich nehme die Treppe.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.96,
+  "slot": 3.0,
+  "speaker": "Kerner",
+  "text": "Aufzug ist tot. Ich nehm die Treppe.",
+  "wer": 0.143
+ },
  "66290b845ce9": {
   "asr": "Jonas, die Bühne runter, runter.",
   "cast": "f7dad8c0",
@@ -339,6 +2013,26 @@
   "text": "Jonas! Die Bühne – runter, runter!",
   "wer": 0.0
  },
+ "6697d80a7c36": {
+  "asr": "Wagen 4 und 5 sind Postwagen ohne Durchgang. Wir müssen übers Dach.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.88,
+  "slot": 5.615,
+  "speaker": "Lena Aksoy",
+  "text": "Wagen vier und fünf sind Postwagen ohne Durchgang. Wir müssen übers Dach.",
+  "wer": 0.0
+ },
+ "67409b88b954": {
+  "asr": "Wächter dreht ab. Kerner, Feuerleitung sichern. Gute Jagd.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.98,
+  "slot": 4.79,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Wächter dreht ab. Kerner, Feuerleitung sichern. Gute Jagd.",
+  "wer": 0.0
+ },
  "6869bef8ea4f": {
   "asr": "Bin direkt hinter dir, Jonas. Kopf unten.",
   "cast": "f7dad8c0",
@@ -347,6 +2041,86 @@
   "slot": 3.855,
   "speaker": "Lena Aksoy",
   "text": "Bin direkt hinter dir, Jonas. Kopf unten.",
+  "wer": 0.0
+ },
+ "6875286ee1dc": {
+  "asr": "»Gepanzerte. Zieh auf Kopf und Gelenke, nicht auf die Platten.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.19,
+  "slot": 4.955,
+  "speaker": "Lena Aksoy",
+  "text": "Gepanzerte! Zieh auf Kopf und Gelenke, nicht auf die Platten.",
+  "wer": 0.0
+ },
+ "691cb8228f3e": {
+  "asr": "Kaum seid ihr vom Traunsee zurück, schon fahr ich euch wieder durch Berlin.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.08,
+  "slot": 5.725,
+  "speaker": "Konrad Voss",
+  "text": "Kaum seid ihr vom Traunsee zurück, schon fahr ich euch wieder durch Berlin.",
+  "wer": 0.0
+ },
+ "693166229b3b": {
+  "asr": "Anbau B an zentrale Scheinwerfer ausgefallen. Vermutlich der Regen.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 6.09,
+  "slot": 5.34,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Anbau B an Zentrale: Scheinwerfer ausgefallen. Vermutlich der Regen.",
+  "wer": 0.0
+ },
+ "6935dae93874": {
+  "asr": "Die sogenannten Loyalen sind Söldner einer fremden Macht. Meldet sie. Die Garde schützt euch.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 6.56,
+  "slot": 6.5,
+  "speaker": "General von Riedhammer",
+  "text": "Die sogenannten Loyalen sind Söldner einer fremden Macht. Meldet sie. Die Garde schützt euch.",
+  "wer": 0.0
+ },
+ "696c46cdc91f": {
+  "asr": "schickt die Gepanzerten. Ich will das erledigt haben.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 3.74,
+  "slot": 4.515000000000001,
+  "speaker": "Oberst Falk",
+  "text": "Schickt die Gepanzerten. Ich will das erledigt haben.",
+  "wer": 0.0
+ },
+ "69f13f1c1890": {
+  "asr": "Brandt ist raus. Er lebt.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.65,
+  "slot": 3.0,
+  "speaker": "Konrad Voss",
+  "text": "Brandt ist raus. Er lebt.",
+  "wer": 0.0
+ },
+ "6a1fe6c32047": {
+  "asr": "Gasse sauber. Ich geh rein.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.27,
+  "slot": 3.085,
+  "speaker": "Kerner",
+  "text": "Gasse sauber. Ich geh rein.",
+  "wer": 0.0
+ },
+ "6a7c97557e4e": {
+  "asr": "Moment, Feuerleitradar, wir sind aufgeschaltet.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.12,
+  "slot": 4.24,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Moment – Feuerleitradar! Wir sind aufgeschaltet!",
   "wer": 0.0
  },
  "6b224beba7bd": {
@@ -369,6 +2143,96 @@
   "text": "Kerner, Aksoy – ruhige Nacht heute. Genießt die Feier, ihr habt sie euch verdient.",
   "wer": 0.0
  },
+ "6c1a287fa2fc": {
+  "asr": "»Jonas, das ist er, der Funkturm. Von da oben spricht Riedhammer heute Nacht zu ganz Berlin.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.66,
+  "slot": 6.0,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, das ist er. Der Funkturm. Von da oben spricht Riedhammer heute Nacht zu ganz Berlin.",
+  "wer": 0.0
+ },
+ "6d4ee71e8d13": {
+  "asr": "»Falk, die Tür! Schließen Sie die verdammte Tür!«",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.31,
+  "slot": 2.6,
+  "speaker": "General von Riedhammer",
+  "text": "Falk! Die Tür – schließen Sie die verdammte Tür!",
+  "wer": 0.0
+ },
+ "6d9d893e9fcb": {
+  "asr": "Granate, raus, raus.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.42,
+  "slot": 2.7,
+  "speaker": "Kerner",
+  "text": "Granate! Raus, raus!",
+  "wer": 0.0
+ },
+ "6f358975e995": {
+  "asr": "Kerner, guter Schuss.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 1.61,
+  "slot": 3.0,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Kerner? … Guter Schuss.",
+  "wer": 0.0
+ },
+ "6f6bdd051966": {
+  "asr": "Hubschrauber ist unten.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.68,
+  "slot": 2.865,
+  "speaker": "Kerner",
+  "text": "Hubschrauber ist unten.",
+  "wer": 0.0
+ },
+ "6f9aad3667f6": {
+  "asr": "An alle Einheiten, Empfang auf allen Frequenzen sofort einstellen. Das ist Feindpropaganda.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 7.36,
+  "slot": 6.605,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "An alle Einheiten: Empfang auf allen Frequenzen sofort einstellen! Das ist Feindpropaganda!",
+  "wer": 0.0
+ },
+ "6fb19925b0df": {
+  "asr": "Alle Einheiten zum Sendemast. Der Mast darf nicht fallen.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.79,
+  "slot": 4.735,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Alle Einheiten zum Sendemast! Der Mast darf nicht fallen!",
+  "wer": 0.0
+ },
+ "6fc64821c4e0": {
+  "asr": "Jonas weiß nicht, dass ich Höhenangst habe, seit ich denken kann.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.47,
+  "slot": 5.175000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas weiß nicht, dass ich Höhenangst habe. Seit ich denken kann.",
+  "wer": 0.0
+ },
+ "6fd116ddeacf": {
+  "asr": "Speisewagen sauber. Der Gepäckwagen ist als nächstes.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.95,
+  "slot": 4.515000000000001,
+  "speaker": "Kerner",
+  "text": "Speisewagen sauber. Der Gepäckwagen ist als Nächstes.",
+  "wer": 0.0
+ },
  "6fde8b9dbcb9": {
   "asr": "Der Krieg ist vorbei. Berlin feiert den Waffenstillstand vor dem Regierungsviertel, die Kampfgruppe Nord steht als Ehrenformation an der Bühne. Hauptmann Weber hat euch persönlich für die Feier eingeteilt.",
   "cast": "c814ed94",
@@ -377,6 +2241,26 @@
   "slot": null,
   "speaker": "Lage",
   "text": "Der Krieg ist vorbei. Berlin feiert den Waffenstillstand vor dem Regierungsviertel, die Kampfgruppe „Nord“ steht als Ehrenformation an der Bühne. Hauptmann Weber hat euch persönlich für die Feier eingeteilt.",
+  "wer": 0.0
+ },
+ "6ff5fd938979": {
+  "asr": "»Ich habe sie im Visier. Bleib unten.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.41,
+  "slot": 3.5250000000000004,
+  "speaker": "Lena Aksoy",
+  "text": "Ich hab sie im Visier. Bleib unten!",
+  "wer": 0.143
+ },
+ "70af28ca1ad3": {
+  "asr": "Jonas, er hat Leute verraten, unsere Leute. Vergiss das nicht.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.67,
+  "slot": 5.01,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, er hat Leute verraten. Unsere Leute. Vergiss das nicht.",
   "wer": 0.0
  },
  "70dfe5e18269": {
@@ -388,6 +2272,36 @@
   "speaker": "Lage",
   "text": "Russische Verbände haben in der Nacht die lettische Grenze überschritten. Die EU-Kampfgruppe „Nord“ soll die Linie halten, bis Verstärkung eintrifft. Ihr Zug stößt über das Feld vor, nimmt die Stellungen am Waldrand und sichert den Bahnübergang.",
   "wer": 0.053
+ },
+ "72a3bf0df97d": {
+  "asr": "Absitzen, Hangar 2, los, los!",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.48,
+  "slot": 3.3600000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "Absitzen! Hangar zwei, los, los!",
+  "wer": 0.0
+ },
+ "74a16dbe31cf": {
+  "asr": "Stopp! Kontrollpunkt vor dir ein Offizier am Häuschen, ein Posten an der Schranke. Ich nehme beide kurz hintereinander.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.62,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Stopp. Kontrollpunkt vor dir – ein Offizier am Häuschen, ein Posten an der Schranke. Ich nehme beide, kurz hintereinander.",
+  "wer": 0.0
+ },
+ "74d8d8b98dd0": {
+  "asr": "Kerner, was hier? Das ist die alte Versorgungsröhre unter der Spree. Sie endet an der Bunkerschleuse. Ab da sind sie allein.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 7.04,
+  "slot": 8.0,
+  "speaker": "Konrad Voss",
+  "text": "Kerner, Voss hier. Das ist die alte Versorgungsröhre unter der Spree. Sie endet an der Bunkerschleuse – ab da sind Sie allein.",
+  "wer": 0.048
  },
  "7533af1dcaf2": {
   "asr": "Die Brücke, lauf, Jonas, lauf!",
@@ -409,6 +2323,66 @@
   "text": "Hubschrauber! Unsere Kennung – die haben auch die Flieger auf ihrer Seite.",
   "wer": 0.0
  },
+ "7648fe086c7e": {
+  "asr": "Leuchtspur links unten, Flak, die schießen nach Gehör. Nehmen Sie sie raus.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.99,
+  "slot": 5.779999999999999,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Leuchtspur links unten – Flak! Die schießen nach Gehör. Nehmen Sie sie raus.",
+  "wer": 0.0
+ },
+ "76586661426b": {
+  "asr": "Nicht schießen. Ich bin Hartmann. Sie sind fast Leute.",
+  "cast": "c9efd8e5",
+  "character": "hartmann",
+  "seconds": 3.6,
+  "slot": 4.68,
+  "speaker": "Präsidentin Hartmann",
+  "text": "Nicht schießen! Ich bin Hartmann … Sie sind Voss' Leute?",
+  "wer": 0.111
+ },
+ "76ee71d448e1": {
+  "asr": "Ich hab noch die Panzerfaust. Deckung.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.64,
+  "slot": 3.69,
+  "speaker": "Lena Aksoy",
+  "text": "Ich hab noch die Panzerfaust! Deckung!",
+  "wer": 0.0
+ },
+ "773cdd0101d0": {
+  "asr": "Lichtmast im Süden, oben auf der Plattform. Da blitzt ein Zielfernrohr.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.33,
+  "slot": 5.505,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Lichtmast im Süden, oben auf der Plattform. Da blitzt ein Zielfernrohr!",
+  "wer": 0.0
+ },
+ "7766ade4937b": {
+  "asr": "Wächter auf Station. 2500 Fuß, Linkskurve über Lindenau. Kerner, die Optik gehört Ihnen.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.79,
+  "slot": 7.210000000000001,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Wächter auf Station. Zweieinhalbtausend Fuß, Linkskurve über Lindenau. Kerner, die Optik gehört Ihnen.",
+  "wer": 0.077
+ },
+ "784e53f12010": {
+  "asr": "Brandt hat die Wächter auf einer Autobahn bei Neuropin abgestellt. Lena sagt, wir sind fast am Ende, ich glaube, wir sind erst am Anfang.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 6.96,
+  "slot": 8.0,
+  "speaker": "Kerner",
+  "text": "Brandt hat die Wächter auf einer Autobahn bei Neuruppin abgestellt.\nLena sagt, wir sind fast am Ende. Ich glaube, wir sind erst am Anfang.",
+  "wer": 0.042
+ },
  "78bfa9f81edf": {
   "asr": "»Warum nur du? Und wie ist er vor uns da reingekommen? Jonas, pass auf!«",
   "cast": "f7dad8c0",
@@ -429,6 +2403,36 @@
   "text": "Kerner, hier Weber. Die Bruecke muss bis Sonnenaufgang stehen – und in unserer Hand sein. Pioniere folgen euch.",
   "wer": 0.059
  },
+ "7a2116f41ce0": {
+  "asr": "Den nehmen wir. Messer.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.16,
+  "slot": 2.5,
+  "speaker": "Konrad Voss",
+  "text": "Den nehmen wir. Messer.",
+  "wer": 0.0
+ },
+ "7aa23c74c1f5": {
+  "asr": "Zweiter Zug runter in den Sammler. Von beiden Seiten.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.04,
+  "slot": 4.515000000000001,
+  "speaker": "Oberst Falk",
+  "text": "Zweiter Zug runter in den Sammler. Von beiden Seiten.",
+  "wer": 0.0
+ },
+ "7c5d05725815": {
+  "asr": "Eigene Verluste, Kerner? Du hast uns getroffen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.28,
+  "slot": 4.1850000000000005,
+  "speaker": "Lena Aksoy",
+  "text": "Eigene Verluste! Kerner, du hast uns getroffen!",
+  "wer": 0.0
+ },
  "7dcf1d484084": {
   "asr": "Rakete raus.",
   "cast": "f7dad8c0",
@@ -437,6 +2441,76 @@
   "slot": 1.5,
   "speaker": "Lena Aksoy",
   "text": "Rakete raus!",
+  "wer": 0.0
+ },
+ "7e9cac587f3e": {
+  "asr": "Ein Unbeteiligter ist getroffen. Abbruch.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.04,
+  "slot": 3.855,
+  "speaker": "Lena Aksoy",
+  "text": "Ein Unbeteiligter ist getroffen. Abbruch!",
+  "wer": 0.0
+ },
+ "7f5f183d2c7c": {
+  "asr": "Keine Zeit mehr. Den Rest übernehmen wir, der Konvoi ist da.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.66,
+  "slot": 4.0,
+  "speaker": "Konrad Voss",
+  "text": "Keine Zeit mehr. Den Rest übernehmen wir – der Konvoi ist da.",
+  "wer": 0.0
+ },
+ "7fb1f8f844eb": {
+  "asr": "Abteil 9 ist leer, er ist nach vorn zur Lok.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.52,
+  "slot": 4.24,
+  "speaker": "Lena Aksoy",
+  "text": "Abteil neun ist leer! Er ist nach vorn, zur Lok!",
+  "wer": 0.0
+ },
+ "7ffdc5179c78": {
+  "asr": "Dann gehen wir von unten rein. Gute Arbeit, Kerner. Heute Nacht holen wir uns den General.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 5.87,
+  "slot": 6.605,
+  "speaker": "Konrad Voss",
+  "text": "Dann gehen wir von unten rein. Gute Arbeit, Kerner – heute Nacht holen wir uns den General.",
+  "wer": 0.0
+ },
+ "8024a2b0cac1": {
+  "asr": "Jonas, das war ich. Schau durchs Glas, bevor du abdrückst.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.37,
+  "slot": 4.79,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas! Das war ich! Schau durchs Glas, bevor du abdrückst!",
+  "wer": 0.0
+ },
+ "80338f3d0e9f": {
+  "asr": "Aussteigen? Kerner. So ist es ehrlicher.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 3.42,
+  "slot": 3.8000000000000003,
+  "speaker": "Oberst Falk",
+  "text": "Aussteigen, Kerner. So ist es ehrlicher.",
+  "wer": 0.0
+ },
+ "80a83567883b": {
+  "asr": "Da kommt was Großes aus der Halle, ein Juggernaut, aufs Visier Zielen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.16,
+  "slot": 4.5,
+  "speaker": "Lena Aksoy",
+  "text": "Da kommt was Großes aus der Halle – ein Juggernaut! Aufs Visier zielen!",
   "wer": 0.0
  },
  "80affc6e58c1": {
@@ -449,6 +2523,16 @@
   "text": "Stellwerk rechts, obere Etage. Da oben sitzt einer.",
   "wer": 0.0
  },
+ "80b0f50e22c1": {
+  "asr": "»Das war der Letzte. Die Straße ist blind. Gute Arbeit, Jonas.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.64,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Das war der Letzte. Die Straße ist blind. Gute Arbeit, Jonas.",
+  "wer": 0.0
+ },
  "80fa2b854d4b": {
   "asr": "Der Dorfplatz achtet auf den Wasserturm und das Tanklager geht hoch wie eine Bombe.",
   "cast": "55a3695c",
@@ -459,6 +2543,136 @@
   "text": "Dorfplatz. Achtet auf den Wasserturm – und das Tanklager geht hoch wie eine Bombe.",
   "wer": 0.077
  },
+ "820d9a2833d8": {
+  "asr": "22 Juni 2030, 04 Aufversicht. Riethammer hat sich hinter der Panzertür des Regierungsbunkers eingemauert mit Falks letzter Garde und einer Zündleitung zu den Ladungen unter den Spreibogen. Oben kommt niemand durch. Es bleibt der zweite Zugang, eine alte Versorgungsröhre unter der Spree. Halb voll Wasser. Lena hat die Haustechnik und öffnet die Schleusen. Danach geht es durch Technikebene, Schlassäle und Lagezentrum bis in den Kontrollraum. Diesmal entkommt der General nicht.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 24.06,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "25. Juni 2030, 04:40. Riedhammer hat sich hinter der Panzertür des Regierungsbunkers eingemauert, mit Falks letzter Garde und einer Zündleitung zu den Ladungen unter dem Spreebogen. Oben kommt niemand durch. Es bleibt der zweite Zugang: eine alte Versorgungsröhre unter der Spree, halb voll Wasser. Lena hat die Haustechnik und öffnet die Schleusen. Danach geht es durch Technikebene, Schlafsäle und Lagezentrum bis in den Kontrollraum. Diesmal entkommt der General nicht.",
+  "wer": 0.086
+ },
+ "8393148cbc85": {
+  "asr": "Weber will heute morgen über den Pass nach Österreich. Seine Leute halten den Kessel und Falks Gardejäger in grauen Wintermänteln sind auch irgendwo da draußen.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 7.66,
+  "slot": 8.0,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Weber will heute Morgen über den Pass nach Österreich. Seine Leute halten den Kessel – und Falks Garde-Jäger in grauen Wintermänteln sind auch irgendwo da draußen.",
+  "wer": 0.077
+ },
+ "83be00dadf6d": {
+  "asr": "Triebwerk 3 brennt. Wir verlieren Höhe. Wir müssen abdrehen.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.06,
+  "slot": 5.0649999999999995,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Triebwerk drei brennt, wir verlieren Höhe! Wir müssen abdrehen!",
+  "wer": 0.0
+ },
+ "847efb6605ab": {
+  "asr": "Ich wollte, dass ihr sie findet. Allein wäre ich nie an ihn herangekommen.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.35,
+  "slot": 5.67,
+  "speaker": "Hptm. Weber",
+  "text": "Ich wollte, dass ihr sie findet. Allein wäre ich nie an ihn herangekommen.",
+  "wer": 0.0
+ },
+ "8484e862ebc3": {
+  "asr": "Konvoi auf der Straße nach Norden. Ich bleibe von den Häusern weg.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.08,
+  "slot": 5.23,
+  "speaker": "Kerner",
+  "text": "Konvoi auf der Straße nach Norden. Ich bleibe von den Häusern weg.",
+  "wer": 0.0
+ },
+ "84b955e9a337": {
+  "asr": "Mein Türschütze übernimmt, Köpfe runter.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 2.92,
+  "slot": 3.8000000000000003,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Mein Türschütze übernimmt. Köpfe runter!",
+  "wer": 0.0
+ },
+ "850cabd6e0b7": {
+  "asr": "Kerner, Axoi, Absetzpunkt. Weiter runter kann ich nicht, da unten sieht man die eigene Hand nicht. Raus!",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.95,
+  "slot": 7.43,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Kerner, Aksoy – Absetzpunkt. Weiter runter kann ich nicht, da unten sieht man die eigene Hand nicht. Raus!",
+  "wer": 0.059
+ },
+ "85b2996c7c4c": {
+  "asr": "Kerner, oben kommen wir nicht durch die Panzertür. Was jetzt passiert, liegt bei Ihnen.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.84,
+  "slot": 6.385,
+  "speaker": "Konrad Voss",
+  "text": "Kerner, oben kommen wir nicht durch die Panzertür. Was jetzt passiert, liegt bei Ihnen.",
+  "wer": 0.0
+ },
+ "8696b03112b3": {
+  "asr": "Werte Fahrgäste, hier spricht Oberst Falk. Bleiben Sie in Ihren Abteilen. Es befinden sich zwei bewaffnete Terroristen im Zug.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 7.64,
+  "slot": 8.0,
+  "speaker": "Oberst Falk",
+  "text": "Werte Fahrgäste, hier spricht Oberst Falk. Bleiben Sie in Ihren Abteilen. Es befinden sich zwei bewaffnete Terroristen im Zug.",
+  "wer": 0.0
+ },
+ "86d2af4d95fc": {
+  "asr": "Das war der letzte. Atme, Jonas, dann weiter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.05,
+  "slot": 4.075,
+  "speaker": "Lena Aksoy",
+  "text": "Das war der Letzte. Atme, Jonas. Dann weiter.",
+  "wer": 0.0
+ },
+ "86e8f6c447f8": {
+  "asr": "Alarm, Alarm! Fahrzeug durchbricht das Südtor. Alle Kräfte zu den Hangars.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 6.42,
+  "slot": 5.67,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Alarm, Alarm! Fahrzeug durchbricht das Südtor! Alle Kräfte zu den Hangars!",
+  "wer": 0.0
+ },
+ "872d6e08c945": {
+  "asr": "Panzerfaust, Nebel, Kerner,",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.73,
+  "slot": 3.085,
+  "speaker": "Lena Aksoy",
+  "text": "Panzerfaust! Nebel, Kerner!",
+  "wer": 0.0
+ },
+ "877f107bba5d": {
+  "asr": "»Hörst du das? Rotoren? Die Garde hat einen Hubschrauber.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.63,
+  "slot": 4.68,
+  "speaker": "Lena Aksoy",
+  "text": "Hörst du das? Rotoren. Die Garde hat einen Hubschrauber.",
+  "wer": 0.0
+ },
  "87d56e69ed5b": {
   "asr": "An alle Einheiten Moskau hat den Waffenstillstand unterzeichnet. Es ist vorbei.",
   "cast": "55a3695c",
@@ -467,6 +2681,46 @@
   "slot": 6.5,
   "speaker": "Hauptmann Weber",
   "text": "An alle Einheiten: Moskau hat den Waffenstillstand unterzeichnet. Es ist vorbei.",
+  "wer": 0.0
+ },
+ "884712c67057": {
+  "asr": "Jetzt. Feuer frei.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 1.82,
+  "slot": 2.0,
+  "speaker": "Konrad Voss",
+  "text": "Jetzt! Feuer frei!",
+  "wer": 0.0
+ },
+ "8877348dd309": {
+  "asr": "Kaserne Nord, Liquor auf der Ringstraße, Sperre errichten sofort.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.52,
+  "slot": 5.0649999999999995,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Kaserne Nord: LKW auf der Ringstraße! Sperre errichten, sofort!",
+  "wer": 0.111
+ },
+ "89d1570bdebe": {
+  "asr": "Mann am Boden im Sammler. Alle Streifen absuchen, jeden Winkel.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.76,
+  "slot": 5.12,
+  "speaker": "Oberst Falk",
+  "text": "Mann am Boden im Sammler! Alle Streifen absuchen – jeden Winkel!",
+  "wer": 0.0
+ },
+ "89fa7b97252f": {
+  "asr": "Panzer am anderen Ufer, runter vom Präsentierteller in die Deckung auf der Brücke.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.65,
+  "slot": 6.165000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Panzer am anderen Ufer. Runter vom Präsentierteller, in die Deckung auf der Brücke!",
   "wer": 0.0
  },
  "89ffb006f48e": {
@@ -479,6 +2733,16 @@
   "text": "Klingt, als hätten sie die Durchsage schon vor der Feier aufgenommen.",
   "wer": 0.0
  },
+ "8a2366d07014": {
+  "asr": "Der General wird Sie enttäuschen,",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 3.05,
+  "slot": 3.4,
+  "speaker": "Oberst Falk",
+  "text": "Der General … wird Sie … enttäuschen …",
+  "wer": 0.0
+ },
  "8a5899c63c09": {
   "asr": "Artillerie liegt auf dem Panzer, Kopf runter.",
   "cast": "55a3695c",
@@ -487,6 +2751,126 @@
   "slot": 3.0,
   "speaker": "Hptm. Weber",
   "text": "Artillerie liegt auf dem Panzer – Kopf runter!",
+  "wer": 0.0
+ },
+ "8a7e2ce9f6ab": {
+  "asr": "Zwei Hafenwachen am Wachhäuschen, die haben mich gesehen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.93,
+  "slot": 4.735,
+  "speaker": "Lena Aksoy",
+  "text": "Zwei Hafenwachen am Wachhäuschen. Die haben mich gesehen!",
+  "wer": 0.0
+ },
+ "8b1385440a62": {
+  "asr": "Der Scheinwerfer auf dem Anbau streicht über den Platz. Ein Schuss ins Glas und er ist blind.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.05,
+  "slot": 6.77,
+  "speaker": "Lena Aksoy",
+  "text": "Der Scheinwerfer auf dem Anbau streicht über den Platz. Ein Schuss ins Glas, und er ist blind.",
+  "wer": 0.0
+ },
+ "8b46e0f1f3b5": {
+  "asr": "Ein Brückenkopf, wie rührend. Wir sehen uns Kerner.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.11,
+  "slot": 4.46,
+  "speaker": "Oberst Falk",
+  "text": "Ein Brückenkopf. Wie rührend. Wir sehen uns, Kerner.",
+  "wer": 0.0
+ },
+ "8b5dd9895b50": {
+  "asr": "Kontakt im Sammler. Er ist allein, holt ihn mir.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 3.95,
+  "slot": 4.295,
+  "speaker": "Oberst Falk",
+  "text": "Kontakt im Sammler. Er ist allein – holt ihn mir!",
+  "wer": 0.0
+ },
+ "8c0f942db50d": {
+  "asr": "Kabinettsaal, drei Geiseln, drei Wachen. E halten für die Ladung. Tritt die Tür ein, mint eine Blendgranate mit. Danach hast du zwei Sekunden, triff nur die Wachen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 9.48,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Kabinettssaal: drei Geiseln, drei Wachen. [E] halten für die Ladung, [F] tritt die Tür ein, [B] nimmt eine Blendgranate mit. Danach hast du zwei Sekunden – triff nur die Wachen.",
+  "wer": 0.138
+ },
+ "8c86eddb75b0": {
+  "asr": "Alle drei Stellungen sind still. Webers Nachhut zieht sich zur Zollhütte zurück, geht runter und räumt auf.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.61,
+  "slot": 7.540000000000001,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Alle drei Stellungen sind still. Webers Nachhut zieht sich zur Zollhütte zurück – geht runter und räumt auf.",
+  "wer": 0.0
+ },
+ "8d6aaec8032d": {
+  "asr": "Zweiter am Rolltor. Steht still und schaut zur Straße.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.76,
+  "slot": 4.57,
+  "speaker": "Lena Aksoy",
+  "text": "Zweiter am Rolltor. Steht still und schaut zur Straße.",
+  "wer": 0.0
+ },
+ "8d9123ec6bcc": {
+  "asr": "»Du bist draußen am Gitter, ich seh dich vom LKW aus. Nicht nach unten schauen, Jonas.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.52,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Du bist draußen am Gitter, ich seh dich vom Lkw aus. Nicht nach unten schauen, Jonas.",
+  "wer": 0.0
+ },
+ "8dedcda64b75": {
+  "asr": "Die Übertragung läuft. Bleib in der Nähe des Terminals, bis sie durch ist.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.25,
+  "slot": 5.67,
+  "speaker": "Lena Aksoy",
+  "text": "Die Übertragung läuft. Bleib in der Nähe des Terminals, bis sie durch ist.",
+  "wer": 0.0
+ },
+ "8e5efc08fb40": {
+  "asr": "»Scharfschütze, Kühlturm, oben am Rand, achte auf das Blitzen.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.56,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Scharfschütze! Kühlturm, oben am Rand – achte auf das Blitzen!",
+  "wer": 0.0
+ },
+ "8ebf4841b154": {
+  "asr": "Alles, was nicht blinkt, gehört Riedhammer. Räumen Sie den Zaun ab.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.52,
+  "slot": 5.285,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Alles, was nicht blinkt, gehört Riedhammer. Räumen Sie den Zaun ab.",
+  "wer": 0.0
+ },
+ "8f19c5c10f42": {
+  "asr": "»Weg, der Sturm hat ihn verschluckt.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.65,
+  "slot": 3.5250000000000004,
+  "speaker": "Lena Aksoy",
+  "text": "Weg. Der Sturm hat ihn verschluckt.",
   "wer": 0.0
  },
  "8f5081720a33": {
@@ -499,6 +2883,116 @@
   "text": "Aksoy! Panzerfaust auf die rote Binde!",
   "wer": 0.167
  },
+ "8fa26a6b0083": {
+  "asr": "Da, Querreihe 235 von Westen, das ist Weber.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.96,
+  "slot": 5.285,
+  "speaker": "Lena Aksoy",
+  "text": "Da! Querreihe zweihundertfünfunddreißig, von Westen. Das ist Weber!",
+  "wer": 0.0
+ },
+ "8fe24ea137b5": {
+  "asr": "Der Rabe hat uns bis hierher gebracht. Den Rest holen wir uns zu Fuß.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.85,
+  "slot": 5.395,
+  "speaker": "Konrad Voss",
+  "text": "Der Rabe hat uns bis hierher gebracht. Den Rest holen wir uns zu Fuß.",
+  "wer": 0.0
+ },
+ "909c920c4de1": {
+  "asr": "MG-Nest ist weg, Volltreffer.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.13,
+  "slot": 3.1950000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "MG-Nest ist weg. Volltreffer.",
+  "wer": 0.0
+ },
+ "90a02d770f3f": {
+  "asr": "»Jonas, Fahrzeuge auf der Bundesstraße, graue Mäntel. Das sind Falks Jäger.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.83,
+  "slot": 5.67,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, Fahrzeuge auf der Bundesstraße. Graue Mäntel. Das sind Falks Jäger.",
+  "wer": 0.0
+ },
+ "91967fcf2959": {
+  "asr": "Riedhammer, lieber jagt er das Regierungsviertel in die Luft, als vor Gericht zu stehen.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.87,
+  "slot": 6.495000000000001,
+  "speaker": "Hptm. Weber",
+  "text": "Riedhammer … lieber jagt er das Regierungsviertel in die Luft, als vor Gericht zu stehen.",
+  "wer": 0.0
+ },
+ "92094af29741": {
+  "asr": "Wagen 1 ist frei. Weiter zum Speisewagen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.68,
+  "slot": 4.02,
+  "speaker": "Lena Aksoy",
+  "text": "Wagen eins ist frei. Weiter zum Speisewagen.",
+  "wer": 0.0
+ },
+ "9238a42bb7c5": {
+  "asr": "»Kühlturm, rund 250 Meter, Wind frisch von rechts, halt höher und eine Kopfbreite rechts.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.44,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Kühlturm, rund zweihundertfünfzig Meter. Wind frisch von rechts – halt höher und eine Kopfbreite rechts.",
+  "wer": 0.0
+ },
+ "928ef7e5da61": {
+  "asr": "Zwei mehr in Sicherheit. Hartmann ist oben, im Saal unterm Dach. Das Treppenhaus ist dicht, Garde und gepanzerte.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.65,
+  "slot": 7.8149999999999995,
+  "speaker": "Lena Aksoy",
+  "text": "Zwei mehr in Sicherheit. Hartmann ist oben im Saal unterm Dach. Das Treppenhaus ist dicht – Garde und Gepanzerte.",
+  "wer": 0.0
+ },
+ "92c6fb2aa031": {
+  "asr": "Eingreiftruppe im Berg vor dir zwischen den Hallen, kämpf dich durch.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.9,
+  "slot": 4.0,
+  "speaker": "Lena Aksoy",
+  "text": "Eingreiftruppe im Werk! Vor dir, zwischen den Hallen – kämpf dich durch!",
+  "wer": 0.091
+ },
+ "937e8453b624": {
+  "asr": "Ich gehe unten durch die Gasse. Weber soll heute Nacht an Liegeplatz 7 ablegen mit der Akte Nordlicht.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.28,
+  "slot": 7.484999999999999,
+  "speaker": "Lena Aksoy",
+  "text": "Ich geh unten durch die Gasse. Weber soll heute Nacht an Liegeplatz sieben ablegen, mit der Akte Nordlicht.",
+  "wer": 0.056
+ },
+ "93ea88631dde": {
+  "asr": "Kanone gegen Fenster und Fahrzeuge, Koax gegen Infanterie. Nebel nur, wenn eine Panzerfaust kommt.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.96,
+  "slot": 6.99,
+  "speaker": "Lena Aksoy",
+  "text": "Kanone gegen Fenster und Fahrzeuge, Koax gegen Infanterie. Nebel nur, wenn eine Panzerfaust kommt.",
+  "wer": 0.0
+ },
  "944ceb8d83e3": {
   "asr": "General von Riedhammer spricht auf allen Kanälen. Er verspricht Sicherheit. Er hat sie mit Sprengstoff bezahlt.",
   "cast": "cf45251b",
@@ -507,6 +3001,46 @@
   "slot": 5.0,
   "speaker": "Kerner",
   "text": "General von Riedhammer spricht auf allen Kanälen. Er verspricht Sicherheit.\nEr hat sie mit Sprengstoff bezahlt.",
+  "wer": 0.0
+ },
+ "94805ec35b5f": {
+  "asr": "Panzer brennt. Treffer.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.52,
+  "slot": 2.865,
+  "speaker": "Lena Aksoy",
+  "text": "Panzer brennt! Treffer!",
+  "wer": 0.0
+ },
+ "94ebf29884c1": {
+  "asr": "Feuer einstellen. Kerner. Du hast einen von uns getroffen. Abbruch.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.64,
+  "slot": 4.0,
+  "speaker": "Konrad Voss",
+  "text": "Feuer einstellen! Kerner, du hast einen von uns getroffen. Abbruch!",
+  "wer": 0.0
+ },
+ "9549e4f025cd": {
+  "asr": "Feuer einstellen. Das ist die Kabine.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 2.44,
+  "slot": 3.6350000000000002,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Feuer einstellen! Das ist die Kabine!",
+  "wer": 0.0
+ },
+ "959e854dabc0": {
+  "asr": "Feuer einstellen, das sind wir.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.41,
+  "slot": 3.305,
+  "speaker": "Lena Aksoy",
+  "text": "Feuer einstellen! Das sind wir!",
   "wer": 0.0
  },
  "95f00d8be98b": {
@@ -519,6 +3053,104 @@
   "text": "Kerner, die Hauptstraße. Haus für Haus, bis zum Tor am Ende.",
   "wer": 0.091
  },
+ "966ce24a4bd9": {
+  "asr": "Hände auf den Kopf, General, langsam.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.46,
+  "slot": 3.6350000000000002,
+  "speaker": "Kerner",
+  "text": "Hände auf den Kopf, General. Langsam.",
+  "wer": 0.0
+ },
+ "9793435674c2": {
+  "asr": "Runter zum Wasser, beide. Am Zollsteg liegt ein Schnellboot. Ich bleib über euch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.83,
+  "slot": 6.055,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Runter zum Wasser, beide. Am Zollsteg liegt ein Schnellboot. Ich bleib über euch.",
+  "wer": 0.0
+ },
+ "979aea9f732a": {
+  "asr": "Zurück. Wir versuchen es nochmal, sauber diesmal.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.34,
+  "slot": 4.35,
+  "speaker": "Lena Aksoy",
+  "text": "Zurück. Wir versuchen es noch mal, sauber diesmal.",
+  "wer": 0.25
+ },
+ "97d2098fae7a": {
+  "asr": "Hubschrauber ist unten. Wo ist Weber?",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.08,
+  "slot": 3.6350000000000002,
+  "speaker": "Kerner",
+  "text": "Hubschrauber ist unten. Wo ist Weber?",
+  "wer": 0.0
+ },
+ "988d283e92aa": {
+  "asr": "Lass ihn, Jonas. Wir brauchen ihn lebend.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.46,
+  "slot": 3.855,
+  "speaker": "Lena Aksoy",
+  "text": "Lass ihn, Jonas. Wir brauchen ihn lebend.",
+  "wer": 0.0
+ },
+ "994884aa3c3b": {
+  "asr": "Weber hält auf die Warnow zu. Die Garde hat Boote im Becken. Falk will ihn auch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.73,
+  "slot": 6.0,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Weber hält auf die Warnow zu. Die Garde hat Boote im Becken, Falk will ihn auch.",
+  "wer": 0.0
+ },
+ "99898bbbe37e": {
+  "asr": "Platz ist sauber, rüber zur Lieferzufahrt Jonas an der Hausecke warten.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.59,
+  "slot": 5.67,
+  "speaker": "Lena Aksoy",
+  "text": "Platz ist sauber. Rüber zur Lieferzufahrt, Jonas – an der Hausecke warten.",
+  "wer": 0.0
+ },
+ "998a4212f7d0": {
+  "asr": "Heute Nacht habe ich nur durchs Glas geschaut, auf Jonas. Hat funktioniert, Papa.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.3,
+  "slot": 6.0,
+  "speaker": "Lena Aksoy",
+  "text": "Heute Nacht hab ich nur durchs Glas geschaut. Auf Jonas. Hat funktioniert, Papa.",
+  "wer": 0.077
+ },
+ "99e7863bbf22": {
+  "asr": "Bin oben. Keller ist leer.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.89,
+  "slot": 3.0300000000000002,
+  "speaker": "Kerner",
+  "text": "Bin oben. Keller ist leer.",
+  "wer": 0.0
+ },
+ "9a32159ec3b5": {
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 8.06,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Bleib in den Schatten, geh in die Hocke. Die Schalldämpferpistole ist leise, Gewehrfeuer hört das ganze Viertel. Von hinten kannst du sie mit [F] lautlos ausschalten."
+ },
  "9ab65de5afb9": {
   "asr": "Panzer am Brückenkopf.",
   "cast": "f7dad8c0",
@@ -527,6 +3159,16 @@
   "slot": 2.5,
   "speaker": "Lena Aksoy",
   "text": "Panzer am Brueckenkopf!",
+  "wer": 0.0
+ },
+ "9cb7e74ecb16": {
+  "asr": "Die Gebirgsjäger vom Bataillon stehen zu uns. Sie haben einen Mörserzug hinter dem Grat. Ich halte den Funk zu ihnen.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.11,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Die Gebirgsjäger vom Bataillon stehen zu uns. Sie haben einen Mörserzug hinter dem Grat. Ich halte den Funk zu ihnen.",
   "wer": 0.0
  },
  "9d5edd88ca2a": {
@@ -549,6 +3191,76 @@
   "text": "Rakete im Anflug! Das Haus kommt runter – weg da!",
   "wer": 0.0
  },
+ "9e45ea75c503": {
+  "asr": "Der Tornister auf dem Rücken ist seine Schwachstelle.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.39,
+  "slot": 3.5,
+  "speaker": "Hauptmann Weber",
+  "text": "Der Tornister auf dem Rücken ist seine Schwachstelle!",
+  "wer": 0.0
+ },
+ "9e7873fa94f5": {
+  "asr": "»Graue Mäntel im Gang. Sie haben uns erkannt.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.29,
+  "slot": 4.02,
+  "speaker": "Lena Aksoy",
+  "text": "Graue Mäntel im Gang! Sie haben uns erkannt!",
+  "wer": 0.0
+ },
+ "9ecff4b74c86": {
+  "asr": "Einer schaut zu dir rüber. Nicht bewegen, Jonas.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.86,
+  "slot": 4.24,
+  "speaker": "Lena Aksoy",
+  "text": "Einer schaut zu dir rüber. Nicht bewegen, Jonas.",
+  "wer": 0.0
+ },
+ "9f1ecb767cb0": {
+  "asr": "Da kommt der Hang runter, runter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.04,
+  "slot": 3.47,
+  "speaker": "Lena Aksoy",
+  "text": "Da kommt der Hang! Runter, runter!",
+  "wer": 0.0
+ },
+ "9f4b0bb358f3": {
+  "asr": "Ich habe ihn im Visier.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.5,
+  "slot": 2.81,
+  "speaker": "Kerner",
+  "text": "Ich hab ihn im Visier.",
+  "wer": 0.2
+ },
+ "9f54eab5a248": {
+  "asr": "Sagen sie Voss, er soll mich in den Bergen suchen, wenn er sich traut.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.14,
+  "slot": 5.45,
+  "speaker": "Hptm. Weber",
+  "text": "Sagen Sie Voss, er soll mich in den Bergen suchen. Wenn er sich traut.",
+  "wer": 0.0
+ },
+ "a0de4c7cc351": {
+  "asr": "Zu spät. Das ganze Land hört Weber zu mit seiner eigenen Stimme.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.96,
+  "slot": 5.23,
+  "speaker": "Lena Aksoy",
+  "text": "Zu spät. Das ganze Land hört Weber zu – mit seiner eigenen Stimme.",
+  "wer": 0.0
+ },
  "a1c66b752601": {
   "asr": "Die Ordnungsfront hält das Regierungsviertel. Sie nennt es Ordnung. Wir nennen es, was es ist, ein Putsch.",
   "cast": "cf45251b",
@@ -569,6 +3281,26 @@
   "text": "Panzerwrack voraus, dahinter das MG. Nutzt die Deckung.",
   "wer": 0.222
  },
+ "a26dbe6f914a": {
+  "asr": "Der Kontrollraum liegt ganz am Ende hinter dem Lagezentrum. Die Lüftung zeigt zwei Wärmequellen da drin.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.63,
+  "slot": 7.375,
+  "speaker": "Lena Aksoy",
+  "text": "Der Kontrollraum liegt ganz am Ende, hinter dem Lagezentrum. Die Lüftung zeigt zwei Wärmequellen da drin.",
+  "wer": 0.0
+ },
+ "a2a3f9fa3686": {
+  "asr": "Zugriff, Weber gehört mir. Den Mann in der Bibliothek lasst ihr leben, den will ich mir selbst ansehen.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 6.8,
+  "slot": 7.32,
+  "speaker": "Oberst Falk",
+  "text": "Zugriff. Weber gehört mir. Den Mann in der Bibliothek lasst ihr leben – den will ich mir selbst ansehen.",
+  "wer": 0.0
+ },
  "a3d229e2c8d8": {
   "asr": "»Explosion an der Bühne«, haltet die Stellung, »ich kläre die Lage.«",
   "cast": "55a3695c",
@@ -577,6 +3309,16 @@
   "slot": 3.2,
   "speaker": "Hptm. Weber",
   "text": "Explosion an der Bühne! Haltet die Stellung, ich kläre die Lage.",
+  "wer": 0.0
+ },
+ "a41a6d5aa3b1": {
+  "asr": "Wie Sie meinen, passen Sie gut auf Sie auf. Es gibt Leute, die dafür töten würden.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 6.12,
+  "slot": 6.109999999999999,
+  "speaker": "Hptm. Weber",
+  "text": "Wie Sie meinen. Passen Sie gut auf sie auf. Es gibt Leute, die dafür töten würden.",
   "wer": 0.0
  },
  "a4a4ff89dc9f": {
@@ -589,6 +3331,166 @@
   "text": "Funkdisziplin, Aksoy. Augen nach vorn.",
   "wer": 0.2
  },
+ "a4ccc07bb6db": {
+  "asr": "Treffer am Bug. Wir halten noch.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.62,
+  "slot": 3.3600000000000003,
+  "speaker": "Konrad Voss",
+  "text": "Treffer am Bug! Wir halten noch.",
+  "wer": 0.0
+ },
+ "a4d563eecdb1": {
+  "asr": "»Weber war nicht in Lindenau. Niemand weiß, wohin er gegangen ist. Ich weiß nur, er hat mehr gewusst, als in den Protokollen steht.«",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 6.77,
+  "slot": 8.0,
+  "speaker": "Kerner",
+  "text": "Weber war nicht in Lindenau. Niemand weiß, wohin er gegangen ist.\nIch weiß nur: Er hat mehr gewusst, als in den Protokollen steht.",
+  "wer": 0.0
+ },
+ "a4ec5686ab39": {
+  "asr": "Kontakt. Sie haben mich, Lena. Ich brauch dich.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.47,
+  "slot": 4.24,
+  "speaker": "Kerner",
+  "text": "Kontakt! Sie haben mich – Lena, ich brauch dich!",
+  "wer": 0.0
+ },
+ "a503f8dcd8aa": {
+  "asr": "Von hier sehe ich den Platz nicht. Ich wechsle aufs Ministerium. Zwei Minuten, Jonas. Rühr dich nicht.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.5,
+  "slot": 7.210000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Von hier seh ich den Platz nicht. Ich wechsle aufs Ministerium – zwei Minuten, Jonas. Rühr dich nicht.",
+  "wer": 0.059
+ },
+ "a594bf89eb35": {
+  "asr": "Er hat uns die halbe Akte dagelassen.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.69,
+  "slot": 3.6350000000000002,
+  "speaker": "Kerner",
+  "text": "Er hat uns die halbe Akte dagelassen.",
+  "wer": 0.0
+ },
+ "a680411dff38": {
+  "asr": "Er beklebt seine eigenen Leute, nur um die Straße zu sperren.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.6,
+  "slot": 5.0649999999999995,
+  "speaker": "Lena Aksoy",
+  "text": "Er begräbt seine eigenen Leute, nur um die Straße zu sperren...",
+  "wer": 0.091
+ },
+ "a6aab70e1256": {
+  "asr": "Die Rinne ist zu. Von den Grauen kommt keiner mehr raus. Die Straße auch nicht, nehmt den Steig über den Grat.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.95,
+  "slot": 7.705,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Die Rinne ist zu. Von den Grauen kommt keiner mehr raus. Die Straße auch nicht – nehmt den Steig über den Grat.",
+  "wer": 0.0
+ },
+ "a6cb66089495": {
+  "asr": "Schüsse unter Achse B Alarm. Riegelt die Durchgänge ab.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.17,
+  "slot": 4.68,
+  "speaker": "Oberst Falk",
+  "text": "Schüsse unter Achse B! Alarm. Riegelt die Durchgänge ab!",
+  "wer": 0.0
+ },
+ "a77e3c3fbab9": {
+  "asr": "Keinen Schritt weiter, Kerner. Ein Knopfdruck und der Spreebogen fliegt in die Luft.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.94,
+  "slot": 6.275,
+  "speaker": "General von Riedhammer",
+  "text": "Keinen Schritt weiter, Kerner. Ein Knopfdruck, und der Spreebogen fliegt in die Luft.",
+  "wer": 0.0
+ },
+ "a7b1551ebf4f": {
+  "asr": "Ich ziehe die Kurve nach Norden. Der Konvoi darf das Dorf nicht verlassen.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.96,
+  "slot": 5.67,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Ich ziehe die Kurve nach Norden. Der Konvoi darf das Dorf nicht verlassen.",
+  "wer": 0.0
+ },
+ "a8536a8cb90f": {
+  "asr": "Wache Süd an Platz, Beschuss aus der Luft. Wir sehen nichts.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.17,
+  "slot": 4.9,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Wache Süd an Platz: Beschuss aus der Luft! Wir sehen nichts!",
+  "wer": 0.0
+ },
+ "a894b0f3af9f": {
+  "asr": "Zentrale an Streife Platz, zwei Mann zur Anlieferung B Sichtkontrolle.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.77,
+  "slot": 5.505,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Zentrale an Streife Platz: Zwei Mann zur Anlieferung B, Sichtkontrolle.",
+  "wer": 0.0
+ },
+ "a89a1db8c40a": {
+  "asr": "Meine Garde weicht nicht, Kerner. Sie hat keinen Ort mehr, an den sie gehen könnte, genau wie sie.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 6.64,
+  "slot": 6.99,
+  "speaker": "Oberst Falk",
+  "text": "Meine Garde weicht nicht, Kerner. Sie hat keinen Ort mehr, an den sie gehen könnte. Genau wie Sie.",
+  "wer": 0.0
+ },
+ "a95a69e4aa4e": {
+  "asr": "Halbe Strecke. Von der Terrasse kommen noch mehr.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.1,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Halbe Strecke. Von der Terrasse kommen noch mehr!",
+  "wer": 0.0
+ },
+ "a9ccc893ba05": {
+  "asr": "»Er hat mich. Runter. Die Prüstung deckt nur liegend.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.53,
+  "slot": 4.515000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Er hat mich! Runter – die Brüstung deckt nur liegend.",
+  "wer": 0.111
+ },
+ "aa0b2498ba3c": {
+  "asr": "Mein Trupp nimmt das Haus, Feuer halten.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.6,
+  "slot": 3.8000000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "Mein Trupp nimmt das Haus. Feuer halten!",
+  "wer": 0.0
+ },
  "aa49bd51bfe9": {
   "asr": "Das ist ein Putsch. Das Sendezentrum am Ende der Achse, solange Sie senden, glaubt Ihnen das Land, schaltet es ab.",
   "cast": "55a3695c",
@@ -597,6 +3499,66 @@
   "slot": 5.0,
   "speaker": "Hptm. Weber",
   "text": "Das ist ein Putsch. Das Sendezentrum am Ende der Achse – solange sie senden, glaubt ihnen das Land. Schaltet es ab.",
+  "wer": 0.0
+ },
+ "aaf15feaa25c": {
+  "asr": "Wasserflugzeug startet nach Nordosten. Kurs Berlin. Ich bleib dran, solange der Sprit reicht.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.45,
+  "slot": 6.824999999999999,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Wasserflugzeug startet nach Nordosten. Kurs … Berlin. Ich bleib dran, solange der Sprit reicht.",
+  "wer": 0.0
+ },
+ "acb131a7b583": {
+  "asr": "Gehen Sie, Weber, bevor ich es mir anders überlege.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.44,
+  "slot": 4.405,
+  "speaker": "Kerner",
+  "text": "Gehen Sie, Weber. Bevor ich es mir anders überlege.",
+  "wer": 0.0
+ },
+ "acc1b18ad70d": {
+  "asr": "Verdammt, wir rollen aus.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.31,
+  "slot": 2.975,
+  "speaker": "Kerner",
+  "text": "Verdammt. Wir rollen aus.",
+  "wer": 0.0
+ },
+ "ad970f1591b9": {
+  "asr": "Sie sind am Tor, Lena.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.09,
+  "slot": 2.81,
+  "speaker": "Kerner",
+  "text": "Sie sind am Tor! Lena!",
+  "wer": 0.0
+ },
+ "adc5bf858fd7": {
+  "asr": "Da vorn ist eine Dachluke, rein in den Schlafwagen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.52,
+  "slot": 4.405,
+  "speaker": "Lena Aksoy",
+  "text": "Da vorn ist eine Dachluke. Rein in den Schlafwagen!",
+  "wer": 0.0
+ },
+ "ae6e7da82efe": {
+  "asr": "»Er ist runter. Er brennt.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.65,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Er ist runter! Er brennt!",
   "wer": 0.0
  },
  "aea20fbd1022": {
@@ -609,6 +3571,76 @@
   "text": "Hubschrauber! Elf Uhr!",
   "wer": 0.0
  },
+ "aeb475696215": {
+  "asr": "»Ab jetzt bist du für mich unsichtbar, Jonas. Ich halte dir den Rücken frei.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.38,
+  "slot": 5.725,
+  "speaker": "Lena Aksoy",
+  "text": "Ab jetzt bist du für mich unsichtbar, Jonas. Ich halte dir den Rücken frei.",
+  "wer": 0.0
+ },
+ "af4cb2eb69bb": {
+  "asr": "Wenn es blitzt, leg dich hin, zäh, die Brüstung deckt dich nur liegend.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.16,
+  "slot": 4.5,
+  "speaker": "Lena Aksoy",
+  "text": "Wenn es blitzt, leg dich hin (Z) – die Brüstung deckt dich nur liegend.",
+  "wer": 0.077
+ },
+ "af6790a1e823": {
+  "asr": "Aus jetzt. Notausgang runter in den Schacht, Voss wartet unten.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.51,
+  "slot": 5.23,
+  "speaker": "Lena Aksoy",
+  "text": "Raus jetzt. Notausgang, runter in den Schacht – Voss wartet unten.",
+  "wer": 0.1
+ },
+ "b0eaf6d54aac": {
+  "asr": "Jonas, Hutschaubar von Westen, im Sendesaal liegt eine Panzerfaust, Kisten daneben.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.12,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, Hubschrauber von Westen! Im Sendesaal liegt eine Panzerfaust, Kisten daneben.",
+  "wer": 0.091
+ },
+ "b1105ad4b2c4": {
+  "asr": "Am 25. Juni 2030, 023, zwei Wochen nach der Ausstrahlung der Protokolle, schließen loyale Divisionen den Ring um das Regierungsviertel. Rithamers Garde hält den Spreebogen und hat im Kanzleramt Abgeordnete als Geisel genommen, unter ihnen Bundestagspräsidentin Hartmann. Durch vor's alten Versorgungstunnel dringt Kerner nachts unter die Lobby vor, wo die Garde die Säulen mit Sprengladungen versehen hat. Raum für Raum und keine Geisel darf sterben.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 22.3,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "25. Juni 2030, 03:20. Zwei Wochen nach der Ausstrahlung der Protokolle schließen loyale Divisionen den Ring um das Regierungsviertel. Riedhammers Garde hält den Spreebogen und hat im Kanzleramt Abgeordnete als Geiseln genommen – unter ihnen Bundestagspräsidentin Hartmann. Durch Voss’ alten Versorgungstunnel dringt Kerner nachts unter die Lobby vor, wo die Garde die Säulen mit Sprengladungen versehen hat. Raum für Raum – und keine Geisel darf sterben.",
+  "wer": 0.108
+ },
+ "b1fee1854f70": {
+  "asr": "Jonas, sie haben dich. Raus aus dem Licht, lauf, versteck dich, warte, bis sie aufgeben.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.8,
+  "slot": 6.495000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, sie haben dich! Raus aus dem Licht – lauf, versteck dich, warte, bis sie aufgeben.",
+  "wer": 0.0
+ },
+ "b214e9484bd0": {
+  "asr": "Wir sind bei dir. Alles auf den Koloss.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.78,
+  "slot": 3.745,
+  "speaker": "Lena Aksoy",
+  "text": "Wir sind bei dir! Alles auf den Koloss!",
+  "wer": 0.0
+ },
  "b2a126bad0ce": {
   "asr": "Bahnübergang voraus. Sammelpunkt dahinter. Bringt alle nach Hause.",
   "cast": "55a3695c",
@@ -617,6 +3649,26 @@
   "slot": 5.23,
   "speaker": "Hptm. Weber",
   "text": "Bahnübergang voraus. Sammelpunkt dahinter. Bringt alle nach Hause.",
+  "wer": 0.0
+ },
+ "b3437bea26f6": {
+  "asr": "Fassadenlift an der Ostseite, 90 Sekunden Jonas, dann ist unten zu.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.72,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Fassadenlift an der Ostseite! Neunzig Sekunden, Jonas, dann ist unten zu.",
+  "wer": 0.0
+ },
+ "b39c757a9e6e": {
+  "asr": "Verstärkung rückt an. Sektor abriegeln.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.19,
+  "slot": 3.745,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Verstärkung rückt an. Sektor abriegeln!",
   "wer": 0.0
  },
  "b44539b8cbb0": {
@@ -629,6 +3681,76 @@
   "text": "Panzer auf dem Platz! Bleib in Deckung – Kugeln bringen da nichts.",
   "wer": 0.0
  },
+ "b4cb6b9e27a8": {
+  "asr": "Sprengung am Hang. Falk jagt die Wächte selbst hoch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.2,
+  "slot": 4.46,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Sprengung am Hang! Falk jagt die Wechte selbst hoch!",
+  "wer": 0.111
+ },
+ "b518f93a7c97": {
+  "asr": "Jonas, Jonas, hörst du mich? Sag was.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.64,
+  "slot": 3.6350000000000002,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas? Jonas, hörst du mich? Sag was!",
+  "wer": 0.0
+ },
+ "b5a1d77fec42": {
+  "asr": "Garde Leitstelle an alle Eindringlinge am Turmfuß. Haltet den Sender.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.68,
+  "slot": 5.0,
+  "speaker": "Oberst Falk",
+  "text": "Garde-Leitstelle an alle: Eindringlinge am Turmfuß. Haltet den Sender.",
+  "wer": 0.0
+ },
+ "b5c1b0f8a33b": {
+  "asr": "Die Protokolle im Funkturm, die Spur durch die Kanalisation, das waren sie.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 5.08,
+  "slot": 5.725,
+  "speaker": "Kerner",
+  "text": "Die Protokolle im Funkturm. Die Spur durch die Kanalisation. Das waren Sie.",
+  "wer": 0.0
+ },
+ "b63af11e2e58": {
+  "asr": "Die Aurelia hat Ausfahrt Richtung Süden angemeldet. Weiter reise über Land in die Alpen.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.99,
+  "slot": 6.4399999999999995,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Die Aurelia hat Ausfahrt Richtung Süden angemeldet. Weiterreise über Land, in die Alpen.",
+  "wer": 0.154
+ },
+ "b68056d4266a": {
+  "asr": "Noch einmal. Gleiche Straße, gleiche Fenster.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.32,
+  "slot": 4.075,
+  "speaker": "Lena Aksoy",
+  "text": "Noch einmal. Gleiche Straße, gleiche Fenster.",
+  "wer": 0.0
+ },
+ "b6a9d05b49e0": {
+  "asr": "Die Garde hat die Säulen verdrahtet. Weber hatte Recht, Ritama sprengt lieber das Viertel als aufzugeben.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.0,
+  "slot": 7.705,
+  "speaker": "Lena Aksoy",
+  "text": "Die Garde hat die Säulen verdrahtet. Weber hatte recht – Riedhammer sprengt lieber das Viertel, als aufzugeben.",
+  "wer": 0.062
+ },
  "b7bb80fd6eef": {
   "asr": "Kommt rein Kerner. Nur du. Aksu sichert den Eingang.",
   "cast": "55a3695c",
@@ -638,6 +3760,26 @@
   "speaker": "Hptm. Weber",
   "text": "Kommt rein, Kerner. Nur du. Aksoy sichert den Eingang.",
   "wer": 0.111
+ },
+ "b995e4a9d22c": {
+  "asr": "Feuer einstellen. Das war eine Geisel, Kerner, Abbruch, Zurück auf Position.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.93,
+  "slot": 5.835000000000001,
+  "speaker": "Konrad Voss",
+  "text": "Feuer einstellen! Das war eine Geisel! Kerner – Abbruch, zurück auf Position.",
+  "wer": 0.0
+ },
+ "b9cded5436f8": {
+  "asr": "Ich warte, beeil dich.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 1.84,
+  "slot": 2.81,
+  "speaker": "Kerner",
+  "text": "Ich warte. Beeil dich.",
+  "wer": 0.0
  },
  "bb2749d99485": {
   "asr": "Der Kran, der ganze Kran kommt runter.",
@@ -659,6 +3801,66 @@
   "text": "Kerner, hier Weber. Euer Zug überquert das Feld. Die Stellungen am Waldrand müssen fallen, bevor es hell wird.",
   "wer": 0.056
  },
+ "bc51c56df796": {
+  "asr": "Über der Rinne hängt eine Wächte, ein Treffer und der ganze Hand kommt runter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.11,
+  "slot": 5.945,
+  "speaker": "Lena Aksoy",
+  "text": "Über der Rinne hängt eine Wechte. Ein Treffer, und der ganze Hang kommt runter.",
+  "wer": 0.143
+ },
+ "bcd05a4f1834": {
+  "asr": "Das sind die Fundamente des Plenarsaals. Falk will alles hinter sich zuspringen, wenn der Ring sich schließt.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 5.64,
+  "slot": 7.595000000000001,
+  "speaker": "Konrad Voss",
+  "text": "Das sind die Fundamente des Plenarsaals. Falk will alles hinter sich zusprengen, wenn der Ring sich schließt.",
+  "wer": 0.059
+ },
+ "bd252873c20b": {
+  "asr": "Ich bin hinter dir am Hang. Schick zuerst die Drohne runter. Ich will jede Wache und jede Kamera kennen, bevor du gehst.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.22,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Ich bin hinter dir am Hang. Schick zuerst die Drohne runter – ich will jede Wache und jede Kamera kennen, bevor du gehst.",
+  "wer": 0.0
+ },
+ "bd8c41be1cb7": {
+  "asr": "Kerner, Konrad Voss. Willkommen im Untergrund, Lena hat nicht übertrieben.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.53,
+  "slot": 5.725,
+  "speaker": "Konrad Voss",
+  "text": "Kerner. Konrad Voss. Willkommen im Untergrund – Lena hat nicht übertrieben.",
+  "wer": 0.0
+ },
+ "bd945c9876bd": {
+  "asr": "Jonas irgendwas blitzt da drüben links Richtung Kühlturm.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.79,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, irgendwas blitzt da drüben… links, Richtung Kühlturm.",
+  "wer": 0.0
+ },
+ "be179891bd71": {
+  "asr": "Ich lieg am Bahndamm, Jonas. Unsere Leute tragen hellblaue Binden. Präg sie dir ein.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.15,
+  "slot": 5.5,
+  "speaker": "Lena Aksoy",
+  "text": "Ich lieg am Bahndamm, Jonas. Unsere Leute tragen hellblaue Binden – präg sie dir ein.",
+  "wer": 0.0
+ },
  "bedaba89a4d9": {
   "asr": "Der Gegner zieht sich hinter die Bilikaya zurück und will die letzte intakte Brücke sprengen. Fällt sie, steht der Vormarsch für Wochen. Die Brücke muss genommen werden, bevor es hell wird.",
   "cast": "c814ed94",
@@ -668,6 +3870,192 @@
   "speaker": "Lage",
   "text": "Der Gegner zieht sich hinter die Welikaja zurück und will die letzte intakte Brücke sprengen. Fällt sie, steht der Vormarsch für Wochen. Die Brücke muss genommen werden, bevor es hell wird.",
   "wer": 0.032
+ },
+ "bf4fb61926f3": {
+  "asr": "Lena, Blitzen auf dem Regierungsbau. Da drüben liegt einer.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.55,
+  "slot": 4.845000000000001,
+  "speaker": "Kerner",
+  "text": "Lena, Blitzen auf dem Regierungsbau! Da drüben liegt einer!",
+  "wer": 0.0
+ },
+ "bfb0d7c82c65": {
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.63,
+  "slot": 3.6350000000000002,
+  "speaker": "Kerner",
+  "text": "Dann sollte mich besser keiner sehen."
+ },
+ "c1459a4da468": {
+  "asr": "Zwei Wochen nach der Ausstrahlung hält die Garde noch immer den Spreebogen. Wir sind die Spitze, hinter uns kommen drei Bataillone.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 6.28,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Zwei Wochen nach der Ausstrahlung hält die Garde noch immer den Spreebogen. Wir sind die Spitze, hinter uns kommen drei Bataillone.",
+  "wer": 0.0
+ },
+ "c1a7b0b56140": {
+  "asr": "Schnelle Eingreiftruppe aus Welten, 5 Minuten. Alle zum Transporter am Gleis.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.16,
+  "slot": 4.5,
+  "speaker": "Konrad Voss",
+  "text": "Schnelle Eingreiftruppe aus Velten, fünf Minuten. Alle zum Transporter am Gleis!",
+  "wer": 0.091
+ },
+ "c250a1089565": {
+  "asr": "Dann gehen wir nach Süden, bis auf den Alpenpass, wenn es sein muss.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.95,
+  "slot": 5.34,
+  "speaker": "Lena Aksoy",
+  "text": "Dann gehen wir nach Süden. Bis auf den Alpenpass, wenn es sein muss.",
+  "wer": 0.0
+ },
+ "c31b48018e66": {
+  "asr": "Abbruch, so nicht.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 1.82,
+  "slot": 2.59,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Abbruch! So nicht!",
+  "wer": 0.0
+ },
+ "c3ce0a69f17c": {
+  "asr": "Wir brennen. Zurücksetzen. Sofort.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.91,
+  "slot": 3.47,
+  "speaker": "Konrad Voss",
+  "text": "Wir brennen! Zurücksetzen, sofort!",
+  "wer": 0.0
+ },
+ "c44bef50c279": {
+  "asr": "Treffer im Motorraum. Wir brennen. Alle raus.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.01,
+  "slot": 4.075,
+  "speaker": "Konrad Voss",
+  "text": "Treffer im Motorraum! Wir brennen! Alle raus!",
+  "wer": 0.0
+ },
+ "c45ba4fc99bc": {
+  "asr": "Das war knapp. Nehmen Sie die Stellungen und das Radar raus, sonst kommt die nächste.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.56,
+  "slot": 6.275,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Das war knapp. Nehmen Sie die Stellungen und das Radar raus, sonst kommt die nächste.",
+  "wer": 0.0
+ },
+ "c52ba48fb8cb": {
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.86,
+  "slot": 5.01,
+  "speaker": "Konrad Voss",
+  "text": "Kerner? Hier unten. Folgen Sie dem Licht – die Gleise entlang."
+ },
+ "c54f32031495": {
+  "asr": "Feuerleitung Lindenau, Ziel erfasst, Start.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.73,
+  "slot": 3.9650000000000003,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Feuerleitung Lindenau: Ziel erfasst, Start!",
+  "wer": 0.0
+ },
+ "c573640c250f": {
+  "asr": "Jonas, die Pfeiler, da hängen Ladungen dran, mit Lichtschranken quer über den Gang.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.92,
+  "slot": 6.220000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, die Pfeiler – da hängen Ladungen dran. Mit Lichtschranken quer über den Gang.",
+  "wer": 0.0
+ },
+ "c645ca2c9c62": {
+  "asr": "Ein Jet rollt, er will zur Bahn.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.51,
+  "slot": 3.3600000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "Ein Jet rollt! Er will zur Bahn!",
+  "wer": 0.0
+ },
+ "c64f56037369": {
+  "asr": "Luftraum sauber. Danke, Kerner.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 2.68,
+  "slot": 3.305,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Luftraum sauber. Danke, Kerner.",
+  "wer": 0.0
+ },
+ "c67a63c6138d": {
+  "asr": "Um 03,90 lief Hebers Funkprotokoll auf jedem Sender zwischen Rügen und Passau. Seine eigene Stimme, die Uhrzeiten, die Befehle zur Bühne.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 7.95,
+  "slot": 8.0,
+  "speaker": "Kerner",
+  "text": "Um 03:41 lief Webers Funkprotokoll auf jedem Sender zwischen Rügen und Passau.\nSeine eigene Stimme. Die Uhrzeiten. Die Befehle zur Bühne.",
+  "wer": 0.091
+ },
+ "c6e766b0f054": {
+  "asr": "Weber, Sie haben auf mich geschossen.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.58,
+  "slot": 3.6350000000000002,
+  "speaker": "Kerner",
+  "text": "Weber. Sie haben auf mich geschossen.",
+  "wer": 0.0
+ },
+ "c7229c2e416a": {
+  "asr": "Warte, Jonas, draußen sind noch zwei.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.67,
+  "slot": 3.6350000000000002,
+  "speaker": "Lena Aksoy",
+  "text": "Warte, Jonas. Draußen sind noch zwei.",
+  "wer": 0.0
+ },
+ "c789d171e8f7": {
+  "asr": "Ab Mitternacht gilt das Standrecht. Wer sich der Garde widersetzt,",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 5.08,
+  "slot": 5.0,
+  "speaker": "General von Riedhammer",
+  "text": "Ab Mitternacht gilt das Standrecht. Wer sich der Garde widersetzt –",
+  "wer": 0.0
+ },
+ "c86002794c90": {
+  "asr": "Zu spät, Kerne.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 1.76,
+  "slot": 2.5,
+  "speaker": "Oberst Falk",
+  "text": "Zu spät, Kerner.",
+  "wer": 0.333
  },
  "c8632e781a50": {
   "asr": "Hol ihn runter, Kerner. Sonst kommt keiner über diese Brücke.",
@@ -679,6 +4067,96 @@
   "text": "Hol ihn runter, Kerner, sonst kommt keiner ueber diese Bruecke!",
   "wer": 0.0
  },
+ "c90ea0684d75": {
+  "asr": "Garde Panzer, der schluckt mehrere Treffer. Bleib mit der Kanone drauf.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.33,
+  "slot": 5.505,
+  "speaker": "Lena Aksoy",
+  "text": "Garde-Panzer! Der schluckt mehrere Treffer. Bleib mit der Kanone drauf!",
+  "wer": 0.0
+ },
+ "c91ae7c3dc2b": {
+  "asr": "Kerner. Sie suchen Weber, ich suche Weber. Bleiben Sie mir aus dem Weg.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 5.04,
+  "slot": 5.505,
+  "speaker": "Oberst Falk",
+  "text": "Kerner. Sie suchen Weber, ich suche Weber. Bleiben Sie mir aus dem Weg.",
+  "wer": 0.0
+ },
+ "c967de6ca875": {
+  "asr": "Jonas Lauf.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.47,
+  "slot": 2.5,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas, lauf!",
+  "wer": 0.0
+ },
+ "ca1d8e57765e": {
+  "asr": "Alle drin? Los, los!",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.16,
+  "slot": 2.5,
+  "speaker": "Konrad Voss",
+  "text": "Alle drin? Los, los!",
+  "wer": 0.0
+ },
+ "ca2633e2bb62": {
+  "asr": "Er steht. Jetzt oder nie, markier ihn.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.8,
+  "slot": 3.745,
+  "speaker": "Lena Aksoy",
+  "text": "Er steht. Jetzt oder nie – markier ihn.",
+  "wer": 0.0
+ },
+ "ca59db2dcdd6": {
+  "asr": "entschärf sie wenn du rankommst oder geh durchs becken außen herum nass und laut aber an den strahlen vorbei",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.92,
+  "slot": 7.870000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Entschärf sie, wenn du rankommst. Oder geh durchs Becken außen herum – nass und laut, aber an den Strahlen vorbei.",
+  "wer": 0.0
+ },
+ "ca637529e980": {
+  "asr": "Treffer auf Weber, Feuer einstellen, verdammt, den brauchen wir lebend.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.44,
+  "slot": 5.505,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Treffer auf Weber! Feuer einstellen, verdammt. Den brauchen wir lebend!",
+  "wer": 0.0
+ },
+ "cb4cfb6ef2a4": {
+  "asr": "Der Regen hat heute Nacht gute Augen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.78,
+  "slot": 3.6350000000000002,
+  "speaker": "Lena Aksoy",
+  "text": "Der Regen hat heute Nacht gute Augen.",
+  "wer": 0.0
+ },
+ "cc1f1b7ccb44": {
+  "asr": "15. Juni 2030, 06.30 Uhr, drei Tage nach Hofstok, will Weber am Grenzpass beim Mittenwald nach Österreich. Ein Schneesturm liegt über dem Pass. Brand setzt Kerner und Axoi oberhalb des Kessels ab, ein Mörserzug loyaler Gebirgsjäger steht hinter dem Grat bereit, wer sieht, kann Feuer anfordern. Webers Nachhut hält die Passstraße und Falks Gardejäger in grauen Wintermänteln sind ebenfalls unterwegs. Weber wird lebend gebraucht.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 21.8,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "15. Juni 2030, 06:30. Drei Tage nach Rostock will Weber am Grenzpass bei Mittenwald nach Österreich. Ein Schneesturm liegt über dem Pass. Brandt setzt Kerner und Aksoy oberhalb des Kessels ab, ein Mörserzug loyaler Gebirgsjäger steht hinter dem Grat bereit – wer sieht, kann Feuer anfordern. Webers Nachhut hält die Passstraße, und Falks Garde-Jäger in grauen Wintermänteln sind ebenfalls unterwegs. Weber wird lebend gebraucht.",
+  "wer": 0.108
+ },
  "cca4fccabc77": {
   "asr": "Ordnung, Stärke, das letzte Reich beginnt heute Nacht.",
   "cast": "32a47fa5",
@@ -687,6 +4165,36 @@
   "slot": 3.4,
   "speaker": "Lautsprecher (Gen. von Riedhammer)",
   "text": "Ordnung. Stärke. Das letzte Reich beginnt heute Nacht.",
+  "wer": 0.0
+ },
+ "ccb34885b13e": {
+  "asr": "Kettengeräusche in der Seitenstraße links. Das ist kein Lequemble.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.82,
+  "slot": 4.9,
+  "speaker": "Konrad Voss",
+  "text": "Kettengeräusche in der Seitenstraße links. Das ist kein Lkw.",
+  "wer": 0.111
+ },
+ "ccbd2ec1b230": {
+  "asr": "Er ist auf allen Frequenzen, Radio, Lautsprecherwagen, sogar die Straßenbahnanzeigen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.8,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Er ist auf allen Frequenzen. Radio, Lautsprecherwagen, sogar die Straßenbahnanzeigen.",
+  "wer": 0.0
+ },
+ "ccc11d2175de": {
+  "asr": "Mörserstellung ist unser. Kerner, halt uns den Schornstein vom Hals.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.66,
+  "slot": 4.0,
+  "speaker": "Konrad Voss",
+  "text": "Mörserstellung ist unser. Kerner, halt uns den Schornstein vom Hals.",
   "wer": 0.0
  },
  "cd022a5b7d69": {
@@ -699,6 +4207,116 @@
   "text": "Daugavpils ist seit vier Stunden umkämpft. Feindliche Infanterie hat sich in der Hauptstraße eingegraben, ein MG-Nest blockiert die Kreuzung. Kampfgruppe „Nord“ nimmt die Straße zurück – Haus für Haus.",
   "wer": 0.1
  },
+ "cd6bd1150bcd": {
+  "asr": "Ich seh dich oben. Ich markiere dir die Posten, einer nach dem anderen. Leise, Jonas.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.8,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Ich seh dich oben. Ich markiere dir die Posten – einer nach dem anderen. Leise, Jonas.",
+  "wer": 0.0
+ },
+ "cd71ed251832": {
+  "asr": "Saal gesichert. Meine Leute holen die Abgeordneten raus. Weiter, Kerner, erst das Ostbüro, dann der Westflügel.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 6.58,
+  "slot": 7.76,
+  "speaker": "Konrad Voss",
+  "text": "Saal gesichert! Meine Leute holen die Abgeordneten raus. Weiter, Kerner – erst das Ostbüro, dann der Westflügel.",
+  "wer": 0.0
+ },
+ "cd85c3f88988": {
+  "asr": "Das Gitter zum Notausgang ist offen, die Zeitschaltung hat es mit der Übertragung entriegelt. Runter in den Schacht, Foss wartet unten.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 7.02,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Das Gitter zum Notausgang ist offen – die Zeitschaltung hat es mit der Übertragung entriegelt. Runter in den Schacht, Voss wartet unten.",
+  "wer": 0.048
+ },
+ "ce676388e3ad": {
+  "asr": "Der Wind hat gedreht, Jonas, jetzt von links. Schau auf den Dampf am Schornstein.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.16,
+  "slot": 4.5,
+  "speaker": "Lena Aksoy",
+  "text": "Der Wind hat gedreht, Jonas – jetzt von links. Schau auf den Dampf am Schornstein.",
+  "wer": 0.0
+ },
+ "cf05213439dd": {
+  "asr": "Der Zaun ist frei. Wir fahren rein, haltet uns den Weg zum Hangar offen.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.92,
+  "slot": 5.395,
+  "speaker": "Konrad Voss",
+  "text": "Zaun ist frei. Wir fahren rein – haltet uns den Weg zum Hangar offen.",
+  "wer": 0.077
+ },
+ "cf9093cb7480": {
+  "asr": "»Ich sehe ihn. Dunkler Mantel, Aktenkoffer, die Akte Nordlicht.«",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 4.13,
+  "slot": 4.955,
+  "speaker": "Kerner",
+  "text": "Ich seh ihn. Dunkler Mantel, Aktenkoffer. Die Akte Nordlicht.",
+  "wer": 0.111
+ },
+ "d059d7647e82": {
+  "asr": "Konvoi steht. Saubere Arbeit, Kerner.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 2.73,
+  "slot": 3.6350000000000002,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Konvoi steht. Saubere Arbeit, Kerner.",
+  "wer": 0.0
+ },
+ "d05c31750c60": {
+  "asr": "Bleib unten, bis ich die Straße frei habe. Ich hab dich im Glas.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.84,
+  "slot": 5.12,
+  "speaker": "Lena Aksoy",
+  "text": "Bleib unten, bis ich die Straße frei habe. Ich hab dich im Glas.",
+  "wer": 0.0
+ },
+ "d0e72d91f112": {
+  "asr": "Der Unterstand ist eingestürzt. Gute Arbeit!",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.12,
+  "slot": 4.02,
+  "speaker": "Lena Aksoy",
+  "text": "Der Unterstand ist eingestürzt. Gute Arbeit.",
+  "wer": 0.0
+ },
+ "d16994e487de": {
+  "asr": "Ich wollte nie, dass diese Stadt brennt. Das war immer der Unterschied zwischen uns.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 5.91,
+  "slot": 6.220000000000001,
+  "speaker": "Hptm. Weber",
+  "text": "Ich wollte nie, dass diese Stadt brennt. Das war immer der Unterschied zwischen uns.",
+  "wer": 0.0
+ },
+ "d19a2c35e81a": {
+  "asr": "Nehmen Sie mich fest und ich sage vor Gericht aus, lassen Sie mich gehen und ich erledige den Rest auf meine Art.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 7.56,
+  "slot": 7.925000000000001,
+  "speaker": "Hptm. Weber",
+  "text": "Nehmen Sie mich fest, und ich sage vor Gericht aus. Lassen Sie mich gehen, und ich erledige den Rest auf meine Art.",
+  "wer": 0.0
+ },
  "d1a283acfa15": {
   "asr": "sagt der Mann, der uns zur Ehrenwache eingeteilt hat, ganz vorne, direkt an der Bühne.",
   "cast": "f7dad8c0",
@@ -709,6 +4327,16 @@
   "text": "Sagt der Mann, der uns zur Ehrenwache eingeteilt hat. Ganz vorne. Direkt an der Bühne.",
   "wer": 0.0
  },
+ "d1ea50a9d855": {
+  "asr": "Weber ist uns entwischt, dann eben Riethammer zuerst.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.9,
+  "slot": 4.515000000000001,
+  "speaker": "Kerner",
+  "text": "Weber ist uns entwischt. Dann eben Riedhammer zuerst.",
+  "wer": 0.125
+ },
  "d20e48752138": {
   "asr": "Stellung genommen. Weiter durch den Wald, das Dorf dahinter ist besetzt.",
   "cast": "55a3695c",
@@ -717,6 +4345,16 @@
   "slot": 5.615,
   "speaker": "Hptm. Weber",
   "text": "Stellung genommen. Weiter durch den Wald – das Dorf dahinter ist besetzt.",
+  "wer": 0.0
+ },
+ "d22c4f3bc3d9": {
+  "asr": "Der Schuss kam vom Lichtmast. Wenn es dort oben blitzt, geh in Deckung.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.2,
+  "slot": 5.505,
+  "speaker": "Lena Aksoy",
+  "text": "Der Schuss kam vom Lichtmast! Wenn es dort oben blitzt, geh in Deckung!",
   "wer": 0.0
  },
  "d235560c7548": {
@@ -729,6 +4367,36 @@
   "text": "Bleibt in euren Häusern. Wer sich fügt, hat nichts zu befürchten.",
   "wer": 0.0
  },
+ "d2658922890c": {
+  "asr": "Ich bin getroffen. Abbruch.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.64,
+  "slot": 3.085,
+  "speaker": "Lena Aksoy",
+  "text": "Ich bin getroffen! Abbruch!",
+  "wer": 0.0
+ },
+ "d29c4faa4eee": {
+  "asr": "Ein Koloss vor dem Eingang. Kopf oder Tornister. Jonas, nicht auf die Panzerung.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.46,
+  "slot": 4.2,
+  "speaker": "Lena Aksoy",
+  "text": "Ein Koloss vor dem Eingang! Kopf oder Tornister, Jonas – nicht auf die Panzerung!",
+  "wer": 0.0
+ },
+ "d35c03b5e7ff": {
+  "asr": "Sperre ist frei, ich geh außen um die Blöcke.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.96,
+  "slot": 4.075,
+  "speaker": "Lena Aksoy",
+  "text": "Sperre ist frei. Ich geh außen um die Blöcke.",
+  "wer": 0.0
+ },
  "d39d70fc2659": {
   "asr": "Artillerie runter...",
   "cast": "f7dad8c0",
@@ -737,6 +4405,154 @@
   "slot": 2.645,
   "speaker": "Lena Aksoy",
   "text": "Artillerie! Runter!",
+  "wer": 0.0
+ },
+ "d45304284bd5": {
+  "asr": "Graue Mäntel, mindestens zwei pro Wagen und überall Reisende, pass auf, wohin du schießt.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.28,
+  "slot": 6.550000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Graue Mäntel, mindestens zwei pro Wagen. Und überall Reisende. Pass auf, wohin du schießt.",
+  "wer": 0.0
+ },
+ "d4580df0905b": {
+  "asr": "Sperre ist weg. Ich fahre durch.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.95,
+  "slot": 3.3600000000000003,
+  "speaker": "Konrad Voss",
+  "text": "Sperre ist weg. Ich fahre durch.",
+  "wer": 0.0
+ },
+ "d45f59f05b9c": {
+  "asr": "Der Konvoi ist durch. Verdammt.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 2.72,
+  "slot": 3.305,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Der Konvoi ist durch. Verdammt.",
+  "wer": 0.0
+ },
+ "d5993c11c049": {
+  "asr": "Berlin, hier spricht obergefreite Lena Axoi, die Ordnungsfront hat euch belogen. Bleibt in den Häusern, nicht aus Angst, sondern bis wir euch holen, die Loyalen kommen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 8.41,
+  "slot": 10.0,
+  "speaker": "Lena Aksoy",
+  "text": "Berlin, hier spricht Obergefreite Lena Aksoy. Die Ordnungsfront hat euch belogen. Bleibt in den Häusern, nicht aus Angst – sondern bis wir euch holen. Die Loyalen kommen.",
+  "wer": 0.038
+ },
+ "d607dd3d301e": {
+  "asr": "Panzer brennt.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 1.44,
+  "slot": 2.5,
+  "speaker": "Konrad Voss",
+  "text": "Panzer brennt!",
+  "wer": 0.0
+ },
+ "d61a945b9df6": {
+  "asr": "Riedhammer war eben noch hier, er will in den Bunker. Da, hinter dem Glas.",
+  "cast": "c9efd8e5",
+  "character": "hartmann",
+  "seconds": 5.24,
+  "slot": 5.725,
+  "speaker": "Präsidentin Hartmann",
+  "text": "Riedhammer war eben noch hier – er will in den Bunker! Da, hinter dem Glas!",
+  "wer": 0.0
+ },
+ "d6519f3fe286": {
+  "asr": "Seewind aus West-Süd, Böig. Die Wimpel an den Lichtmasten zeigen dir, wohin er drückt.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.26,
+  "slot": 6.275,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Seewind aus Westsüd, böig. Die Wimpel an den Lichtmasten zeigen dir, wohin er drückt.",
+  "wer": 0.143
+ },
+ "d65d104ad404": {
+  "asr": "Bürger Berlins. Die Ordnung kehrt zurück. Wer heute Nacht seine Tür verschlossen hält, hat nichts zu fürchten.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 7.15,
+  "slot": 7.0,
+  "speaker": "General von Riedhammer",
+  "text": "Bürger Berlins. Die Ordnung kehrt zurück. Wer heute Nacht seine Tür verschlossen hält, hat nichts zu fürchten.",
+  "wer": 0.0
+ },
+ "d6951894abb6": {
+  "asr": "nichts streifen zurück auf ihre Posten und haltet die Augen offen.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.94,
+  "slot": 5.45,
+  "speaker": "Oberst Falk",
+  "text": "… Nichts? Streifen zurück auf ihre Posten. Und haltet die Augen offen.",
+  "wer": 0.0
+ },
+ "d6aaa09f5657": {
+  "asr": "Er wirft Rauch.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.34,
+  "slot": 2.0,
+  "speaker": "Lena Aksoy",
+  "text": "Er wirft Rauch!",
+  "wer": 0.0
+ },
+ "d77601801b27": {
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.44,
+  "slot": 7.870000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Vorne ist ein Kontrollpunkt mit Flutlicht. Links durch die Höfe ist es dunkler – aber da läuft auch einer Streife."
+ },
+ "d89c664284a7": {
+  "asr": "Zwei Mg-Nester und ein Unterstand unten im Kessel. Fernglas, Ziel markieren. Ich gebe es an den Mörserzug. Warte auf die Lücken im Sturm.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 7.66,
+  "slot": 8.0,
+  "speaker": "Lena Aksoy",
+  "text": "Zwei MG-Nester und ein Unterstand unten im Kessel. Fernglas, Ziel markieren – ich gebe es an den Mörserzug. Warte auf die Lücken im Sturm.",
+  "wer": 0.0
+ },
+ "d9083f4ef98a": {
+  "asr": "Er kuppelt ab, der vordere Zugteil fährt weg.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.2,
+  "slot": 4.075,
+  "speaker": "Lena Aksoy",
+  "text": "Er kuppelt ab! Der vordere Zugteil fährt weg!",
+  "wer": 0.0
+ },
+ "d90f7735c20b": {
+  "asr": "»Unten, raus und zu mir. Leque steht vorn links. Ich blink dich an.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.84,
+  "slot": 3.5,
+  "speaker": "Lena Aksoy",
+  "text": "Unten! Raus und zu mir – Lkw steht vorn links, ich blink dich an!",
+  "wer": 0.077
+ },
+ "d91aa1ed317a": {
+  "asr": "Er hält auf den Frachter zu, die Aurelia.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.04,
+  "slot": 3.855,
+  "speaker": "Lena Aksoy",
+  "text": "Er hält auf den Frachter zu! Die Aurelia!",
   "wer": 0.0
  },
  "d9474d84d17b": {
@@ -749,6 +4565,306 @@
   "text": "Pskow steht kurz vor dem Fall. Am Güterbahnhof wartet ein Zug mit Gefangenen und Munition auf die Abfahrt nach Osten. Hält Kampfgruppe „Nord“ den Bahnhof, sind die Waffenstillstandsgespräche nur noch Formsache.",
   "wer": 0.032
  },
+ "da53d2ffbfbe": {
+  "asr": "Neuer Versuch, Ladung, Deckung, rein und schieß nur, wenn die Linie frei ist.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.96,
+  "slot": 5.945,
+  "speaker": "Lena Aksoy",
+  "text": "Neuer Versuch. Ladung, Deckung, rein – und schieß nur, wenn die Linie frei ist.",
+  "wer": 0.0
+ },
+ "da65f89e6a23": {
+  "asr": "Wir sehen uns in Berlin, Kerne.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 2.7,
+  "slot": 3.3600000000000003,
+  "speaker": "Hptm. Weber",
+  "text": "Wir sehen uns in Berlin, Kerner.",
+  "wer": 0.167
+ },
+ "dad2e4ce9d68": {
+  "asr": "Bin im Lift. Runter.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.05,
+  "slot": 2.5,
+  "speaker": "Kerner",
+  "text": "Bin im Lift. Runter!",
+  "wer": 0.0
+ },
+ "dae71d66cddb": {
+  "asr": "»Falk ist erledigt. Ich habe die Panzertür zum Kontrollraum. Sie geht auf.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.04,
+  "slot": 5.615,
+  "speaker": "Lena Aksoy",
+  "text": "Falk ist erledigt. Ich hab die Panzertür zum Kontrollraum – sie geht auf.",
+  "wer": 0.083
+ },
+ "daf96e01be34": {
+  "asr": "Sperre voraus. Ich halte an.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 2.8,
+  "slot": 3.14,
+  "speaker": "Konrad Voss",
+  "text": "Sperre voraus! Ich halte an.",
+  "wer": 0.0
+ },
+ "dc246876f2fd": {
+  "asr": "Kerner, meine Leute sind im Lagezentrum. Die Garde legt die Waffen nieder.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 4.28,
+  "slot": 5.67,
+  "speaker": "Konrad Voss",
+  "text": "Kerner, meine Leute sind im Lagezentrum. Die Garde legt die Waffen nieder.",
+  "wer": 0.0
+ },
+ "ddb6a99f7112": {
+  "asr": "Kerner, hier Voss, der Versorgungsgang endet unter der Lobby. Meine Leute sind direkt hinter ihnen.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 5.93,
+  "slot": 7.045,
+  "speaker": "Konrad Voss",
+  "text": "Kerner, hier Voss. Der Versorgungsgang endet unter der Lobby. Meine Leute sind direkt hinter Ihnen.",
+  "wer": 0.0
+ },
+ "de6c8ec61e20": {
+  "asr": "»Gepanzerter hinten bei den Generatoren, Kopf und Gelenke, Jonas«,",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.16,
+  "slot": 5.12,
+  "speaker": "Lena Aksoy",
+  "text": "Gepanzerter hinten bei den Generatoren. Kopf und Gelenke, Jonas.",
+  "wer": 0.0
+ },
+ "e048e49a3dd9": {
+  "asr": "Die Straße ist zu. Nehmt den Steig über den Grat.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.26,
+  "slot": 4.295,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Die Straße ist zu. Nehmt den Steig über den Grat.",
+  "wer": 0.0
+ },
+ "e0e1d39000e3": {
+  "asr": "Juni 2030, 01,35 dies, dieselbe Nacht wie die Ausgangssperre. Lena Aksoe liegt mit der Garten 80 auf dem Dach eines Wohnblocks gegenüber dem Sperrgebiet. Kerner muss unten ungesehen bis zur Fernmeldestelle im Ministeriumsanbau. Er wartet an jeder Hausecke, bis Lena den Weg freigeschossen hat. Am Platz wechselt sie aufs Ministeriumsdach, dort streicht ein Suchscheinwerfer und auf dem Regierungsbau liegt ein Gegenscharfschütze. Die Lieferzufahrt zieht sie nicht ein, dafür hat sie die Aufklärungstone. Wird Kerner entdeckt, werdet er sich, fällt er, ist alles verloren.",
+  "cast": "c814ed94",
+  "character": "lage",
+  "seconds": 27.95,
+  "slot": null,
+  "speaker": "Lage",
+  "text": "3. Juni 2030, 01:35 – dieselbe Nacht wie die Ausgangssperre. Lena Aksoy liegt mit der G28 auf dem Dach eines Wohnblocks gegenüber dem Sperrgebiet. Kerner muss unten ungesehen bis zur Fernmeldestelle im Ministeriumsanbau. Er wartet an jeder Hausecke, bis Lena den Weg freigeschossen hat. Am Platz wechselt sie aufs Ministeriumsdach – dort streicht ein Suchscheinwerfer, und auf dem Regierungsbau liegt ein Gegenscharfschütze. Die Lieferzufahrt sieht sie nicht ein, dafür hat sie die Aufklärungsdrohne. Wird Kerner entdeckt, wehrt er sich – fällt er, ist alles verloren.",
+  "wer": 0.095
+ },
+ "e1f9367f7508": {
+  "asr": "Speisewagen. Die verschanzen sich hinter den Tischen.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.36,
+  "slot": 4.515000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Speisewagen. Die verschanzen sich hinter den Tischen.",
+  "wer": 0.0
+ },
+ "e35dc5e9c7ec": {
+  "asr": "Streife liegt, geh Jonas an der rechten Hauswand entlang.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.48,
+  "slot": 4.9,
+  "speaker": "Lena Aksoy",
+  "text": "Streife liegt. Geh, Jonas – an der rechten Hauswand entlang.",
+  "wer": 0.0
+ },
+ "e3742d8384c6": {
+  "asr": "Ein Schützenpanzer rollt von der Bergstation hoch zur Brücke. Wenn der sich dort eingräbt, kommt keiner durch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 5.4,
+  "slot": 7.65,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Ein Schützenpanzer rollt von der Bergstation hoch zur Brücke. Wenn der sich dort eingräbt, kommt keiner durch.",
+  "wer": 0.0
+ },
+ "e386a0bb1ba1": {
+  "asr": "Fenster links und rechts, Panzerfaust-Trupps. Erst die Fenster, dann die Sperre.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.97,
+  "slot": 6.0,
+  "speaker": "Lena Aksoy",
+  "text": "Fenster links und rechts, Panzerfaust-Trupps! Erst die Fenster, dann die Sperre.",
+  "wer": 0.0
+ },
+ "e4b5d48ac7c6": {
+  "asr": "Ich fahre. Kerner, nimm das MG am Bug.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.23,
+  "slot": 3.69,
+  "speaker": "Lena Aksoy",
+  "text": "Ich fahre. Kerner, nimm das MG am Bug.",
+  "wer": 0.0
+ },
+ "e4b8008950cc": {
+  "asr": "Weber gehört mir. Wer sich mir in den Weg stellt, bleibt im Schnee.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.68,
+  "slot": 5.285,
+  "speaker": "Oberst Falk",
+  "text": "Weber gehört mir. Wer sich mir in den Weg stellt, bleibt im Schnee.",
+  "wer": 0.0
+ },
+ "e4f00272dcc6": {
+  "asr": "Scheinwerfer auf der Plaza, Garde in Stellung, mindestens ein Gepanzerter. Bleib aus den Lichtkegeln.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.64,
+  "slot": 6.0,
+  "speaker": "Lena Aksoy",
+  "text": "Scheinwerfer auf der Plaza, Garde in Stellung, mindestens ein Gepanzerter. Bleib aus den Lichtkegeln.",
+  "wer": 0.0
+ },
+ "e64f87aa5f00": {
+  "asr": "»Hier Lena. Wir liegen am Waldrand vor dem Südtor. Seht ihr die Blinker?«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.6,
+  "slot": 5.505,
+  "speaker": "Lena Aksoy",
+  "text": "Hier Lena. Wir liegen am Waldrand vor dem Südtor. Seht ihr die Blinker?",
+  "wer": 0.0
+ },
+ "e66269196d40": {
+  "asr": "Grüßen sie Voss und sagen sie ihm, er soll nicht nach mir suchen.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.63,
+  "slot": 5.23,
+  "speaker": "Hptm. Weber",
+  "text": "Grüßen Sie Voss. Und sagen Sie ihm, er soll nicht nach mir suchen.",
+  "wer": 0.0
+ },
+ "e6fb3f9a1be7": {
+  "asr": "Lena, das war ich. Ich bin getroffen.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.15,
+  "slot": 3.6350000000000002,
+  "speaker": "Kerner",
+  "text": "Lena! Das war ich! Ich bin getroffen!",
+  "wer": 0.0
+ },
+ "e78a64c1285f": {
+  "asr": "Der Jet ist in der Luft, er dreht auf Leipzig.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.29,
+  "slot": 4.13,
+  "speaker": "Lena Aksoy",
+  "text": "Der Jet ist in der Luft! Er dreht auf Leipzig!",
+  "wer": 0.0
+ },
+ "e8bf86a6fbdc": {
+  "asr": "Kerner, Kerner, melde dich.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.27,
+  "slot": 3.085,
+  "speaker": "Lena Aksoy",
+  "text": "Kerner! Kerner, melde dich!",
+  "wer": 0.0
+ },
+ "e9115aadc545": {
+  "asr": "Sie geben nicht auf, was",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 2.78,
+  "slot": 3.415,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner. Sie geben nicht auf, was?",
+  "wer": 0.167
+ },
+ "e9cbd835c6b3": {
+  "asr": "Sie geben auf, atme durch und dann weiter.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 3.31,
+  "slot": 4.02,
+  "speaker": "Lena Aksoy",
+  "text": "Sie geben auf. Atme durch – und dann weiter.",
+  "wer": 0.0
+ },
+ "eabf18fa64fa": {
+  "asr": "Kerner, Brand hier. Ich kreise mit dem Hubschrauber drei Kilometer südlich über dem Wald. Die Villa gehört einem Strohmann des Konsortiums. Weber ist seit Mittag drin.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 7.66,
+  "slot": 8.0,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Kerner, Brandt hier. Ich kreise mit dem Hubschrauber drei Kilometer südlich über dem Wald. Die Villa gehört einem Strohmann des Konsortiums – Weber ist seit Mittag drin.",
+  "wer": 0.038
+ },
+ "eac35b5a38bb": {
+  "asr": "Bis hier habe ich dich gebracht, Jonas. Der Schacht am Ende führt in den alten Sammler unter dem Reichstag. Da unten ist es stockfinster.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 6.55,
+  "slot": 8.0,
+  "speaker": "Konrad Voss",
+  "text": "Bis hier hab ich dich gebracht, Jonas. Der Schacht am Ende führt in den alten Sammler unter dem Reichstag – da unten ist es stockfinster.",
+  "wer": 0.042
+ },
+ "eacbce9595a1": {
+  "asr": "Ich hole euch an der Talstation ab. Österreich weiß Bescheid, mehr oder weniger.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 4.88,
+  "slot": 6.055,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Ich hole euch an der Talstation ab. Österreich weiß Bescheid – mehr oder weniger.",
+  "wer": 0.0
+ },
+ "eb61c9de2173": {
+  "asr": "Tower ist unser und der Platzkommandant hat sich abgesetzt, Konvoi Richtung Nordtor.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 5.09,
+  "slot": 6.33,
+  "speaker": "Konrad Voss",
+  "text": "Tower ist unser. Und der Platzkommandant hat sich abgesetzt – Konvoi Richtung Nordtor!",
+  "wer": 0.0
+ },
+ "ebf6a82efecb": {
+  "asr": "und die andere Hälfte fliegt nach Berlin.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.65,
+  "slot": 3.855,
+  "speaker": "Lena Aksoy",
+  "text": "Und die andere Hälfte fliegt nach Berlin.",
+  "wer": 0.0
+ },
+ "ec85210fb85f": {
+  "asr": "Alle Einheiten zum Funkturm. Riegelt den Fuß ab. Niemand kommt darunter.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 4.65,
+  "slot": 5.0,
+  "speaker": "Oberst Falk",
+  "text": "Alle Einheiten zum Funkturm. Riegelt den Fuß ab. Niemand kommt da runter.",
+  "wer": 0.167
+ },
  "ecf95e18a984": {
   "asr": "Hast geschafft. Das Tor am Ende, dann gehört die Straße uns.",
   "cast": "55a3695c",
@@ -758,6 +4874,26 @@
   "speaker": "Hptm. Weber",
   "text": "Fast geschafft. Das Tor am Ende, dann gehört die Straße uns.",
   "wer": 0.091
+ },
+ "ed618aea978f": {
+  "asr": "Jetzt der Sender. Wir fahren zum Funkbunker, Webers Protokolle gehen auf allen Frequenzen raus.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.64,
+  "slot": 6.880000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Jetzt der Sender. Wir fahren zum Funkbunker – Webers Protokolle gehen auf allen Frequenzen raus.",
+  "wer": 0.0
+ },
+ "ed65ccfe12c4": {
+  "asr": "Ihr versenkt ihn. Abbruch.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 2.11,
+  "slot": 3.0300000000000002,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Ihr versenkt ihn! Abbruch!",
+  "wer": 0.0
  },
  "ee41e5ee60e2": {
   "asr": "Die Sonne geht auf und die Brücke steht. Gute Arbeit, Kerner!",
@@ -778,5 +4914,265 @@
   "speaker": "Lena Aksoy",
   "text": "Achte auf die Dächer. Die lieben ihre Scharfschützen.",
   "wer": 0.125
+ },
+ "eee99506767b": {
+  "asr": "Vom Tower sehen wir das Betankungsvorfeld. Vier Jets, voll bewaffnet, die sollen heute Nacht Leipzig angreifen.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 6.47,
+  "slot": 7.76,
+  "speaker": "Konrad Voss",
+  "text": "Vom Tower sehen wir das Betankungsvorfeld. Vier Jets, voll bewaffnet – die sollen heute Nacht Leipzig angreifen.",
+  "wer": 0.0
+ },
+ "ef15c4abd654": {
+  "asr": "Der darf nicht abheben. 40 mm aufs Fahrwerk.",
+  "cast": "37e936d9",
+  "character": "brandt",
+  "seconds": 3.08,
+  "slot": 4.79,
+  "speaker": "Oberstlt. Brandt",
+  "text": "Der darf nicht abheben. Vierzig Millimeter, aufs Fahrwerk!",
+  "wer": 0.125
+ },
+ "eff9ed7a6618": {
+  "asr": "Geben Sie mir die Protokolle. Wenn stimmt, was Weber vermutet hat, bricht Riethammers Lüge heute Nacht zusammen.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 5.85,
+  "slot": 7.76,
+  "speaker": "Konrad Voss",
+  "text": "Geben Sie mir die Protokolle. Wenn stimmt, was Weber vermutet hat, bricht Riedhammers Lüge heute Nacht zusammen.",
+  "wer": 0.059
+ },
+ "f1dd9ace6de8": {
+  "asr": "»Brücke gehalten. Die Bataillone rücken nach. Kerner, wir stehen am Spreebogen.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.55,
+  "slot": 5.890000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Brücke gehalten. Die Bataillone rücken nach. Kerner, wir stehen am Spreebogen.",
+  "wer": 0.0
+ },
+ "f2de1eb1438b": {
+  "asr": "Der Vogel ist unten.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 1.58,
+  "slot": 2.7,
+  "speaker": "Konrad Voss",
+  "text": "Der Vogel ist unten!",
+  "wer": 0.0
+ },
+ "f470c4bc510d": {
+  "asr": "Radar ausgefallen, optisch nachführen, Start.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.56,
+  "slot": 4.075,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Radar ausgefallen! Optisch nachführen, Start!",
+  "wer": 0.0
+ },
+ "f49dc518207d": {
+  "asr": "Drohne meldet Kontakt. Eindringling im Sperrgebiet.",
+  "cast": "32a47fa5",
+  "character": "riedhammer",
+  "seconds": 4.82,
+  "slot": 4.405,
+  "speaker": "Ordnungsfront-Funk",
+  "text": "Drohne meldet Kontakt. Eindringling im Sperrgebiet!",
+  "wer": 0.0
+ },
+ "f4e940afc5d8": {
+  "asr": "Panzer ist erledigt. Für dich, Rabe.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.05,
+  "slot": 3.58,
+  "speaker": "Konrad Voss",
+  "text": "Panzer ist erledigt. Für dich, Rabe.",
+  "wer": 0.0
+ },
+ "f54d56ec2618": {
+  "asr": "»Gut, du bist drüben. Zweiter Schütze auf dem Schornstein rechts vom Hochofen.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.19,
+  "slot": 4.5,
+  "speaker": "Lena Aksoy",
+  "text": "Gut, du bist drüben. Zweiter Schütze – auf dem Schornstein rechts vom Hochofen!",
+  "wer": 0.0
+ },
+ "f666cf4cf5cc": {
+  "asr": "Kerner, wir hatten noch nicht das Vergnügen, nicht direkt.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 3.85,
+  "slot": 4.79,
+  "speaker": "Oberst Falk",
+  "text": "Kerner. Wir hatten noch nicht das Vergnügen. Nicht direkt.",
+  "wer": 0.0
+ },
+ "f681919af055": {
+  "asr": "Oben ist Fahrtwind ohne Ende, und achte auf die Tunnel, wer steht, wird abgeräumt.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 4.8,
+  "slot": 6.165000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Oben ist Fahrtwind ohne Ende. Und achte auf die Tunnel – wer steht, wird abgeräumt.",
+  "wer": 0.0
+ },
+ "f721c650cfad": {
+  "asr": "Ich hab den Garde-Kanal. Hör mal.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.25,
+  "slot": 3.0,
+  "speaker": "Lena Aksoy",
+  "text": "Ich hab den Garde-Kanal. Hör mal.",
+  "wer": 0.0
+ },
+ "f740ab8e34a3": {
+  "asr": "»Siehst du den Windsack am Geländer? Leichter Wind von rechts, auf diese Entfernung kaum eine Handbreit.«",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.31,
+  "slot": 5.0,
+  "speaker": "Lena Aksoy",
+  "text": "Siehst du den Windsack am Geländer? Leichter Wind von rechts – auf diese Entfernung kaum eine Handbreit.",
+  "wer": 0.0
+ },
+ "f83d8688abff": {
+  "asr": "Bin an der Schleuse.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.31,
+  "slot": 2.7,
+  "speaker": "Kerner",
+  "text": "Bin an der Schleuse.",
+  "wer": 0.0
+ },
+ "f86ae8eff1d0": {
+  "asr": "Straße ist sauber. Ich hole Brand aus dem Elko.",
+  "cast": "3a089d6d",
+  "character": "voss",
+  "seconds": 3.15,
+  "slot": 3.5,
+  "speaker": "Konrad Voss",
+  "text": "Straße ist sauber! Ich hol Brandt aus dem Lkw.",
+  "wer": 0.333
+ },
+ "f8ff2c0e3289": {
+  "asr": "Jonas, nicht die Kabine.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 1.92,
+  "slot": 2.92,
+  "speaker": "Lena Aksoy",
+  "text": "Jonas! Nicht die Kabine!",
+  "wer": 0.0
+ },
+ "fa5d94943345": {
+  "asr": "Nicht schießen, wir brauchen ihn lebend.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 2.46,
+  "slot": 3.8000000000000003,
+  "speaker": "Lena Aksoy",
+  "text": "Nicht schießen! Wir brauchen ihn lebend!",
+  "wer": 0.0
+ },
+ "fa7e807a961d": {
+  "asr": "Letzte Tür. Die Präsidentin und zwei Abgeordnete drei wachen. Das muss sitzen, Jonas.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.24,
+  "slot": 6.33,
+  "speaker": "Lena Aksoy",
+  "text": "Letzte Tür. Die Präsidentin und zwei Abgeordnete, drei Wachen. Das muss sitzen, Jonas.",
+  "wer": 0.0
+ },
+ "fac48262ac47": {
+  "asr": "Hoffentlich war es das Richtige.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.81,
+  "slot": 3.3600000000000003,
+  "speaker": "Kerner",
+  "text": "Hoffentlich war es das Richtige.",
+  "wer": 0.0
+ },
+ "fc1c8fa015d7": {
+  "asr": "Riedhammer vertraut seinen Leitungen. Das war immer sein Fehler.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 4.46,
+  "slot": 5.12,
+  "speaker": "Hptm. Weber",
+  "text": "Riedhammer vertraut seinen Leitungen. Das war immer sein Fehler.",
+  "wer": 0.0
+ },
+ "fc5b20e5f74c": {
+  "asr": "Kerne, sie geben nicht auf, was? Ich auch nicht.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 3.99,
+  "slot": 4.295,
+  "speaker": "Hptm. Weber",
+  "text": "Kerner. Sie geben nicht auf, was? Ich auch nicht.",
+  "wer": 0.111
+ },
+ "fcd3a6a23719": {
+  "asr": "Falk Weber hier, Planquadrat Gustav Sieben, Sammelpunkt der Loyalen an der Herrschkrasse, zwei Kompanien, ab Mitternacht.",
+  "cast": "55a3695c",
+  "character": "weber",
+  "seconds": 7.9,
+  "slot": 7.0,
+  "speaker": "Hptm. Weber",
+  "text": "Falk, Weber hier. Planquadrat Gustav-Sieben, Sammelpunkt der Loyalen an der Heerstraße. Zwei Kompanien, ab Mitternacht.",
+  "wer": 0.062
+ },
+ "fdb7974f51ab": {
+  "asr": "Sendung ist tot.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 2.3,
+  "slot": 2.5,
+  "speaker": "Kerner",
+  "text": "Sendung ist tot.",
+  "wer": 0.0
+ },
+ "fe2b5ed81dd0": {
+  "asr": "Ich bin da. Greethammer ist tot. Der Kontrollraum ist weg.",
+  "cast": "cf45251b",
+  "character": "kerner",
+  "seconds": 3.72,
+  "slot": 4.845000000000001,
+  "speaker": "Kerner",
+  "text": "… Ich bin da. Riedhammer ist tot. Der Kontrollraum ist weg.",
+  "wer": 0.1
+ },
+ "fe7afc80ac34": {
+  "asr": "Ich bin in der Haustechnik. Die Schleusen hängen am Notstromnetz. Ich krieg sie auf, aber nicht leise.",
+  "cast": "f7dad8c0",
+  "character": "lena",
+  "seconds": 5.76,
+  "slot": 7.210000000000001,
+  "speaker": "Lena Aksoy",
+  "text": "Ich bin in der Haustechnik. Die Schleusen hängen am Notstromnetz. Ich krieg sie auf, aber nicht leise.",
+  "wer": 0.0
+ },
+ "ffd5a372a101": {
+  "asr": "Weber gehört der Garde Kerner. Drehen Sie um, solange Sie noch ein Boot haben.",
+  "cast": "9f247aee",
+  "character": "falk",
+  "seconds": 5.48,
+  "slot": 5.945,
+  "speaker": "Oberst Falk",
+  "text": "Weber gehört der Garde, Kerner. Drehen Sie um, solange Sie noch ein Boot haben.",
+  "wer": 0.0
  }
 }

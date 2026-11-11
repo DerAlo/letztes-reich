@@ -26,7 +26,7 @@ BRIEFING_SPEAKER = "Lage"
 ENDING_SPEAKER = "Kerner"
 
 STR = r'"((?:[^"\\]|\\.)*)"'
-CALL_RE = re.compile(r'(?:\b_say|\b_radio|story_radio\.emit)\(\s*([A-Za-z_][\w.]*|' + STR + r')\s*,\s*' + STR)
+CALL_RE = re.compile(r'(?:(?:\b_say|\b_radio|story_radio\.emit)\(|\b_later_say\(\s*[\d.]+\s*,\s*"[^"]*"\s*,)\s*([A-Za-z_][\w.]*|' + STR + r')\s*,\s*' + STR)
 CONST_RE = re.compile(r'^const\s+([A-Z_][A-Z0-9_]*)\s*(?::\s*\w+\s*)?:?=\s*' + STR, re.M)
 
 
@@ -44,7 +44,9 @@ def character_of(speaker):
     if speaker == BRIEFING_SPEAKER:
         return "lage"
     for key, ch in (("weber", "weber"), ("aksoy", "lena"), ("lena", "lena"), ("lautsprecher", "riedhammer"),
-                    ("riedhammer", "riedhammer"), ("ordnungsfront", "riedhammer"), ("rednerin", "rednerin"), ("kerner", "kerner")):
+                    ("riedhammer", "riedhammer"), ("ordnungsfront", "riedhammer"), ("rednerin", "rednerin"), ("kerner", "kerner"),
+                    ("voss", "voss"), ("brandt", "brandt"),
+                    ("falk", "falk"), ("hartmann", "hartmann"), ("präsidentin", "hartmann")):
         if key in s:
             return ch
     return "funker"
@@ -99,8 +101,9 @@ def collect():
     for m in re.finditer(STR + r'\s*:\s*' + STR, _block(sd_src, "BRIEFINGS")):
         add(BRIEFING_SPEAKER, unescape(m.group(2)), "story_data.BRIEFINGS:" + m.group(1))
     # ENDING
-    for m in re.finditer(r'\[\s*' + STR + r'\s*,\s*[\d.]+\s*\]', _block(sd_src, "ENDING")):
-        add(ENDING_SPEAKER, unescape(m.group(1)), "story_data.ENDING")
+    for blk in ("ENDING", "ENDING_2"):
+        for m in re.finditer(r'\[\s*' + STR + r'\s*,\s*[\d.]+\s*\]', _block(sd_src, blk)):
+            add(ENDING_SPEAKER, unescape(m.group(1)), "story_data." + blk)
 
     # Level-/Story-Skripte
     for dirpath, _dirs, files in os.walk(os.path.join(ROOT, "game")):

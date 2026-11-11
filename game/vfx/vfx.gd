@@ -60,7 +60,7 @@ func spawn_explosion(position: Vector3, scale: float = 1.0) -> void:
 func spawn_impact(position: Vector3, normal: Vector3, surface: String = "concrete") -> void:
 	var n := normal if normal.length() > 0.01 else Vector3.UP
 	var fx := _get_impact(false)
-	fx.call("play", surface, position, n.normalized(), 1.0)
+	fx.call("play", surface, position, n.normalized(), 1.25)   # etwas kraeftigere Einschlaege (nur Optik)
 	audio.call("impact", position, surface)
 	if surface != "flesh" and surface != "blood":
 		spawn_decal(position, n, "res://assets/vfx/bullet_hole.png", Vector3(0.28, 0.4, 0.28), 30.0, randf() * TAU)
@@ -83,7 +83,7 @@ func set_ambient(on: bool) -> void:
 
 func spawn_blood(position: Vector3, normal: Vector3) -> void:
 	var fx := _get_impact(false)
-	fx.call("play", "blood", position, normal if normal.length() > 0.01 else Vector3.UP, 1.0)
+	fx.call("play", "blood", position, normal if normal.length() > 0.01 else Vector3.UP, 1.15)
 
 ## Grosse Staubwolke (z. B. einstuerzende Fassade). size = Radius in m ca.
 func spawn_dust_cloud(position: Vector3, size: float = 3.0) -> void:

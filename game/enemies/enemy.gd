@@ -14,10 +14,12 @@ const LAYER_DEBRIS := 8
 
 # Globaler Multiplikator fuer alle Gegner (z.B. vom Lead/Debug-Server setzbar).
 static var global_accuracy_scale: float = 1.0
+## Schwierigkeitsgrad (Welle 4, game/progress/difficulty.gd): Soldat = 1.0 ueberall -> unveraendert.
+const _Difficulty = preload("res://game/progress/difficulty.gd")
 static var _cover_owner: Dictionary = {}
 static var _sfx_cache: Dictionary = {}
-static var _tracer_mesh: BoxMesh = null
-static var _tracer_mat: StandardMaterial3D = null
+static var _tracer_mesh: QuadMesh = null
+static var _tracer_mat: ShaderMaterial = null
 
 @export_group("Identity")
 @export var enemy_type: String = "rifleman"
@@ -209,6 +211,9 @@ var _expl_radius: float = 0.0
 var _expl_time: float = -100.0
 var _expl_boosted: bool = false
 var _ragdoll_bodies: Array[RigidBody3D] = []
+## Opt-in Schleich-KI (Level "curfew"): Objekt mit tick_idle(delta)->bool, on_weapon_fired(weapon)->bool,
+## on_owner_died(). null = Standardverhalten (alle anderen Level).
+var stealth: Object = null
 
 func _ready() -> void:
 	rng.randomize()
@@ -297,7 +302,7 @@ func alert(pos: Vector3, propagate: bool = true) -> void:
 		_set_state(State.ALERT)
 		if _spotting:
 			_bark("spot")
-		_alert_timer = rng.randf_range(reaction_min * 0.5, reaction_max * 0.6)
+		_alert_timer = rng.randf_range(reaction_min * 0.5, reaction_max * 0.6) * _Difficulty.enemy_reaction()
 		if propagate:
 			_alert_neighbors(pos)
 
@@ -453,6 +458,8 @@ func _on_weapon_fired(weapon: Node) -> void:
 		pos = _player.global_position
 	else:
 		return
+	if stealth != null and stealth.call("on_weapon_fired", weapon):
+		return
 	if pos.distance_to(global_position) <= hear_weapon_range:
 		alert(pos, true)
 		if state != State.IDLE:
@@ -486,6 +493,8 @@ func _on_damaged(source: Node, src_pos: Vector3) -> void:
 # ---------------------------------------------------------------- Zustaende
 
 func _tick_idle(delta: float) -> void:
+	if stealth != null and stealth.call("tick_idle", delta):
+		return
 	_aim_at_target = false
 	_stance_target = 0.0
 	if not _target_alive():
@@ -494,7 +503,7 @@ func _tick_idle(delta: float) -> void:
 	var seen := _los and d <= sight_range and (_in_view_cone(_player.global_position) or d <= hear_close_range)
 	if seen:
 		_notice_acc += delta
-		if _notice_acc >= notice_time:
+		if _notice_acc >= notice_time * _Difficulty.enemy_reaction():
 			_notice_acc = 0.0
 			_spotting = true
 			alert(_player.global_position, true)
@@ -846,6 +855,21 @@ func _find_open_point() -> Vector3:
 			best = cand
 	return best
 
+## Zerstoerbare Deckung (systeme-c): Deckungspunkt/-objekt ist weg -> neue Deckung suchen oder offen kaempfen.
+func on_cover_lost(cover: Node) -> void:
+	if state == State.DEAD:
+		return
+	if cover == null or _cover_node != cover:
+		# Objekt selbst gemeldet (Gegner direkt dahinter): nur ohne eigene, intakte Deckung und in der Naehe
+		var own_ok := _cover_node != null and is_instance_valid(_cover_node) and _cover_node.get_parent() != cover
+		if own_ok or not (cover is Node3D) or _flat_dist(global_position, (cover as Node3D).global_position) > 3.5:
+			return
+	_release_cover()
+	_in_cover = false
+	if state == State.MOVE_TO_COVER or state == State.ATTACK:
+		if not _try_take_cover():
+			_enter_attack_open()
+
 func _release_cover() -> void:
 	if _cover_node != null and is_instance_valid(_cover_node):
 		var id := _cover_node.get_instance_id()
@@ -892,7 +916,7 @@ func hit_chance() -> float:
 		p *= crouching_player_factor
 	var w := clampf(_sight_time / maxf(warmup_time, 0.01), 0.0, 1.0)
 	p *= lerpf(warmup_floor, 1.0, w * w)
-	p *= accuracy_scale * global_accuracy_scale * type_accuracy
+	p *= accuracy_scale * global_accuracy_scale * type_accuracy * _Difficulty.enemy_accuracy()
 	return clampf(p, 0.0, max_hit_chance)
 
 func _fire_shot() -> void:
@@ -930,7 +954,11 @@ func _fire_shot() -> void:
 	else:
 		var hp: Vector3 = r["position"]
 		_spawn_tracer(from, hp)
-		VFX.spawn_impact(hp, r["normal"], "concrete")
+		var col: Object = r.get("collider")
+		if col != null and col.has_method("take_bullet"):   # zerstoerbare Deckung (systeme-c)
+			col.call("take_bullet", damage_per_hit, self, hp, r["normal"], miss_dir)
+		else:
+			VFX.spawn_impact(hp, r["normal"], "concrete")
 		VFX.play_whiz_along(from, hp)
 
 func _spawn_tracer(from: Vector3, to: Vector3) -> void:
@@ -938,18 +966,17 @@ func _spawn_tracer(from: Vector3, to: Vector3) -> void:
 	if length < 0.6 or not is_inside_tree():
 		return
 	if _tracer_mesh == null:
-		_tracer_mesh = BoxMesh.new()
-		_tracer_mesh.size = Vector3(0.03, 0.03, 1.6)
-		_tracer_mat = StandardMaterial3D.new()
-		_tracer_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_tracer_mat.albedo_color = Color(1.0, 0.82, 0.35)
-		_tracer_mat.emission_enabled = true
-		_tracer_mat.emission = Color(1.0, 0.7, 0.2)
-		_tracer_mat.emission_energy_multiplier = 4.0
+		# Leuchtstreifen statt Box (opake Box wirkte nicht wie eine Leuchtspur)
+		_tracer_mesh = QuadMesh.new()
+		_tracer_mat = ShaderMaterial.new()
+		_tracer_mat.shader = load("res://game/vfx/shaders/tracer.gdshader")
+		_tracer_mat.set_shader_parameter("length_m", 1.6)
+		_tracer_mat.set_shader_parameter("width_m", 0.014)
 	var mi := MeshInstance3D.new()
 	mi.mesh = _tracer_mesh
 	mi.material_override = _tracer_mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = 3.0
 	_effects_root().add_child(mi)
 	var dir := (to - from) / length
 	var up := Vector3.UP if absf(dir.y) < 0.98 else Vector3.RIGHT
@@ -1126,7 +1153,7 @@ func _build_body() -> void:
 		# Kopf-Hitbox folgt dem Kopfknochen (Weltradius bleibt 0.17 * body_scale)
 		sph.radius = 0.17 * s / _soldier.vis_scale
 		_head_hitbox.reparent(_soldier.head_attach, false)
-		_head_hitbox.position = Vector3(0.0, 0.1, 0.03)
+		_head_hitbox.position = _soldier.head_hit_offset
 		return
 
 	_visual = Node3D.new()
@@ -1220,8 +1247,9 @@ func _animate(delta: float) -> void:
 		_flinch = move_toward(_flinch, 0.0, delta * 5.0)
 		_recoil = move_toward(_recoil, 0.0, delta * 9.0)
 		if _flash_timer > 0.0:
+			# kurzes, abklingendes Flackern statt konstantem Leuchten
+			_flash_light.light_energy = 3.2 * pow(clampf(_flash_timer / 0.05, 0.0, 1.0), 2.0)
 			_flash_timer -= delta
-			_flash_light.light_energy = 3.0
 		else:
 			_flash_light.light_energy = 0.0
 		_soldier.tick(delta)
@@ -1259,8 +1287,9 @@ func _animate(delta: float) -> void:
 	_visual.rotation.z = sin(_age * 40.0) * _flinch * 0.05
 	# Muendungsfeuer
 	if _flash_timer > 0.0:
+		# kurzes, abklingendes Flackern statt konstantem Leuchten
+		_flash_light.light_energy = 3.2 * pow(clampf(_flash_timer / 0.05, 0.0, 1.0), 2.0)
 		_flash_timer -= delta
-		_flash_light.light_energy = 3.0
 	else:
 		_flash_light.light_energy = 0.0
 
@@ -1309,8 +1338,11 @@ func _die() -> void:
 	_release_cover()
 	_burst_left = 0
 	Events.enemy_killed.emit(self)
-	_bark("death")
-	_notify_ally_death()
+	if stealth != null:
+		stealth.call("on_owner_died")   # lautlos: kein Todesschrei, keine Kameraden-Meldung
+	else:
+		_bark("death")
+		_notify_ally_death()
 	_on_death()
 
 func _on_death() -> void:

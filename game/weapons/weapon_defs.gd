@@ -6,11 +6,13 @@ extends RefCounted
 const DEFS: Dictionary = {
 	"g36c": {"scene": "res://game/weapons/g36c.tscn", "name": "G36C", "ammo": "556", "slot": 0, "mag": 30},
 	"ak74m": {"scene": "res://game/weapons/ak74m.tscn", "name": "AK-74M", "ammo": "545", "slot": 0, "mag": 30},
-	"pistol": {"scene": "res://game/weapons/pistol.tscn", "name": "P228", "ammo": "9mm", "slot": 1, "mag": 12},
+	"pistol": {"scene": "res://game/weapons/pistol.tscn", "name": "P1", "ammo": "9mm", "slot": 1, "mag": 12},
+	"pistol_sd": {"scene": "res://game/weapons/pistol_sd.tscn", "name": "P1 SD", "ammo": "9mm", "slot": 1, "mag": 12},
 	"pzf3": {"scene": "res://game/weapons/panzerfaust.tscn", "name": "Panzerfaust 3", "ammo": "pzf", "slot": 2, "mag": 1},
+	"g28": {"scene": "res://game/weapons/g28.tscn", "name": "G28 DMR", "ammo": "762", "slot": 0, "mag": 10},
 }
 
-const AMMO_NAMES: Dictionary = {"556": "5,56 mm", "545": "5,45 mm", "9mm": "9 mm", "pzf": "Panzerfaust-Rakete"}
+const AMMO_NAMES: Dictionary = {"556": "5,56 mm", "545": "5,45 mm", "9mm": "9 mm", "pzf": "Panzerfaust-Rakete", "762": "7,62 mm"}
 
 static func has(id: String) -> bool:
 	return DEFS.has(id)

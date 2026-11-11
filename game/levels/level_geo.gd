@@ -30,6 +30,9 @@ static func mat(dir: String, tint: Color = Color.WHITE, scale: float = 0.3, roug
 	m.uv1_triplanar = true
 	m.uv1_world_triplanar = true
 	m.uv1_scale = Vector3.ONE * scale
+	# Anisotrop + Mipmaps (Texturen werden mit Mipmaps importiert): Boeden in flachem Winkel bleiben scharf
+	# und flimmern nicht. Die Staerke regelt Graphics ueber Viewport.anisotropic_filtering_level.
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_mat_cache[key] = m
 	return m
 

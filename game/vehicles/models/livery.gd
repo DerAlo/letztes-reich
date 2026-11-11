@@ -19,6 +19,9 @@ static func colors(faction: String) -> Array:
 			return [Color(0.33, 0.34, 0.35), Color(0.05, 0.052, 0.055), Color(0.2, 0.205, 0.21), AMBER, Vector2(0.3, 0.8)]
 		"eu":
 			return [Color(0.24, 0.26, 0.2), Color(0.08, 0.08, 0.065), Color(0.33, 0.29, 0.21), Color(0.75, 0.75, 0.7), Vector2(0.34, 0.72)]
+		"wreck", "wreck_snow":
+			# Ausgebrannt: Russ-Schwarz, verkohltes Braun, Flecken aus Zunder-Rost (Lack abgebrannt)
+			return [Color(0.075, 0.062, 0.052), Color(0.03, 0.028, 0.026), Color(0.3, 0.15, 0.07), Color(0.12, 0.1, 0.08), Vector2(0.42, 0.66)]
 		_:
 			return [Color(0.28, 0.3, 0.19), Color(0.085, 0.09, 0.065), Color(0.42, 0.38, 0.26), Color(0.82, 0.82, 0.78), Vector2(0.33, 0.7)]
 
@@ -56,6 +59,23 @@ static func paint(kind: String, faction: String) -> ShaderMaterial:
 		m.set_shader_parameter("rust_amount", 0.3 if kind != "heli" else 0.06)
 		m.set_shader_parameter("paint_rough", 0.5 if kind != "heli" else 0.45)
 		m.set_shader_parameter("paint_metal", 0.15)
+	elif faction.begins_with("wreck"):
+		m.set_shader_parameter("camo_scale", 0.32)
+		m.set_shader_parameter("camo_edge", 0.08)
+		m.set_shader_parameter("metal_col", Color(0.13, 0.1, 0.08))
+		m.set_shader_parameter("rubber_col", Color(0.03, 0.028, 0.026))
+		m.set_shader_parameter("dirt_col", Color(0.16, 0.13, 0.1))
+		m.set_shader_parameter("rust_amount", 1.0)
+		m.set_shader_parameter("chip_amount", 0.85)
+		m.set_shader_parameter("dirt_amount", 0.9)
+		m.set_shader_parameter("dirt_height", 1.3)
+		m.set_shader_parameter("dust_amount", 0.45)
+		m.set_shader_parameter("normal_strength", 1.0)
+		m.set_shader_parameter("paint_rough", 0.92)
+		m.set_shader_parameter("detail_scale", 0.7)
+		if faction == "wreck_snow":
+			m.set_shader_parameter("snow_amount", 1.0)
+			m.set_shader_parameter("dust_amount", 0.0)
 	_cache[key] = m
 	return m
 

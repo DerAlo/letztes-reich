@@ -264,7 +264,7 @@ static func tracer(n: Node, from: Vector3, to: Vector3, speed: float = 260.0, co
 	effects_root(n).add_child(mi)
 	var dir := (to - from) / length
 	var up := Vector3.UP if absf(dir.y) < 0.98 else Vector3.RIGHT
-	mi.global_transform = Transform3D(Basis.looking_at(dir, up).scaled(Vector3(width, width, 1.0)), from + dir * 1.6)
+	mi.global_transform = Transform3D(Basis.looking_at(dir, up) * Basis.from_scale(Vector3(width, width, 1.0)), from + dir * 1.6)
 	var tw := mi.create_tween()
 	tw.tween_property(mi, "global_position", to - dir * 1.6, maxf(length - 3.2, 0.1) / speed)
 	tw.tween_callback(mi.queue_free)

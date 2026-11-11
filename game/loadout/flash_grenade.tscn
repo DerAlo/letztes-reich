@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://game/weapons/grenade.tscn" id="1"]
+[ext_resource type="Script" path="res://game/loadout/flash_grenade.gd" id="2"]
+
+[node name="FlashGrenade" instance=ExtResource("1")]
+script = ExtResource("2")
+fuse_time = 1.6

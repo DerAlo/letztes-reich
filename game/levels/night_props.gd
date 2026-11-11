@@ -1,13 +1,22 @@
 extends RefCounted
 ## Bausteine fuer das Nachtlevel "baltic_night": Schnee-Materialien (Shader mit Schneeauflage),
-## prozedurale Kiefern (MultiMesh), Holzhaeuser (statisch oder als Einzelteile fuer die
+## Fichten aus Zweigkarten (MultiMesh, LOD-Zellen), Holzhaeuser (statisch oder als Einzelteile fuer die
 ## Zerstoerung), Schuetzengraben-Verschalung, Sandsaecke, Stacheldraht, Strommasten,
 ## Schuetzenpanzer, Scheune, Bahnuebergang. Alle Funktionen statisch, per preload() einbinden.
 
 const Geo = preload("res://game/levels/level_geo.gd")
+const PH = preload("res://game/levels/ph_props.gd")
+const IfvModel = preload("res://game/vehicles/ifv/ifv_model.gd")
 const ENV_TEX := "res://assets/environment/textures/"
 const OLD_TEX := "res://assets/textures/"
 const SNOW_SHADER: Shader = preload("res://assets/environment/snowy.gdshader")
+const SPRUCE_SHADER: Shader = preload("res://assets/environment/trees/spruce.gdshader")
+const TREE_TEX := "res://assets/environment/trees/"
+const TREE_H := 12.0        # Bezugshoehe der Fichten-Meshes (Instanz-Skalierung ~0.8..1.35)
+const CELL := 24.0          # Zellgroesse fuer Wald-MultiMeshes (Culling/LOD)
+const LOD_DIST := 70.0      # ab hier Fernstufe
+const IMP_SIZE := 15.0       # Impostor-Rahmen (m, quadratisch)
+const IMP_Y0 := -0.5
 
 static var _cache: Dictionary = {}
 static var _noise: NoiseTexture2D
@@ -109,87 +118,223 @@ static func add_batch(parent: Node3D, b: Geo.BoxBatch, m: Material, shadows: boo
 static func drift(b: Geo.BoxBatch, pos: Vector3, size: Vector3, yaw: float = 0.0) -> void:
 	b.add_ball(pos, size, Basis(Vector3.UP, yaw))
 
-# --------------------------------------------------------------------------- Kiefern
+# --------------------------------------------------------------------------- Nadelbaeume
 
-## Kiefer: Flaeche 0 Stamm, Flaeche 1 Nadelkleid aus zackigen, haengenden Etagen.
-static func pine_mesh(rng: RandomNumberGenerator, h: float) -> ArrayMesh:
-	var trunk := SurfaceTool.new()
-	trunk.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.05
-	cm.bottom_radius = 0.16 + h * 0.012
-	cm.height = h * 0.96
-	cm.radial_segments = 7
-	cm.rings = 1
-	trunk.append_from(cm, 0, Transform3D(Basis.IDENTITY, Vector3(0, h * 0.48, 0)))
-	var fol := SurfaceTool.new()
-	fol.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var layers := rng.randi_range(6, 8)
-	var base_y := h * rng.randf_range(0.2, 0.3)
-	var n := 11
-	for i in layers:
-		var t := float(i) / float(layers - 1)
-		var y0 := base_y + (h * 0.98 - base_y - h * 0.16) * t
-		var r := h * 0.21 * (1.0 - t * 0.82) + 0.25
-		var lh := h * 0.17 * (1.0 - t * 0.3)
-		var apex := Vector3(rng.randf_range(-0.08, 0.08), y0 + lh, rng.randf_range(-0.08, 0.08))
-		var under := Vector3(0, y0 + lh * 0.3, 0)
-		var ring: Array[Vector3] = []
+## Fichte aus Zweigkarten (Alpha-Atlas) und Rindenstamm, EINE Flaeche/ein Material (spruce.gdshader).
+## Astquirle mit quer geknickten Karten (~650 Dreiecke). Fernstufe: spruce_impostor().
+static func spruce_mesh(rng: RandomNumberGenerator, h: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var lean := Vector2(rng.randf_range(-0.18, 0.18), rng.randf_range(-0.18, 0.18))
+	var top := h * 0.98
+	# --- Stamm: verjuengt, Wurzelanlauf, leicht gebogen
+	var segs := 7
+	var rings := 5
+	var r0 := 0.15 + h * 0.011
+	var prev: Array = []
+	for i in rings + 1:
+		var f := float(i) / float(rings)
+		var y := top * f
+		var r := lerpf(r0, 0.03, f)
+		if i == 0:
+			r *= 1.35
+		var c := _spruce_axis(lean, y, h)
+		var ring: Array = []
+		for k in segs + 1:
+			var a := TAU * float(k) / float(segs)
+			var n := Vector3(cos(a), 0.0, sin(a))
+			ring.append([c + n * r, n, Vector2(float(k) / float(segs), y / 1.3)])
+		if i > 0:
+			for k in segs:
+				_sp_quad(st, [prev[k], prev[k + 1], ring[k + 1], ring[k]], Color(0.0, 0.5, 1.0))
+		prev = ring
+	# --- Astquirle
+	var base_y := h * rng.randf_range(0.12, 0.2)
+	var step := 0.45 * h / 12.0
+	var y := base_y
+	while y < h * 0.9:
+		var t := (y - base_y) / (h * 0.9 - base_y)
+		var rmax := h * 0.29 * pow(1.0 - t, 0.9) + 0.45
+		var n := 7
+		if t > 0.7:
+			n = 5
 		var a0 := rng.randf() * TAU
+		var c := _spruce_axis(lean, y, h)
 		for k in n:
-			var a := a0 + TAU * float(k) / float(n) + rng.randf_range(-0.12, 0.12)
-			var rr := r * rng.randf_range(0.72, 1.15)
-			ring.append(Vector3(cos(a) * rr, y0 - rr * 0.22 + rng.randf_range(-0.12, 0.12), sin(a) * rr))
-			# Zwischenzacke etwas weiter innen und hoeher (zerfranste Kante)
-			var am := a + PI / float(n)
-			var rm := r * rng.randf_range(0.55, 0.78)
-			ring.append(Vector3(cos(am) * rm, y0 - rm * 0.1 + lh * 0.08, sin(am) * rm))
-		var m := ring.size()
-		for k in m:
-			var p0 := ring[k]
-			var p1 := ring[(k + 1) % m]
-			fol.add_vertex(apex)
-			fol.add_vertex(p1)
-			fol.add_vertex(p0)
-			fol.add_vertex(under)
-			fol.add_vertex(p0)
-			fol.add_vertex(p1)
-	fol.index()
-	fol.generate_normals()
-	trunk.generate_normals()
-	var mesh := trunk.commit()
-	fol.commit(mesh)
-	mesh.surface_set_material(0, bark())
-	mesh.surface_set_material(1, needles())
+			var a := a0 + TAU * float(k) / float(n) + rng.randf_range(-0.3, 0.3)
+			var L := rmax * rng.randf_range(0.82, 1.12)
+			var droop := deg_to_rad(lerpf(-38.0, -4.0, t) + rng.randf_range(-10.0, 10.0))
+			_sp_card(st, c, a, L, droop, t)
+		y += step * rng.randf_range(0.8, 1.2)
+	# --- Spitze: zwei gekreuzte, aufrechte Karten
+	var tc := _spruce_axis(lean, h * 0.86, h)
+	for k in 2:
+		var a := PI * 0.5 * float(k)
+		var sd := Vector3(cos(a), 0.0, sin(a)) * 0.5
+		var nn := Vector3(-sin(a), 0.0, cos(a))
+		var up := Vector3(0, h * 0.16, 0)
+		var vs: Array = [
+			[tc - sd, nn, Vector2(0.01, 1.0)], [tc + sd, nn, Vector2(0.49, 1.0)],
+			[tc + sd * 0.4 + up, nn, Vector2(0.49, 0.0)], [tc - sd * 0.4 + up, nn, Vector2(0.01, 0.0)]]
+		_sp_quad(st, vs, Color(0.6, 1.0, 0.0))
+	st.generate_tangents()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, spruce_mat())
 	return mesh
 
-## Kiefernbestand als MultiMesh (4 Varianten). trees = Array von [Vector3 pos, float scale].
+static func _spruce_axis(lean: Vector2, y: float, h: float) -> Vector3:
+	var f := y / h
+	return Vector3(lean.x * f * f, y, lean.y * f * f)
+
+## Zweigkarte: von der Stammachse schraeg nach unten, quer als flaches "V" geknickt,
+## damit sie auch von der Seite Flaeche zeigt (4 Dreiecke).
+static func _sp_card(st: SurfaceTool, c: Vector3, a: float, L: float, droop: float, t: float) -> void:
+	var d := Vector3(cos(a) * cos(droop), sin(droop), sin(a) * cos(droop))
+	var side := Vector3(-sin(a), 0.0, cos(a))
+	var radial := Vector3(cos(a), 0.0, sin(a))
+	var W := L * 0.95
+	var grid: Array = []
+	for s: float in [0.0, 1.0]:
+		var row: Array = []
+		var center := c + d * (L * s)
+		for u: float in [-1.0, 0.0, 1.0]:
+			var lift := (1.0 - absf(u)) * W * 0.16
+			var p := center + side * (u * W * 0.5) + Vector3(0, lift, 0)
+			# Normale: Kartenoberseite, nach aussen gekippt (wirkt wie ein voluminoeser Ast)
+			var nrm := (Vector3.UP * 0.65 + radial * 0.35 + side * (u * 0.25)).normalized()
+			var ao := clampf(0.3 + 0.7 * s, 0.0, 1.0) * lerpf(0.7, 1.0, t)
+			row.append([p, nrm, Vector2(0.008 + (u + 1.0) * 0.242, 1.0 - s), Color(s, ao, 0.0)])
+		grid.append(row)
+	for j in 2:
+		_sp_quad(st, [grid[0][j], grid[0][j + 1], grid[1][j + 1], grid[1][j]], Color(-1, 0, 0))
+
+## Fernstufe: drei gekreuzte, senkrechte Impostor-Karten (6 Dreiecke) mit vorgerendertem Baum
+## (spruce_impostor.png, je Variante eine Spalte; Rahmen IMP_SIZE x IMP_SIZE m, Unterkante IMP_Y0).
+static func spruce_impostor(variant: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var u0 := float(variant) / 3.0
+	var u1 := float(variant + 1) / 3.0
+	var hw := IMP_SIZE * 0.5
+	for k in 3:
+		var a := PI * float(k) / 3.0
+		var side := Vector3(cos(a), 0.0, sin(a))
+		var face := Vector3(-sin(a), 0.0, cos(a))
+		var vs: Array = []
+		for c: Vector2 in [Vector2(-1, 0), Vector2(1, 0), Vector2(1, 1), Vector2(-1, 1)]:
+			var p := side * (c.x * hw) + Vector3(0, IMP_Y0 + c.y * IMP_SIZE, 0)
+			var nrm := (side * (c.x * 0.55) + Vector3.UP * (0.25 + 0.3 * c.y) + face * 0.5).normalized()
+			vs.append([p, nrm, Vector2(lerpf(u0, u1, (c.x + 1.0) * 0.5), 1.0 - c.y), Color(0.0, 1.0, 0.0)])
+		_sp_quad(st, vs, Color(-1, 0, 0))
+	st.generate_tangents()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, spruce_impostor_mat())
+	return mesh
+
+static func spruce_impostor_mat() -> ShaderMaterial:
+	if _cache.has("spruce_imp_mat"):
+		return _cache["spruce_imp_mat"]
+	var m := spruce_mat().duplicate() as ShaderMaterial
+	m.set_shader_parameter("atlas_albedo", _tex(TREE_TEX + "spruce_impostor.png"))
+	m.set_shader_parameter("atlas_normal", null)
+	m.set_shader_parameter("snow_amount", 0.3)
+	m.set_shader_parameter("alpha_cut", 0.5)
+	_cache["spruce_imp_mat"] = m
+	return m
+
+## Viereck aus [pos, normal, uv(, color)]; col.r < 0 -> Vertexfarbe aus dem Eintrag.
+## Wicklung wird an der Normalen ausgerichtet (Godot: Vorderseite im Uhrzeigersinn).
+static func _sp_quad(st: SurfaceTool, q: Array, col: Color) -> void:
+	var p0: Vector3 = q[0][0]
+	var p1: Vector3 = q[1][0]
+	var p2: Vector3 = q[2][0]
+	var n0: Vector3 = q[0][1]
+	var order: Array[int] = [0, 1, 2, 0, 2, 3]
+	if (p1 - p0).cross(p2 - p0).dot(n0) > 0.0:
+		order = [0, 2, 1, 0, 3, 2]
+	for idx in order:
+		var v: Array = q[idx]
+		st.set_color(v[3] if col.r < 0.0 else col)
+		st.set_normal(v[1])
+		st.set_uv(v[2])
+		st.add_vertex(v[0])
+
+static func spruce_mat() -> ShaderMaterial:
+	if _cache.has("spruce_mat"):
+		return _cache["spruce_mat"]
+	var m := ShaderMaterial.new()
+	m.shader = SPRUCE_SHADER
+	m.set_shader_parameter("atlas_albedo", _tex(TREE_TEX + "spruce_atlas_albedo.png"))
+	m.set_shader_parameter("atlas_normal", _tex(TREE_TEX + "spruce_atlas_normal.png"))
+	m.set_shader_parameter("noise_tex", noise_tex())
+	m.set_shader_parameter("snow_amount", 0.5)
+	m.set_shader_parameter("tree_height", TREE_H)
+	_cache["spruce_mat"] = m
+	return m
+
+## Fichtenbestand als MultiMesh in Zellen (CELL m): je Zelle zwei Varianten als Nahstufe (bis LOD_DIST)
+## und als Impostor-Fernstufe (ab LOD_DIST). Zellen erlauben Frustum-Culling und LOD je Gebiet.
+## trees = Array von [Vector3 pos, float scale].
 static func forest(parent: Node3D, trees: Array, rng: RandomNumberGenerator, shadows: bool = true) -> void:
-	var variants: Array[ArrayMesh] = []
-	for v in 4:
-		variants.append(pine_mesh(rng, 11.0 + v * 1.6))
-	var buckets: Array = [[], [], [], []]
+	if not _cache.has("spruce_hi"):
+		var hi: Array = []
+		var lo: Array = []
+		var vr := RandomNumberGenerator.new()
+		for v in 3:
+			vr.seed = 811 + v * 37
+			hi.append(spruce_mesh(vr, TREE_H * (0.9 + 0.1 * v)))
+			lo.append(spruce_impostor(v))
+		_cache["spruce_hi"] = hi
+		_cache["spruce_lo"] = lo
+	var hi_m: Array = _cache["spruce_hi"]
+	var lo_m: Array = _cache["spruce_lo"]
+	var cells: Dictionary = {}
 	for t in trees:
-		buckets[rng.randi() % 4].append(t)
-	for v in 4:
-		var list: Array = buckets[v]
-		if list.is_empty():
-			continue
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = variants[v]
-		mm.instance_count = list.size()
-		for i in list.size():
-			var p: Vector3 = list[i][0]
-			var s: float = list[i][1]
-			var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s * rng.randf_range(0.9, 1.1), s, s * rng.randf_range(0.9, 1.1)))
-			b = Basis(Vector3(1, 0, 0), rng.randf_range(-0.03, 0.03)) * b
-			mm.set_instance_transform(i, Transform3D(b, p + Vector3(0, -0.2, 0)))
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		if not shadows:
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		parent.add_child(mmi)
+		var p: Vector3 = t[0]
+		var key := Vector2i(floori(p.x / CELL), floori(p.z / CELL))
+		if not cells.has(key):
+			cells[key] = []
+		var s: float = t[1]
+		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s * rng.randf_range(0.88, 1.12), s * rng.randf_range(0.95, 1.08), s * rng.randf_range(0.88, 1.12)))
+		b = Basis(Vector3(1, 0, 0), rng.randf_range(-0.025, 0.025)) * Basis(Vector3(0, 0, 1), rng.randf_range(-0.025, 0.025)) * b
+		cells[key].append([Transform3D(b, p + Vector3(0, -0.2, 0)), rng.randi() % 2])
+	for key: Vector2i in cells:
+		var list: Array = cells[key]
+		var cv := absi(key.x * 7 + key.y * 13)
+		# Nahstufe: zwei Varianten je Zelle
+		var parts: Array = [[], []]
+		for e in list:
+			parts[int(e[1])].append(e[0])
+		for j in 2:
+			var xs: Array = parts[j]
+			if xs.is_empty():
+				continue
+			var mi := _mm_node(hi_m[(cv + j) % 3], xs, shadows)
+			mi.visibility_range_end = LOD_DIST
+			mi.visibility_range_end_margin = 6.0
+			parent.add_child(mi)
+		# Fernstufe: Impostor passend zur jeweiligen Nahstufen-Variante
+		for j in 2:
+			var xs: Array = parts[j]
+			if xs.is_empty():
+				continue
+			var lm := _mm_node(lo_m[(cv + j) % 3], xs, shadows)
+			lm.visibility_range_begin = LOD_DIST
+			lm.visibility_range_begin_margin = 6.0
+			parent.add_child(lm)
+
+static func _mm_node(mesh: Mesh, xforms: Array, shadows: bool) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	if not shadows:
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mmi
 
 ## Kollision fuer Baumstaemme (ein Body, viele Zylinder).
 static func trunk_colliders(parent: Node3D, trees: Array) -> void:
@@ -373,21 +518,11 @@ static func house_pieces(parent: Node3D, pos: Vector3, yaw_deg: float, size: Vec
 
 # --------------------------------------------------------------------------- Graben, Sandsaecke, Draht
 
-## Sandsackwall mit frei waehlbarer Lagenzahl (niedrige Grabenbrustwehr).
+## Sandsackwall mit frei waehlbarer Lagenzahl (niedrige Grabenbrustwehr). Jute-Saecke (Poly Haven
+## "hessian_230") als MultiMesh mit Schneeauflage, siehe ph_props.gd.
 static func sandbags(parent: Node3D, pos: Vector3, yaw_deg: float, length: float, layers: int, rng: RandomNumberGenerator, covers: Array, collide: bool = true) -> void:
 	var b := Geo.static_body(pos, yaw_deg)
-	var bb := Geo.batch()
-	var n := maxi(2, int(length / 0.55))
-	for layer in layers:
-		var off := 0.27 if layer % 2 == 1 else 0.0
-		var cnt := n if off == 0.0 else n - 1
-		for i in cnt:
-			var z := -length / 2.0 + 0.3 + off + i * ((length - 0.6) / maxf(n - 1, 1))
-			var sz := Vector3(rng.randf_range(0.44, 0.52), rng.randf_range(0.24, 0.3), rng.randf_range(0.58, 0.66))
-			var rot := Basis(Vector3.UP, rng.randf_range(-0.12, 0.12)) * Basis(Vector3.RIGHT, rng.randf_range(-0.12, 0.12))
-			for row: float in [-1.0, 1.0]:
-				bb.add_ball(Vector3(row * 0.24 + rng.randf_range(-0.03, 0.03), 0.14 + layer * 0.23, z), sz, rot)
-	add_batch(b, bb, sand_mat())
+	PH.sandbag_wall(b, length, layers, rng, 0.55)
 	var h := 0.14 + layers * 0.23
 	if collide:
 		Geo.add_box_shape(b, Vector3(0, h / 2.0, 0), Vector3(0.9, h, length))
@@ -522,44 +657,39 @@ static func power_line(parent: Node3D, pts: Array, rng: RandomNumberGenerator, c
 
 # --------------------------------------------------------------------------- Fahrzeuge
 
-## Liegengebliebener Schuetzenpanzer (angelehnt an CV90), leicht schraeg, Heckluke offen.
+## Liegengebliebener Schuetzenpanzer (Modell des "Rabe", Puma-aehnlich), leicht schraeg, Heckklappe
+## heruntergelassen, Innenraum rot beleuchtet. Kollision/Deckung wie bisher.
 static func ifv(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Array) -> StaticBody3D:
 	var b := Geo.static_body(pos, yaw_deg)
 	var root := Node3D.new()
 	root.rotation_degrees = Vector3(-2.5, 0, 4.0)
 	b.add_child(root)
-	var hull_m := metal(Color(0.3, 0.33, 0.27), 0.55)
-	var dark := metal(Color(0.1, 0.1, 0.09), 0.3)
-	var hull := Geo.batch()
-	hull.add(Vector3(0, 1.15, 0), Vector3(3.1, 1.1, 6.4))
-	hull.add(Vector3(0, 0.9, 3.4), Vector3(3.0, 0.8, 1.0), Basis(Vector3(1, 0, 0), deg_to_rad(-35.0)))
-	hull.add(Vector3(0, 1.75, 1.7), Vector3(3.0, 0.3, 2.6), Basis(Vector3(1, 0, 0), deg_to_rad(-8.0)))
-	for sx: float in [-1.0, 1.0]:
-		hull.add(Vector3(sx * 1.62, 1.2, 0), Vector3(0.12, 0.7, 6.6))
-	# Turm + Kanone
-	hull.add(Vector3(0.1, 2.15, -0.4), Vector3(2.0, 0.7, 2.6))
-	hull.add(Vector3(0.1, 2.25, 1.1), Vector3(1.1, 0.5, 0.6))
-	hull.add(Vector3(-0.6, 2.6, -1.0), Vector3(0.5, 0.3, 0.6))
-	root.add_child(Geo.mesh_node(hull.build(), hull_m))
-	var gun := Geo.cylinder_node(0.07, 3.2, dark, Vector3(0.1, 2.25, 3.0), Vector3(88.0, 0, 0), 8)
-	root.add_child(gun)
-	var tracks := Geo.batch()
-	var wheel_m := Geo.flat(Color(0.06, 0.06, 0.055), 0.8, 0.3)
-	for sx: float in [-1.0, 1.0]:
-		tracks.add(Vector3(sx * 1.45, 0.45, 0), Vector3(0.6, 0.9, 6.9))
-		for k in 7:
-			root.add_child(Geo.cylinder_node(0.38, 0.5, wheel_m, Vector3(sx * 1.48, 0.42, -2.8 + k * 0.93), Vector3(0, 0, 90), 12))
-	root.add_child(Geo.mesh_node(tracks.build(), dark))
-	# Heckluke offen (Rampe), Innenraum rot beleuchtet
-	var ramp := Geo.box_mesh_node(Vector3(1.6, 0.08, 1.6), hull_m, Vector3(0, 0.55, -3.9), Vector3(-30, 0, 0))
-	root.add_child(ramp)
-	root.add_child(Geo.box_mesh_node(Vector3(1.5, 1.0, 0.05), Geo.flat(Color(0.02, 0.02, 0.02), 0.9), Vector3(0, 1.15, -3.18)))
+	var model := Node3D.new()
+	model.name = "IfvModel"
+	model.rotation_degrees.y = 180.0      # Modell: Front = -Z; hier zeigt die Kanone nach +Z
+	root.add_child(model)
+	var parts: Dictionary = IfvModel.build(model)
+	var hull: Node3D = parts["hull"]
+	# Turm leicht verdreht, Kanone gesenkt
+	(parts["turret"] as Node3D).rotation_degrees.y = 14.0
+	(parts["mantlet"] as Node3D).rotation_degrees.x = -4.0
+	# Heckklappe (Modell: z = +3.45) an der Unterkante abklappen
+	for c in hull.get_children():
+		if c is MeshInstance3D and (c as Node3D).position.distance_to(Vector3(0, 1.15, 3.45)) < 0.05:
+			var door := c as MeshInstance3D
+			var hinge := Vector3(0, 0.63, 3.47)
+			var ang := deg_to_rad(68.0)
+			door.rotation = Vector3(ang, 0, 0)
+			door.position = hinge + Vector3(0, 0.525 * cos(ang), 0.525 * sin(ang))
+			break
+	# dunkler Innenraum hinter der offenen Klappe
+	hull.add_child(Geo.box_mesh_node(Vector3(1.3, 0.95, 0.04), Geo.flat(Color(0.02, 0.02, 0.02), 0.9), Vector3(0, 1.15, 2.6)))
 	var red := OmniLight3D.new()
 	red.light_color = Color(1.0, 0.12, 0.08)
 	red.light_energy = 2.2
 	red.omni_range = 5.0
 	red.light_volumetric_fog_energy = 2.0
-	red.position = Vector3(0, 1.2, -3.6)
+	red.position = Vector3(0, 1.25, -3.1)
 	root.add_child(red)
 	Geo.add_box_shape(b, Vector3(0, 1.1, 0), Vector3(3.3, 2.2, 7.0), Vector3(-2.5, 0, 4.0))
 	Geo.add_box_shape(b, Vector3(0.1, 2.3, -0.4), Vector3(2.0, 0.9, 2.6), Vector3(-2.5, 0, 4.0))
@@ -593,16 +723,11 @@ static func cart(parent: Node3D, pos: Vector3, yaw_deg: float, tipped: bool, cov
 	covers.append(pos + bs * Vector3(1.8, 0, 0))
 	covers.append(pos + bs * Vector3(-1.8, 0, 0))
 
-## Holzkisten-Stapel (Munitionskisten).
+## Holzkisten-Stapel (Munitionskisten, Poly Haven "wooden_military_crate"/"ammo_box", verschneit).
 static func crates(parent: Node3D, pos: Vector3, yaw_deg: float, rng: RandomNumberGenerator, covers: Array) -> void:
 	var b := Geo.static_body(pos, yaw_deg)
-	var bb := Geo.batch()
-	var n := rng.randi_range(3, 6)
-	for i in n:
-		var lvl := 0 if i < 3 else 1
-		bb.add(Vector3((i % 3 - 1) * 0.75 + rng.randf_range(-0.05, 0.05), 0.25 + lvl * 0.5, rng.randf_range(-0.08, 0.08)), Vector3(0.7, 0.48, 0.5), Basis(Vector3.UP, rng.randf_range(-0.15, 0.15)))
-	add_batch(b, bb, planks(Color(0.33, 0.36, 0.26), 0.55))
-	Geo.add_box_shape(b, Vector3(0, 0.5, 0), Vector3(2.3, 1.0, 0.7))
+	PH.crate_stack(b, rng, 0.5)
+	Geo.add_box_shape(b, Vector3(0, 0.5, 0), Vector3(2.5, 1.0, 0.6))
 	parent.add_child(b)
 	var bs := Basis(Vector3.UP, deg_to_rad(yaw_deg))
 	covers.append(pos + bs * Vector3(0, 0, 1.2))

@@ -13,6 +13,7 @@ signal hit_confirmed(killed: bool, headshot: bool)
 
 const VIEW_LAYER_BIT: int = 1 << 19   # Render-Layer 20: nur die Waffen-Kamera sieht das
 const HIT_MASK: int = 1 | 2 | 4        # world + player + enemy
+const OWN_FIRE_DB: float = 5.0          # eigene Schuesse: Pegel-Anhebung gegenueber anderen Waffen-Sfx
 const DEBRIS_LAYER: int = 8            # Physik-Layer 4: debris (kollidiert nur mit world)
 const MAX_DEBRIS: int = 16
 
@@ -111,6 +112,9 @@ const MAX_DEBRIS: int = 16
 ## Auswurffenster (Pivot-Raum); ZERO = keine Hülsen
 @export var eject_pos: Vector3 = Vector3.ZERO
 @export var shell_len: float = 0.045
+## Schalldämpfer (Level "curfew"): Zylinder an der Mündung, kaum Mündungsfeuer, kein Licht.
+@export var suppressed: bool = false
+@export var suppressor_length: float = 0.15
 
 var ammo_mag: int = 0
 var ammo_reserve: int = 0
@@ -121,9 +125,11 @@ var owner_player: Player = null
 var muzzle: Node3D
 var _pivot: Node3D
 var _flash_light: OmniLight3D
-var _flash_mesh: MeshInstance3D
-var _flash_particles: GPUParticles3D
+var _flash_vm_light: OmniLight3D   # schwaches Licht nur fuers Viewmodel (sonst glueht die Waffe orange)
+var _muzzle_fx: Node3D   # Muendungsfeuer: Flash-Sprites, Funken, Rauchhauch (rein optisch, game/graphics/muzzle_fx.gd)
 var _flash_t: float = 0.0
+var _flash_peak: float = 0.0
+const FLASH_LIGHT_TIME := 0.05   # s: kurzes, warmes Flackern statt langem Leuchten
 var _cooldown: float = 0.0
 var _shot_index: int = 0
 var _since_shot: float = 10.0
@@ -171,7 +177,6 @@ class Spring3:
 		v = Vector3.ZERO
 
 static var _tracer_mat: StandardMaterial3D
-static var _flash_mat: StandardMaterial3D
 static var _metal_mat: StandardMaterial3D
 static var _poly_mat: StandardMaterial3D
 static var _cloth_mat: StandardMaterial3D
@@ -179,6 +184,7 @@ static var _debris: Array = []
 static var _shell_mat: StandardMaterial3D
 
 const MAX_SHELLS: int = 10
+const MuzzleFx := preload("res://game/graphics/muzzle_fx.gd")
 var _shells: Array = []                    # [{node, vel, angv, t, sound}]
 var _wall_amt: float = 0.0
 
@@ -192,6 +198,8 @@ func _ready() -> void:
 	_base_pos = hip_pos
 	_build_model()
 	_build_muzzle_flash()
+	if suppressed:
+		_build_suppressor()
 	_phase_sfx = not Sfx.get_variants(sfx_prefix + "_mag_in").is_empty()
 	set_active(false)
 
@@ -204,7 +212,9 @@ func set_active(on: bool) -> void:
 		cancel_reload()
 		_flash_t = 0.0
 		_flash_light.visible = false
-		_flash_mesh.visible = false
+		_flash_vm_light.visible = false
+		if _muzzle_fx != null:
+			_muzzle_fx.call("stop")
 	else:
 		# Beim Ziehen leichter Schwung von unten (Feder schwingt nach)
 		_imp_r.v += Vector3(-60.0, 25.0, 40.0)
@@ -229,7 +239,11 @@ func tick(delta: float) -> void:
 		_flash_t -= delta
 		if _flash_t <= 0.0:
 			_flash_light.visible = false
-			_flash_mesh.visible = false
+			_flash_vm_light.visible = false
+		else:
+			var lf: float = _flash_t / FLASH_LIGHT_TIME
+			_flash_light.light_energy = _flash_peak * lf * lf * randf_range(0.8, 1.0)
+			_flash_vm_light.light_energy = _flash_light.light_energy * 0.3
 	_tick_shells(delta)
 
 func is_launcher() -> bool:
@@ -415,7 +429,7 @@ func try_fire(cam: Camera3D, ads: float, move_ratio: float, crouching: bool, air
 	_shoot(cam, spread)
 	_eject_shell()
 	_muzzle_flash()
-	_play(sfx_fire, 0.035, 1.2)
+	_play(sfx_fire, 0.035, 1.2, OWN_FIRE_DB)   # eigene Schuesse lauter (Nutzerwunsch)
 	fired.emit(self)
 	return true
 
@@ -475,14 +489,25 @@ func _apply_hit(res: Dictionary, dir: Vector3) -> void:
 		# Ziele mit eigener Kopf-Logik (EnemyHitbox -> take_hit_part) bekommen den kleineren
 		# effektiven Multiplikator, damit nicht doppelt multipliziert wird (siehe headshot_mult_hitbox).
 		dmg *= headshot_mult_hitbox if _target_scales_headshots(target) else headshot_mult
+	# Gepanzerte Gegner (armored_enemy.gd): exakte Schussrichtung fuer die Plattenerkennung,
+	# danach Abpraller -> kein Blut, kein weisser Treffer-Marker (eigener Marker im ArmorHud).
+	var armor: Node = target
+	if not armor.has_method("armor_deflected") and armor.has_method("get_enemy"):
+		armor = target.call("get_enemy") as Node
+	if armor != null and not armor.has_method("armor_deflected"):
+		armor = null
+	if armor != null:
+		armor.call("set_shot_dir", dir)
 	target.take_damage(dmg, owner_player, pos, normal)
 	var killed: bool = was_alive and not target.is_alive()
-	if is_enemy:
+	var deflected: bool = armor != null and bool(armor.call("armor_deflected"))
+	var no_blood: bool = armor != null and bool(armor.call("armor_blocks_blood"))
+	if is_enemy and not no_blood:
 		VFX.spawn_blood(pos, normal)
-	else:
-		VFX.spawn_impact(pos, normal, "metal")
-	if was_alive:
-		hit_confirmed.emit(killed, headshot)
+	elif not is_enemy:
+		VFX.spawn_impact(pos, normal, str(target.get_meta("surface", "metal")) if target is Node else "metal")
+	if was_alive and (killed or not deflected):
+		hit_confirmed.emit(killed, headshot and not deflected)
 
 func _target_scales_headshots(target: Node) -> bool:
 	if target.has_method("take_hit_part"):
@@ -505,19 +530,21 @@ func _find_damageable(n: Object) -> Node:
 
 # ---------------------------------------------------------------- Effekte
 
-func _play(sfx: String, jitter: float = 0.0, vol_jitter_db: float = 0.0) -> void:
+func _play(sfx: String, jitter: float = 0.0, vol_jitter_db: float = 0.0, vol_offset_db: float = 0.0) -> void:
 	if owner_player:
-		owner_player.play_sfx(sfx, jitter, vol_jitter_db)
+		owner_player.play_sfx(sfx, jitter, vol_jitter_db, vol_offset_db)
 
 func _muzzle_flash() -> void:
-	_flash_t = 0.045
+	if _muzzle_fx != null:
+		_muzzle_fx.call("fire")
+	if suppressed:
+		return   # Schalldaempfer: kein Muendungslicht, Sprite macht muzzle_fx (fast unsichtbar)
+	_flash_t = FLASH_LIGHT_TIME
+	_flash_peak = randf_range(2.4, 3.6) * (2.0 if is_launcher() else 1.0)
+	_flash_light.light_energy = _flash_peak
 	_flash_light.visible = true
-	_flash_mesh.visible = true
-	_flash_mesh.rotation.z = randf() * TAU
-	var s: float = randf_range(0.8, 1.3)
-	_flash_mesh.scale = Vector3(s, s, s)
-	_flash_particles.restart()
-	_flash_particles.emitting = true
+	_flash_vm_light.light_energy = _flash_peak * 0.3
+	_flash_vm_light.visible = true
 
 func _spawn_tracer(cam: Camera3D, end: Vector3) -> void:
 	var start: Vector3 = _tracer_start(cam)
@@ -670,6 +697,10 @@ func _eject_shell() -> void:
 	mi.material_override = _shell_mat
 	mi.layers = VIEW_LAYER_BIT
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Im Zielfernrohr unsichtbar: die Waffen-Kamera ist dann mitgezoomt, die Huelse flog sonst
+	# als riesiger "gelber Holzstab" durchs Bild. Klimpern beim Aufschlag bleibt.
+	if has_method("is_scoped") and bool(call("is_scoped")):
+		mi.visible = false
 	_world_root().add_child(mi)
 	var gb: Basis = _pivot.global_basis.orthonormalized()
 	# Zylinder liegt quer zur Laufachse (Hülse zeigt nach rechts)
@@ -702,13 +733,58 @@ func _tick_shells(delta: float) -> void:
 			n.global_basis = Basis(av.normalized(), av.length() * delta) * n.global_basis
 		if not bool(s.snd) and float(s.t) > 0.42:
 			s.snd = true
-			if randf() < 0.6:
-				_play("shell_drop", 0.12, 3.0)
+			_shell_sound(n.global_position)
 		if float(s.t) > 0.7:
 			n.queue_free()
 			_shells.remove_at(i)
 			continue
 		i += 1
+
+## Huelsen-Klimpern (Nutzerwunsch: war viel zu laut/zu oft): leise, nicht bei jedem Schuss, gedrosselt bei
+## Dauerfeuer und abhaengig vom Untergrund unter der Huelse (weich = still, Metall = hellstes Klimpern).
+static var _shell_snd_ms: int = -100000
+
+func _shell_sound(pos: Vector3) -> void:
+	var now: int = Time.get_ticks_msec()
+	if now - _shell_snd_ms < 280 or randf() > 0.4:
+		return
+	var vol: float = -17.0
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space != null:
+		var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.3, pos + Vector3.DOWN * 2.5, 1)
+		var r: Dictionary = space.intersect_ray(q)
+		if r.is_empty():
+			return
+		var c: Node = r.collider as Node
+		var surf: String = ""
+		while c != null and surf == "":
+			surf = str(c.get_meta("surface", ""))
+			c = c.get_parent()
+		match surf:
+			"dirt", "water", "flesh", "grass", "sand", "snow", "mud", "cloth":
+				return
+			"metal":
+				vol = -11.0
+			"concrete", "stone", "tile":
+				vol = -14.0
+			"wood":
+				vol = -18.0
+	var sfx := Sfx.get_stream("shell_drop")
+	if sfx == null:
+		return
+	_shell_snd_ms = now
+	var ap := AudioStreamPlayer3D.new()
+	ap.stream = sfx
+	ap.bus = &"SFX"
+	ap.volume_db = vol + randf_range(-2.0, 1.0)
+	ap.pitch_scale = randf_range(0.9, 1.15)
+	ap.unit_size = 2.0
+	ap.max_distance = 15.0
+	var host: Node = get_tree().current_scene if get_tree().current_scene != null else self
+	host.add_child(ap)
+	ap.global_position = pos
+	ap.finished.connect(ap.queue_free)
+	ap.play()
 
 # ---------------------------------------------------------------- Viewmodel-Animation
 
@@ -1275,6 +1351,13 @@ func _apply_pistol_mats(n: Node) -> void:
 			m.clearcoat = 0.2
 			_pistol_mats[key] = m
 	if n is MeshInstance3D:
+		# Modelle mit eigenen PBR-Texturen (z. B. service_pistol.glb) behalten ihre Materialien
+		var pm: Mesh = (n as MeshInstance3D).mesh
+		var sm0: Material = pm.surface_get_material(0) if pm and pm.get_surface_count() > 0 else null
+		if sm0 is BaseMaterial3D and (sm0 as BaseMaterial3D).albedo_texture != null:
+			for c in n.get_children():
+				_apply_pistol_mats(c)
+			return
 		var nm: String = n.name.to_lower()
 		var key2: String = "part"
 		if nm.begins_with("slide"):
@@ -1297,79 +1380,86 @@ func _build_pistol_primitive() -> void:
 	muzzle.position = Vector3(0, 0.025, -0.222)
 
 func _build_muzzle_flash() -> void:
-	# Warmes Licht (beleuchtet auch die Welt)
+	# Warmes Licht (beleuchtet auch die Welt), nur ~3 Frames Flackern
 	_flash_light = OmniLight3D.new()
-	_flash_light.light_color = Color(1.0, 0.72, 0.4)
+	_flash_light.light_color = Color(1.0, 0.68, 0.36)
 	_flash_light.light_energy = 3.0
-	_flash_light.omni_range = 9.0
+	_flash_light.omni_range = 7.0
+	_flash_light.omni_attenuation = 1.6
 	_flash_light.shadow_enabled = false
 	_flash_light.position = Vector3(0, 0, -0.1)
 	_flash_light.visible = false
+	_flash_light.light_cull_mask = 0xFFFFF & ~VIEW_LAYER_BIT
 	muzzle.add_child(_flash_light)
-	# Emissives Quad (Billboard, radialer Verlauf)
-	if _flash_mat == null:
-		var grad := Gradient.new()
-		grad.set_color(0, Color(1.0, 0.95, 0.75, 1.0))
-		grad.add_point(0.35, Color(1.0, 0.6, 0.2, 0.8))
-		grad.set_color(grad.get_point_count() - 1, Color(1.0, 0.3, 0.05, 0.0))
-		var tex := GradientTexture2D.new()
-		tex.gradient = grad
-		tex.fill = GradientTexture2D.FILL_RADIAL
-		tex.fill_from = Vector2(0.5, 0.5)
-		tex.fill_to = Vector2(0.5, 0.0)
-		tex.width = 64
-		tex.height = 64
-		_flash_mat = StandardMaterial3D.new()
-		_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_flash_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_flash_mat.albedo_texture = tex
-		_flash_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		_flash_mat.billboard_keep_scale = true
-		_flash_mat.no_depth_test = true
-	_flash_mesh = MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(0.16, 0.16) if model_kind == "pistol" else (Vector2(0.6, 0.6) if is_launcher() else Vector2(0.28, 0.28))
-	_flash_mesh.mesh = q
-	_flash_mesh.material_override = _flash_mat
-	_flash_mesh.layers = VIEW_LAYER_BIT
-	_flash_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_flash_mesh.position = Vector3(0, 0, -0.04)
-	_flash_mesh.visible = false
-	muzzle.add_child(_flash_mesh)
-	# Funken
-	_flash_particles = GPUParticles3D.new()
-	var pm := ParticleProcessMaterial.new()
-	pm.direction = Vector3(0, 0, -1)
-	pm.spread = 28.0
-	pm.initial_velocity_min = 2.0
-	pm.initial_velocity_max = 6.0
-	pm.gravity = Vector3(0, -3.0, 0)
-	pm.scale_min = 0.5
-	pm.scale_max = 1.2
-	_flash_particles.process_material = pm
-	var spark := SphereMesh.new()
-	spark.radius = 0.006
-	spark.height = 0.012
-	spark.radial_segments = 6
-	spark.rings = 3
-	spark.material = _tracer_spark_mat()
-	_flash_particles.draw_pass_1 = spark
-	_flash_particles.amount = 8
-	_flash_particles.lifetime = 0.14
-	_flash_particles.one_shot = true
-	_flash_particles.explosiveness = 1.0
-	_flash_particles.emitting = false
-	_flash_particles.local_coords = false
-	_flash_particles.layers = VIEW_LAYER_BIT
-	_flash_particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	muzzle.add_child(_flash_particles)
+	_flash_vm_light = OmniLight3D.new()
+	_flash_vm_light.light_color = Color(1.0, 0.86, 0.7)
+	_flash_vm_light.omni_range = 0.6
+	_flash_vm_light.shadow_enabled = false
+	_flash_vm_light.light_cull_mask = VIEW_LAYER_BIT
+	_flash_vm_light.position = Vector3(0, 0.03, -0.12)
+	_flash_vm_light.visible = false
+	muzzle.add_child(_flash_vm_light)
+	# Flash-Sprites (prozedurale Texturen), Funken, Rauchhauch: game/graphics/muzzle_fx.gd
+	_muzzle_fx = MuzzleFx.new()
+	_muzzle_fx.name = "MuzzleFx"
+	muzzle.add_child(_muzzle_fx)
+	_muzzle_fx.call("setup", model_kind == "pistol", suppressed, VIEW_LAYER_BIT, 2.0 if is_launcher() else 1.0)
 
-func _tracer_spark_mat() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(1.0, 0.8, 0.4)
-	m.emission_enabled = true
-	m.emission = Color(1.0, 0.7, 0.3)
-	m.emission_energy_multiplier = 4.0
-	return m
+# ---------------------------------------------------------------- Schalldämpfer
+
+## Mattschwarzer Schalldämpfer vor der Mündung; die Mündung (Flash, Tracer) wandert an sein Ende.
+func _build_suppressor() -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.06, 0.062, 0.066)
+	mat.metallic = 0.65
+	mat.roughness = 0.42
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.albedo_color = Color(0.11, 0.11, 0.115)
+	ring_mat.metallic = 0.8
+	ring_mat.roughness = 0.3
+	var root := Node3D.new()
+	root.name = "Suppressor"
+	_pivot.add_child(root)
+	root.position = muzzle.position
+	var r := 0.0165
+	var parts: Array = [
+		# [Radius, Länge, Mitte z, Material]
+		[r * 0.62, 0.016, -0.006, ring_mat],                  # Gewindeadapter
+		[r, suppressor_length - 0.022, -0.012 - (suppressor_length - 0.022) * 0.5, mat],
+		[r * 1.04, 0.008, -0.018, ring_mat],                  # hinterer Ring
+		[r * 1.04, 0.01, -suppressor_length + 0.012, ring_mat], # Endkappe
+	]
+	for p in parts:
+		var cm := CylinderMesh.new()
+		cm.top_radius = p[0]
+		cm.bottom_radius = p[0]
+		cm.height = p[1]
+		cm.radial_segments = 28
+		cm.rings = 1
+		var mi := MeshInstance3D.new()
+		mi.mesh = cm
+		mi.material_override = p[3]
+		mi.rotation.x = PI * 0.5
+		mi.position = Vector3(0.0, 0.0, p[2])
+		mi.layers = VIEW_LAYER_BIT
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
+	# Bohrung (dunkle Scheibe an der Front)
+	var bore := CylinderMesh.new()
+	bore.top_radius = r * 0.32
+	bore.bottom_radius = r * 0.32
+	bore.height = 0.002
+	var bm := StandardMaterial3D.new()
+	bm.albedo_color = Color(0.0, 0.0, 0.0)
+	var bi := MeshInstance3D.new()
+	bi.mesh = bore
+	bi.material_override = bm
+	bi.rotation.x = PI * 0.5
+	bi.position = Vector3(0.0, 0.0, -suppressor_length + 0.0065)
+	bi.layers = VIEW_LAYER_BIT
+	root.add_child(bi)
+	muzzle.position += Vector3(0.0, 0.0, -suppressor_length)
+	_flash_light.light_energy = 0.0
+	_flash_light.omni_range = 0.1
+
+

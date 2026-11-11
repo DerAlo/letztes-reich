@@ -68,6 +68,16 @@ func _ready() -> void:
 	var vs := str(Game.arg("views", ""))
 	if vs != "":
 		pick = Array(vs.split(","))
+	# Freie Ansichten: --cams=px,py,pz,tx,ty,tz;px,py,pz,tx,ty,tz (Namen c0, c1, ...)
+	var cams := str(Game.arg("cams", ""))
+	if cams != "":
+		views = {}
+		pick = []
+		for i in cams.split(";").size():
+			var f := cams.split(";")[i].split(",")
+			if f.size() == 6:
+				views["c%d" % i] = [Vector3(float(f[0]), float(f[1]), float(f[2])), Vector3(float(f[3]), float(f[4]), float(f[5]))]
+				pick.append("c%d" % i)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://" + out.get_base_dir()))
 	var t0 := Time.get_ticks_msec()
 	while _level.has_method("is_level_ready") and not _level.call("is_level_ready") and Time.get_ticks_msec() - t0 < 20000:

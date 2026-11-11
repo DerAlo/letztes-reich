@@ -30,6 +30,7 @@ uniform float normal_strength = 0.7;
 uniform float paint_rough = 0.66;
 uniform float paint_metal = 0.0;
 uniform float spin = 0.0;
+uniform float snow_amount = 0.0;                                // Wracks im Schnee: Auflage auf waagrechten Flaechen
 instance uniform float y_offset = 0.0;
 
 varying vec3 v_pos;
@@ -110,6 +111,15 @@ void fragment() {
 	float metallic = mix(0.75, paint_metal, paint);
 	metallic = mix(metallic, 0.65, chip * paint);
 	metallic *= (1.0 - rubber) * (1.0 - rustm) * (1.0 - clamp(dirt + dust, 0.0, 1.0));
+	if (snow_amount > 0.0) {
+		// Schnee auf nach oben zeigenden Flaechen (Objektraum), Rand ausgefranst ueber das Rauschen
+		float up = n0.y + (ng.r - 0.5) * 0.35;
+		float snow = smoothstep(0.42, 0.7, up) * snow_amount;
+		snow = max(snow, (1.0 - smoothstep(0.0, 0.35, h)) * snow_amount * 0.8);
+		alb = mix(alb, vec3(0.78, 0.8, 0.84) * (0.9 + 0.2 * ng.b), snow);
+		rough = mix(rough, 0.75, snow);
+		metallic *= 1.0 - snow;
+	}
 
 	// Triplanare Normalen (Whiteout-Blend) im Objektraum
 	vec3 tx = texture(rust_normal, dp.zy).xyz * 2.0 - 1.0;

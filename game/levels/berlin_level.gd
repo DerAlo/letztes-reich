@@ -53,6 +53,7 @@ var _room_light: OmniLight3D
 var _alarm_light: OmniLight3D
 var _weber: Node3D
 var _weber_arm: Node3D
+var _weber_muzzle: Node3D
 var _room_screen: StaticBody3D
 var _black: ColorRect
 var _tank: Node3D
@@ -202,7 +203,7 @@ func _setup_environment() -> void:
 	env.volumetric_fog_length = 120.0
 	env.volumetric_fog_gi_inject = 0.5
 	env.volumetric_fog_ambient_inject = 0.12
-	env.volumetric_fog_sky_affect = 0.0
+	env.volumetric_fog_sky_affect = 0.7
 	env.glow_enabled = true
 	env.glow_hdr_threshold = 0.9
 	env.glow_intensity = 0.95
@@ -428,32 +429,23 @@ func _build_radio_room(bd: BP.Builder, body: StaticBody3D) -> void:
 	_weber.position = Vector3(0, 0, -295.2)
 	add_child(_weber)
 
-## Schlichte Figur (Silhouette im Gegenlicht): Weber in Uniform, Amber-Armbinde.
+## Weber in Uniform (Amber-Armbinde, Brille), schaut zur Tuer (+z); Pistole in der rechten Hand.
 func _build_weber() -> Node3D:
-	var root := Node3D.new()
-	root.name = "Weber"
-	var uni := Geo.flat(Color(0.16, 0.18, 0.15), 0.85)
-	var skin := Geo.flat(Color(0.55, 0.42, 0.34), 0.7)
-	var arm_band := Geo.flat(Color(1.0, 0.6, 0.13), 0.6, 0.0, Color(1.0, 0.55, 0.1), 0.6)
-	for sx: float in [-1.0, 1.0]:
-		root.add_child(Geo.box_mesh_node(Vector3(0.2, 0.9, 0.22), uni, Vector3(sx * 0.12, 0.45, 0)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.48, 0.68, 0.26), uni, Vector3(0, 1.24, 0)))
-	var head := MeshInstance3D.new()
-	var hs := SphereMesh.new()
-	hs.radius = 0.12
-	hs.height = 0.26
-	head.mesh = hs
-	head.material_override = skin
-	head.position = Vector3(0, 1.72, 0)
-	root.add_child(head)
-	root.add_child(Geo.box_mesh_node(Vector3(0.27, 0.07, 0.3), uni, Vector3(0, 1.83, 0.02)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.12, 0.62, 0.12), uni, Vector3(-0.31, 1.22, 0)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.135, 0.1, 0.135), arm_band, Vector3(-0.31, 1.36, 0)))
-	_weber_arm = Node3D.new()
-	_weber_arm.position = Vector3(0.31, 1.5, 0)
-	root.add_child(_weber_arm)
-	_weber_arm.add_child(Geo.box_mesh_node(Vector3(0.12, 0.62, 0.12), uni, Vector3(0, -0.28, 0)))
-	_weber_arm.add_child(Geo.box_mesh_node(Vector3(0.05, 0.12, 0.2), Geo.flat(Color(0.05, 0.05, 0.05), 0.4, 0.6), Vector3(0, -0.6, 0.06)))
+	var fig: Dictionary = preload("res://game/characters/vip_models.gd").make("weber_uniform")
+	var root: Node3D = fig["root"]
+	root.rotation.y = PI
+	_weber_arm = (fig["arms"] as Array)[1]
+	var gun := Geo.flat(Color(0.05, 0.05, 0.05), 0.4, 0.6)
+	# Pistole im Griffpunkt der rechten Hand (Hand-Node folgt Armpose und Modell)
+	var hand := (fig["hands"] as Array)[1] as Node3D
+	# Hand-lokal: -y = Armrichtung (Lauf zeigt bei gehobenem Arm nach vorn), +z = unten, -z = oben
+	hand.add_child(Geo.box_mesh_node(Vector3(0.028, 0.04, 0.11), gun, Vector3(0, 0.005, 0.03), Vector3(-15, 0, 0)))
+	hand.add_child(Geo.box_mesh_node(Vector3(0.03, 0.17, 0.036), gun, Vector3(0, -0.045, -0.035)))
+	# Muendung: vorderes Ende des Verschlusses
+	_weber_muzzle = Node3D.new()
+	_weber_muzzle.name = "Muzzle"
+	hand.add_child(_weber_muzzle)
+	_weber_muzzle.position = Vector3(0, -0.135, -0.035)
 	return root
 
 func _build_neon_signs() -> void:
@@ -833,6 +825,9 @@ func _build_markers() -> void:
 		["assault", 3, 6.0, 0.05, -244.0], ["heavy", 3, -2.0, 0.05, -236.0], ["drone", 3, -8.0, 7.0, -220.0], ["drone", 3, 10.0, 8.0, -228.0],
 		["assault", 4, -6.0, 0.05, -273.0], ["rifleman", 4, 7.0, 0.05, -274.0], ["rifleman", 4, -12.0, 0.05, -268.0],
 		["heavy", 4, 10.0, 0.05, -275.0],
+		# gepanzerte Soldaten + Juggernaut vor dem Sendezentrum (Finale nach dem Buehnenanschlag)
+		["armored", 2, -4.0, 0.05, -158.0], ["armored", 3, 8.0, 0.05, -231.0], ["armored", 4, -14.0, 0.05, -276.0],
+		["juggernaut", 4, 0.0, 0.05, -281.0],
 	]
 	for i in spawns.size():
 		var s: Array = spawns[i]
@@ -860,7 +855,11 @@ func _build_markers() -> void:
 	_trigger("TriggerHeli", Vector3(0, 3, -100.0), Vector3(40, 6, 1.5), _spawn_heli)
 	_trigger("TriggerWave3", Vector3(0, 3, -176.0), Vector3(70, 6, 1.5), _on_wave3)
 	_trigger("Checkpoint2", Vector3(0, 3, -174.0), Vector3(70, 6, 1.5), _on_cp_plaza)
-	_trigger("TriggerWave4", Vector3(0, 3, -246.0), Vector3(70, 6, 1.5), func() -> void: _spawn_wave(4))
+	_trigger("TriggerWave4", Vector3(0, 3, -246.0), Vector3(70, 6, 1.5), func() -> void:
+		_spawn_wave(4)
+		_later(2.5, func() -> void:
+			if _boss_alive():
+				_say(SD.LENA, "Ein Koloss vor dem Eingang! Kopf oder Tornister, Jonas – nicht auf die Panzerung!", 4.2)))
 	_trigger("Checkpoint3", Vector3(0, 3, -250.0), Vector3(70, 6, 1.5), _on_cp_tower)
 	var area := _trigger("LevelEnd", Vector3(0, 2.0, -288.5), Vector3(12, 4, 3), _start_ending, true)
 	area.add_to_group("level_end")
@@ -931,6 +930,7 @@ func _build_atmosphere() -> void:
 		Props.fog_volume(self, Vector3(0, 1.5, z), Vector3(40, 5, 40), 0.02, Color(0.6, 0.55, 0.55))
 
 func _bake_nav() -> void:
+	preload("res://game/systems/destructible_placements.gd").place(self)  # zerstoerbare Deckung (systeme-c), vor dem Bake
 	var nm := NavigationMesh.new()
 	nm.agent_radius = 0.5
 	nm.agent_height = 1.75
@@ -1182,8 +1182,19 @@ func _on_cp_tower() -> void:
 
 # ------------------------------------------------------------------ Ablauf: Finale
 
+## Juggernaut (Welle 4) lebt noch und ist im Kampf?
+func _boss_alive() -> bool:
+	for b in get_tree().get_nodes_in_group("boss"):
+		if is_ancestor_of(b) and b.has_method("is_alive") and bool(b.call("is_alive")):
+			return true
+	return false
+
 func _start_ending() -> void:
 	if _ending:
+		return
+	if _boss_alive():
+		# Eingang erst frei, wenn der Juggernaut liegt
+		_later(1.0, _start_ending)
 		return
 	_ending = true
 	Events.story_cinematic.emit(true)
@@ -1216,7 +1227,9 @@ func _start_ending() -> void:
 	_later(11.2, _on_level_end)
 
 func _gunshot() -> void:
-	var muzzle := _weber.global_position + Vector3(0.31, 1.55, 0.7)
+	var muzzle := _weber.global_position + Vector3(-0.31, 1.6, 0.86)
+	if is_instance_valid(_weber_muzzle):
+		muzzle = _weber_muzzle.global_position
 	VFX.play_sfx_3d("pistol_fire", muzzle, 4.0, 12.0, 60.0)
 	var fl := OmniLight3D.new()
 	fl.light_color = Color(1.0, 0.8, 0.5)

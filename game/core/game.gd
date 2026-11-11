@@ -8,6 +8,20 @@ func _enter_tree() -> void:
 	_setup_input()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
+## Nach allen Autoloads (Settings existiert dann): gespeicherte Tastenbelegung und Audio-Optionen anwenden.
+## Ohne gespeicherte Werte (Bots/Tools laden nie) aendert sich nichts.
+const AUDIO_PREFS_PATH := "res://game/ui/audio_prefs.gd"
+
+func _ready() -> void:
+	_apply_user_config.call_deferred()
+
+func _apply_user_config() -> void:
+	InputConfig.apply_saved()
+	if ResourceLoader.exists(AUDIO_PREFS_PATH) and get_node_or_null("AudioPrefs") == null:
+		var ap: Node = (load(AUDIO_PREFS_PATH) as GDScript).new()
+		ap.name = "AudioPrefs"
+		add_child(ap)
+
 func _parse_args() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--"):
