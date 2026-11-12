@@ -406,6 +406,16 @@ func _build_props() -> void:
 		p.add_child(rb)
 		covers.append(rp + Vector3(0, 0, 1.4))
 		covers.append(rp + Vector3(0, 0, -1.4))
+	# Felsen am Wegrand fuer Welle 1: Schuetzen stehen am Waldrand (Laub-Sicht frei, Silhouette vor dem
+	# Kronendunkel), Deckung zum Weg hin. Feste Drehung, damit der rng-Strom der uebrigen Requisiten gleich bleibt.
+	for er: Array in [[Vector3(-2.75, 0, -80.8), "rock04", 0.7, 0.66, 35.0], [Vector3(2.05, 0, -87.3), "rock06", 0.7, 0.53, 200.0], [Vector3(-2.35, 0, -89.8), "rock02", 0.65, 0.47, 300.0], [Vector3(2.35, 0, -100.8), "rock03", 0.8, 0.41, 120.0]]:
+		var rp: Vector3 = er[0]
+		var rb := Geo.static_body(rp)
+		var rs: float = er[2]
+		PH.place(rb, "rock_moss_set_01", PH.xform(Vector3(0, float(er[3]) * rs - 0.12, 0), float(er[4]), Vector3.ONE * rs), 0.42, {"only": er[1], "center": true})
+		Geo.add_box_shape(rb, Vector3(0, 0.5, 0), Vector3(1.3, 1.0, 1.3))
+		p.add_child(rb)
+		covers.append(rp + Vector3(0, 0, -1.2))
 	# --- Dorfgasse ---
 	NightProps.cart(p, Vector3(-3.4, 0, -127.0), 4.0, false, covers)
 	NightProps.crates(p, Vector3(3.9, 0, -140.0), 90.0, rng, covers)
@@ -504,8 +514,8 @@ func _build_markers() -> void:
 	var spawns: Array = [
 		["rifleman", 0, -6.0, 0.05, -53.6], ["rifleman", 0, 8.3, 0.05, -56.7], ["rifleman", 0, -13.0, 0.05, -49.6],
 		["rifleman", 0, 12.5, 0.05, -43.6], ["rifleman", 0, -4.0, 0.05, -62.6], ["rifleman", 0, 15.0, 0.05, -60.0],
-		["rifleman", 1, -6.0, 0.05, -78.0], ["rifleman", 1, 6.5, 0.05, -88.0], ["rifleman", 1, -6.5, 0.05, -101.0],
-		["assault", 1, 7.0, 0.05, -106.0], ["drone", 1, 0.0, 6.0, -100.0],
+		["rifleman", 1, -2.9, 0.05, -82.0], ["rifleman", 1, 2.2, 0.05, -88.5], ["rifleman", 1, -2.5, 0.05, -91.0],
+		["assault", 1, 2.5, 0.05, -102.0], ["drone", 1, 0.0, 6.0, -100.0],
 		["rifleman", 2, 3.6, 0.05, -142.0], ["rifleman", 2, -3.5, 0.05, -160.0], ["rifleman", 2, 6.5, 0.05, -153.5],
 		["marksman", 2, -6.5, 0.05, -172.0], ["heavy", 2, 1.0, 0.05, -167.0],
 		["assault", 3, -6.0, 0.05, -192.0], ["officer", 3, -8.0, 0.05, -201.0], ["rifleman", 3, 9.0, 0.05, -215.0],

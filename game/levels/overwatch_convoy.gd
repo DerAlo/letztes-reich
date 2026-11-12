@@ -378,12 +378,10 @@ static func _gun_bed(root: Node3D, k: MK, z0: float, z1: float) -> void:
 	k.color = MK.shade(MK.METAL, 0.4)
 	k.cyl(Vector3(0, 1.3, -0.6), Vector3(0, 2.5, -0.6), 0.07, 10)
 	k.cbox(Vector3(0, 2.55, -0.6), Vector3(0.3, 0.1, 0.3), 0.02)
-	k.color = MK.shade(MK.METAL, 0.22)
-	k.cbox(Vector3(0, 2.72, -0.75), Vector3(0.16, 0.2, 0.75), 0.02)
-	k.cyl(Vector3(0, 2.75, -1.12), Vector3(0, 2.75, -2.15), 0.03, 8)
-	k.cyl(Vector3(0, 2.75, -1.25), Vector3(0, 2.75, -1.75), 0.05, 10)
-	k.cbox(Vector3(0, 2.66, -0.3), Vector3(0.1, 0.18, 0.25), 0.02)
-	k.cbox(Vector3(0.14, 2.62, -0.8), Vector3(0.16, 0.18, 0.28), 0.02)   # Munitionskasten
+	# M2 Browning ohne Dreibein auf dem Sockel (GunModels, mit prozeduralem Rueckfall)
+	var m2 := GunModels.build_m2(false)
+	m2.position = Vector3(0, 2.6, -0.6) - (m2.get_meta("pivot", Vector3(0, 0.27, 0.1)) as Vector3)
+	root.add_child(m2)
 	k.color = MK.shade(MK.PAINT, 0.8)
 	k.cbox(Vector3(0, 2.95, -1.0), Vector3(0.8, 0.5, 0.04), 0.02, Vector3(-8, 0, 0))   # Schutzschild
 

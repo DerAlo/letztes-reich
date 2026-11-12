@@ -355,6 +355,16 @@ func _build_bridge_props() -> void:
 	# Feld 3: russisches MG-Nest und Sperren
 	RP.sandbag_wall(world, Vector3(4.1, 0.0, -168.0), 0.0, 3.0, 3, rng, covers)
 	RP.sandbag_wall(world, Vector3(5.2, 0.0, -170.0), 90.0, 3.0, 3, rng, covers)
+	# M2 auf Dreibein auf der Brustwehr (zweite Sandsackreihe dahinter traegt die hinteren Beine; eigener
+	# Zufallsgenerator, damit das restliche Layout gleich bleibt)
+	var mrng := RandomNumberGenerator.new()
+	mrng.seed = 355
+	RP.sandbag_wall(world, Vector3(4.1, 0.0, -168.45), 0.0, 1.4, 3, mrng, covers, false)
+	RP.sandbag_wall(world, Vector3(4.1, 0.0, -167.95), 0.0, 1.4, 3, mrng, covers, false)   # zweite Reihe: Dreibein steht ganz auf
+	var m2 := GunModels.build_m2()
+	m2.position = Vector3(4.1, 0.74, -167.98)
+	m2.rotation_degrees.y = 180.0
+	world.add_child(m2)
 	Props.hedgehog(world, Vector3(-4.2, 0.0, -156.0), 20.0, covers)
 	Props.vehicle(world, Vector3(-4.7, 0.0, -179.0), 12.0, "car", dark, true, true, covers)
 	RP.model(world, "concrete_road_barrier", Vector3(2.4, 0.0, -184.0), 4.0, 1.0, Vector3(1.55, 0.83, 0.64), covers)

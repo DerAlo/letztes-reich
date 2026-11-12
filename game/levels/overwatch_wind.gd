@@ -17,15 +17,14 @@ const PROFILES := {
 const BLEND_T := 6.0          # Zeitkonstante beim Wechsel des Grundwinds (s)
 const GUST_AMP := 0.3         # +-30 % Staerke
 const GUST_DIR := 0.24        # ~ +-14 Grad
-const SOCK_SEGS := 5
-const SOCK_FULL := 7.5        # ab dieser Staerke steht der Sack waagerecht
+const Windsock = preload("res://game/levels/windsock.gd")
 
 var _base: Vector3 = Vector3(-1.0, 0.0, 0.15).normalized() * 3.0
 var _goal: Vector3 = _base
 var _cur: Vector3 = _base
 var _t: float = 0.0
 var _noise := FastNoiseLite.new()
-var _socks: Array = []        # {pivot: Node3D, segs: Array[Node3D], phase: float}
+var _socks: Array = []        # Windsock-Knoten (windsock.gd)
 var _steam: Array = []        # {pm: ParticleProcessMaterial, gy: float, drift: float}
 var _steam_t: float = 0.0
 var _wisps: GPUParticles3D = null
@@ -98,92 +97,21 @@ func _process(delta: float) -> void:
 
 # ---------------------------------------------------------------- Windsack
 
+## Windsack (gemeinsame Klasse game/levels/windsock.gd): an den Stellungen am Gelaender verschraubt,
+## an der Strasse freistehend mit Abspannung.
 func _build_sock(base: Vector3, pole_h: float) -> void:
-	var holder := Node3D.new()
-	holder.name = "Windsock"
-	add_child(holder)
-	holder.position = base
-	var pole_mat := StandardMaterial3D.new()
-	pole_mat.albedo_color = Color(0.32, 0.33, 0.34)
-	pole_mat.metallic = 0.6
-	pole_mat.roughness = 0.5
-	var pole := MeshInstance3D.new()
-	var pm := CylinderMesh.new()
-	pm.top_radius = 0.035
-	pm.bottom_radius = 0.05
-	pm.height = pole_h
-	pm.radial_segments = 8
-	pole.mesh = pm
-	pole.material_override = pole_mat
-	pole.position = Vector3(0.0, pole_h * 0.5, 0.0)
-	holder.add_child(pole)
-	# Drehgelenk oben; der Sack haengt in +Z dieses Gelenks
-	var pivot := Node3D.new()
-	pivot.position = Vector3(0.0, pole_h, 0.0)
-	holder.add_child(pivot)
-	var ring := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = 0.2
-	tm.outer_radius = 0.24
-	ring.mesh = tm
-	ring.material_override = pole_mat
-	ring.rotation_degrees = Vector3(90, 0, 0)
-	pivot.add_child(ring)
-	var orange := StandardMaterial3D.new()
-	orange.albedo_color = Color(0.95, 0.36, 0.06)
-	orange.emission_enabled = true
-	orange.emission = Color(0.55, 0.16, 0.02)
-	orange.emission_energy_multiplier = 0.5     # nachts noch erkennbar
-	orange.cull_mode = BaseMaterial3D.CULL_DISABLED
-	orange.roughness = 0.85
-	var white := orange.duplicate() as StandardMaterial3D
-	white.albedo_color = Color(0.92, 0.92, 0.9)
-	white.emission = Color(0.4, 0.4, 0.4)
-	var segs: Array = []
-	var parent: Node3D = pivot
-	var seg_len: float = 0.34
-	for i in SOCK_SEGS:
-		var joint := Node3D.new()
-		joint.position = Vector3(0.0, 0.0, 0.0 if i == 0 else seg_len)
-		parent.add_child(joint)
-		var mi := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		var r0: float = lerpf(0.22, 0.1, float(i) / float(SOCK_SEGS))
-		var r1: float = lerpf(0.22, 0.1, float(i + 1) / float(SOCK_SEGS))
-		cm.top_radius = r0
-		cm.bottom_radius = r1
-		cm.height = seg_len
-		cm.radial_segments = 10
-		cm.cap_top = false
-		cm.cap_bottom = false
-		mi.mesh = cm
-		mi.material_override = orange if i % 2 == 0 else white
-		mi.rotation_degrees = Vector3(90, 0, 0)    # Zylinderachse entlang +Z
-		mi.position = Vector3(0.0, 0.0, seg_len * 0.5)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		joint.add_child(mi)
-		segs.append(joint)
-		parent = joint
-	_socks.append({"pivot": pivot, "segs": segs, "phase": randf() * TAU})
+	var sk: Node3D = Windsock.new()
+	sk.name = "Windsock"
+	sk.call("setup", {"len": 2.4 if pole_h < 5.0 else 3.0, "mount": "pole", "pole_h": pole_h, "guys": pole_h >= 5.0})
+	add_child(sk)
+	sk.position = base
+	_socks.append(sk)
 
 func _update_socks() -> void:
-	var flat := Vector3(_cur.x, 0.0, _cur.z)
-	var spd: float = flat.length()
-	var yaw: float = atan2(flat.x, flat.z) if spd > 0.05 else 0.0
-	var lift: float = clampf(spd / SOCK_FULL, 0.0, 1.0)
-	var droop: float = lerpf(deg_to_rad(80.0), deg_to_rad(2.0), sqrt(lift))
-	for s in _socks:
-		var pivot: Node3D = s["pivot"]
-		var ph: float = float(s["phase"])
-		var flutter: float = sin(_t * (6.0 + spd * 1.6) + ph) * (0.05 + 0.1 * lift)
-		pivot.rotation = Vector3(droop * 0.6, yaw + flutter * 0.4, 0.0)
-		var segs: Array = s["segs"]
-		for i in segs.size():
-			var j: Node3D = segs[i]
-			if i == 0:
-				continue
-			var w: float = sin(_t * (7.0 + spd * 2.0) + ph + float(i) * 1.1) * (0.06 + 0.08 * lift) * float(i) / float(segs.size())
-			j.rotation = Vector3(droop * 0.4 / float(segs.size() - 1), w, 0.0)
+	var dt: float = get_process_delta_time()
+	for sk in _socks:
+		if is_instance_valid(sk):
+			(sk as Node).call("set_wind", _cur, dt)
 
 # ---------------------------------------------------------------- Dampf, Dunst
 

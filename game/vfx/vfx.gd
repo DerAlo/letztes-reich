@@ -130,11 +130,22 @@ func debris_material() -> StandardMaterial3D:
 	return _debris_mat
 
 ## Gibt false zurueck (und gibt body frei), wenn das Truemmer-Limit erreicht ist.
+## Hoechstens so viele neue Truemmer-Koerper pro Frame (mehrere Bomben im selben Frame
+## liessen sonst die Physik in eine Todesspirale laufen: 72 Koerper -> 3 FPS).
+const MAX_DEBRIS_PER_FRAME := 12
+var _debris_frame: int = -1
+var _debris_in_frame: int = 0
+
 func add_debris(body: Node3D) -> bool:
-	if _debris_count >= MAX_DEBRIS:
+	var f := Engine.get_process_frames()
+	if f != _debris_frame:
+		_debris_frame = f
+		_debris_in_frame = 0
+	if _debris_count >= MAX_DEBRIS or _debris_in_frame >= MAX_DEBRIS_PER_FRAME:
 		body.queue_free()
 		return false
 	_debris_count += 1
+	_debris_in_frame += 1
 	add_child(body)
 	return true
 
@@ -145,6 +156,56 @@ func schedule_free(body: Node3D, after: float) -> void:
 	tw.tween_callback(func() -> void:
 		_debris_count = maxi(_debris_count - 1, 0)
 		body.queue_free())
+
+# --- Vorwaermen (Ladebildschirm) ---------------------------------------------
+
+## Alle Effekt-Varianten einmal sichtbar vor der Kamera abspielen (Shader-/Pipeline-Kompilierung, Partikel-
+## Compute-Shader, Schatten der Explosionslichter, Truemmer, Decals), ohne Ton. Danach warmup_end() aufrufen.
+## Ohne das kompilierte die erste Bombe im Spiel ~20 Pipelines (rail_yard: 288 ms Ruckler).
+func warmup_begin(at: Vector3, fwd: Vector3) -> void:
+	var was := bool(audio.get("enabled"))
+	audio.set("enabled", false)
+	audio.call("prewarm")
+	var side := fwd.cross(Vector3.UP).normalized()
+	if side.length() < 0.1:
+		side = Vector3.RIGHT
+	spawn_explosion(at + fwd * 4.0, 0.6)
+	var i := 0
+	for surf in ["concrete", "metal", "wood", "dirt", "blood"]:
+		spawn_impact(at + side * (float(i) - 2.0) * 0.6 + Vector3.UP * 1.2, -fwd, surf)
+		i += 1
+	spawn_dust_cloud(at + fwd * 2.0 - side * 2.0, 2.0)
+	spawn_scorch(at + fwd * 2.0, Vector3.UP, 2.0, 1.0)
+	# Pools ganz auffuellen: jeder neue Einschlag-Effekt baut Partikel, Materialien und Kurven-Texturen beim
+	# ersten Bedarf, sonst mitten im Feuergefecht (bis zu 14 + 4 Mal)
+	var k := 0
+	while _impact_count < MAX_IMPACTS:
+		_get_impact(false).call("play", "dirt", at + fwd * 3.0 + side * (float(k % 5) - 2.0) * 0.5, -fwd, 0.6)
+		k += 1
+	while _cloud_count < 4:
+		_get_impact(true).call("play", "cloud", at + fwd * 3.0, Vector3.UP, 1.0)
+	# Explosions-Pool ebenso: mehrere gleichzeitige Detonationen (rail_yard Bombenteppich, 3+ Bomben) bauten
+	# neue Explosionen mitten im Spiel (10 Partikelsysteme, +14 Pipelines, 120 ms)
+	var ei := 0
+	while _expl_all.size() < MAX_EXPLOSIONS or not _expl_free.is_empty():
+		spawn_explosion(at + fwd * (6.0 + float(ei) * 1.5), 1.0)
+		ei += 1
+	audio.set("enabled", was)
+
+func warmup_end() -> void:
+	for e in _expl_all:
+		if e.call("is_busy"):
+			e.call("reset")
+	for c in get_children():
+		if c is RigidBody3D:
+			c.queue_free()
+		elif c.get_script() == ImpactScript:
+			c.call("reset")
+	_debris_count = 0
+	for d in _decals:
+		if is_instance_valid(d):
+			d.queue_free()
+	_decals.clear()
 
 # --- Pools -----------------------------------------------------------------
 

@@ -13,6 +13,9 @@ extends SceneTree
 ## Meta "loco_speed": natuerliche Laufgeschwindigkeit der Fortbewegungs-Clips (m/s) fuer den Blend-Space.
 
 const FPS := 30.0
+## Stiefel sind steif: Zehen-Beugung der Quelle (UAL bis ~55 Grad) nur gedaempft uebernehmen, sonst knickt der
+## Stiefel-Vorderteil weg und der Schuh wirkt ploetzlich riesig/lang ("Clownschuhe").
+const TOE_FLEX := 0.4
 const SRC := "res://assets/characters/soldier_mh/src/soldier_%s.glb"
 const TEX := "res://assets/characters/soldier_mh/tex/"
 const OUT := "res://assets/characters/soldier_mh/soldier_mh_%s.scn"
@@ -442,6 +445,10 @@ func _bake(v: String, srcs: Dictionary) -> void:
 				if idx.has(i):
 					var si: int = idx[i]
 					tt.basis = (sg[si].basis.orthonormalized() * s.rest[si].basis.orthonormalized().inverse() * tp[i].basis).orthonormalized()
+					if i == toes[0] or i == toes[1]:
+						var pb: Basis = g[parents[i]].basis
+						var lq := Quaternion((pb.inverse() * tt.basis).orthonormalized())
+						tt.basis = pb * Basis(Quaternion(lrest[i].basis.orthonormalized()).slerp(lq, TOE_FLEX))
 					if i == hips:
 						var d := sg[si].origin - s.rest[si].origin - drift * (t / sa.length)
 						tt.origin = tp[i].origin + d * k
@@ -487,8 +494,18 @@ func _bake(v: String, srcs: Dictionary) -> void:
 		if spec[5] > 0.0 and natural > 0.1:
 			var fac: float = natural / spec[5]
 			for tr in a.get_track_count():
-				for kk in a.track_get_key_count(tr):
-					a.track_set_key_time(tr, kk, a.track_get_key_time(tr, kk) * fac)
+				# Keys neu aufbauen statt track_set_key_time: das sortiert beim Strecken (fac > 1) um und hat die
+				# Keys verwuerfelt (Zeiten > Clip-Laenge, Beine springen pro Frame bis 110 Grad -> "Clownschuhe" im Lauf)
+				var nk := a.track_get_key_count(tr)
+				var kt: Array[float] = []
+				var kv: Array = []
+				for kk in nk:
+					kt.append(a.track_get_key_time(tr, kk) * fac)
+					kv.append(a.track_get_key_value(tr, kk))
+				for kk in range(nk - 1, -1, -1):
+					a.track_remove_key(tr, kk)
+				for kk in nk:
+					a.track_insert_key(tr, kt[kk], kv[kk])
 			a.length *= fac
 			speeds[spec[0]] = spec[5]
 			print("[%s] %s: Tempo x%.2f (natuerlich %.2f m/s -> %.2f m/s)" % [v, spec[0], 1.0 / fac, natural, spec[5]])

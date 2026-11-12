@@ -6,6 +6,14 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 1
 
 | | |
 |---|---|
+| ![Hauptmenü](docs/screenshots/v04_hauptmenue.jpg) | ![Absetzen mit der Mi-8](docs/screenshots/v04_alpenpass_mi8_absetzen.jpg) |
+| **Hauptmenü** – Fortsetzen, Missionsauswahl, Episoden und Einstellungen direkt beim Spielstart | **Weißes Rauschen** – Absetzen am Grenzpass, die Mi-8 hebt im Schneesturm der Rotoren ab |
+| ![Kessel](docs/screenshots/v04_alpenpass_kessel.jpg) | ![Lawine](docs/screenshots/v04_alpenpass_lawine.jpg) |
+| **Der Kessel** – bei klarer Sicht durch das Hochtal zur Zollhütte | **Lawine** – Mörserfeuer auf die Wechte, die Pulverwolke rollt die Rinne hinab |
+| ![Bootsjagd](docs/screenshots/v04_hafen_bootsjagd_mg5.jpg) | ![Aurelia](docs/screenshots/v04_hafen_aurelia.jpg) |
+| **Kräne** – nächtliche Bootsjagd im Rostocker Hafen, MG5 gegen die Garde-Boote | **Die Aurelia** – Weber entkommt über die Gangway des Frachters |
+| ![Juggernaut](docs/screenshots/v04_juggernaut.jpg) | |
+| **Juggernaut** – Altyn-Helm, Plattenträger und MG5 | |
 | ![Holovisier](docs/screenshots/01_holo_sight_officer.jpg) | ![Panzerfaust an der Brücke](docs/screenshots/02_river_bridge_panzerfaust.jpg) |
 | **Häuserkampf** – Offizier und Sturmsoldat im Holovisier der G36C | **Die Brücke** – Panzerfaust 3 gegen den Kampfhubschrauber, im Regen |
 | ![Scharfschützen-Laser](docs/screenshots/03_baltic_night_marksman_laser.jpg) | ![Letzter Zug](docs/screenshots/04_rail_yard_evening.jpg) |

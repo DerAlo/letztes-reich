@@ -79,6 +79,16 @@ Selbst erzeugt (CC0, prozedural in `build_vip.py`): geschlossener Stehkragen mit
 Brille (Weber), Barett (Falk), Feldmuetze (Graumantel), Schirmmuetzen-Varianten mit Silber-/Goldpaspel,
 Armbinde, Koppel, Schulterstuecke. Kein Bart (kein CC0-Bart-Asset verfuegbar). Keine realen Hoheitszeichen.
 
+## Operator-Gegner (Sketchfab Standard License) - `assets/characters/soldier_op/`
+
+Modell "S.W.A.T. Operator - Remastered" von Mateusz Wolinski (jeandiz),
+https://sketchfab.com/3d-models/swat-operator-remastered-732d2eec5a0c456bafedd08af35134c3 - Sketchfab Standard License
+(Nutzung in Projekten erlaubt, keine Weitergabe als eigenstaendiges Asset). Bake: `game/enemies/tools/bake_soldier_op.gd`
+-> `soldier_op.scn` (KSVR-Meshes entfernt, Texturen 2048 px, LODs, Skelett mit SWAT-kompatiblen Knochennamen,
+Animationen aus Quaternius UAL/SWAT retargetet). Laufzeit: `soldier_visual.gd` (Art "op"), `soldier_op.gdshader`,
+`soldier_op_hood.gdshader`. Verwendet fuer gepanzerte Typen (armored/juggernaut) und als Fallback ohne `graphics/real_soldiers`.
+Fraktionsfarben/Armbinden/Abzeichen sind erfunden; keine realen Hoheitszeichen.
+
 ## Realistische Gegner-Soldaten (MakeHuman / MPFB2, CC0) - `assets/characters/soldier_mh/`
 
 Pipeline: `python tools/soldier/prep_soldier.py <tex_dir> <helmet_dir>` + `blender -b --python tools/soldier/build_soldier.py -- ...`
@@ -116,3 +126,79 @@ Daher keine neuen externen Assets. Alles Folgende ist selbst erzeugt (CC0):
 - Haut-Shader `game/enemies/soldier_mh_skin.gdshader` (waermerer Hautton, Haaransatz, Halstuch auf der Haut).
 - Armbinden werden im Uniform-Shader (`soldier_mh_cloth.gdshader`) auf den Aermel projiziert.
 - Wiederverwendet: Gewebe-Struktur `assets/characters/textures/rough_linen/diffuse.jpg` (Poly Haven "Rough Linen", CC0, s. assets/CREDITS.md).
+
+### Nachtrag: Waffenmodelle (Runde waffen_neu)
+
+Externe Modelle, CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/), Namensnennung erforderlich:
+- `assets/weapons/ak74m/`: AK-74M, Waffenmodell von creationwasteland (Sketchfab), aus dem Paket
+  "FPS AK-74m animations" von Cransh (ccransh), https://sketchfab.com/3d-models/fps-ak-74m-animations-94be8385c402474cacd39bc096c6ca14
+  (nur Waffe, Arme entfernt, Skin statisch gebacken, skaliert auf 0,943 m, Texturen 2048 px).
+- `assets/weapons/g36/`: "HK G36" von r4m, https://sketchfab.com/3d-models/hk-g36-2cf3be6a834c425bbc2a416e85b52042
+  (skaliert auf 0,999 m, Teile getrennt, Texturen 2048 px).
+- Rotpunktvisier auf dem G36: eigene Arbeit, prozedural (CC0).
+- `assets/models/weapons/mbus/`: Klapp-Notvisier (Kimme/Korn) auf dem G36: "Magpul MBUS Sights GEN3" von xylvnking,
+  https://sketchfab.com/3d-models/magpul-mbus-sights-gen3-a27302dcf26644d3a4be3d30fbde318e
+  (Sketchfab Standard-Lizenz, keine Namensnennung erforderlich; in Kimme/Korn zusammengefasst, echter Massstab,
+  Texturen auf 2048 px, Rauheit fuer mattes Polymer angehoben).
+- Das alte AK-47-Modell (Lamoot, CC0) wird nicht mehr verwendet.
+
+### Nachtrag: Maschinengewehre und Juggernaut-Ausruestung
+
+CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/), Namensnennung erforderlich:
+- `assets/models/weapons/m2/`: "M2 Browning" von Charlie Tinley (@Tnkii),
+  https://sketchfab.com/3d-models/m2-browning-7b83ca60e6c9451f9f23d2d0bc0e4710
+  (in Koerper/Lauf/Dreibein getrennt, skaliert auf ca. 1,65 m, Texturen max. 2048 px). Schwere Stellungen/MG-Nester.
+- `assets/models/weapons/mg5/`: "low-poly HK MG5" von D_U (@DU1701),
+  https://sketchfab.com/3d-models/low-poly-hk-mg5-ca249a577a5744b8bc7e16ff063a6e5e
+  (skaliert auf ca. 1,2 m, Texturen max. 2048 px; `mg5_world.glb` = schwarz umgefaerbte Ein-Mesh-Fassung fuer Gegner,
+  Munitionskasten samt Gurt 3,5 cm naeher an die Waffe gesetzt). MG-Schuetzen, Juggernaut, Bord-MG.
+
+Sketchfab Standard-Lizenz (Free Standard, keine Namensnennung erforderlich; trotzdem genannt):
+- `assets/models/gear/altyn/`: "Altyn helmet" von Kenza9 (@atynnikov31),
+  https://sketchfab.com/3d-models/altyn-helmet-57e1db31f2e34530ae072baa1fd1b9f6 (Juggernaut-Helm, Visier mit eigenem Shader).
+- `assets/models/gear/gasmask/`: "Gas mask and helmet" von TwilightFox (@twilightfox),
+  https://sketchfab.com/3d-models/gas-mask-and-helmet-e4edaaa99eca46c7868a77ef390bed6f (nur Maske + Filter genutzt).
+- `assets/models/gear/plate_carrier/`: "Free - Armor Plate Carrier - Gameready Metahuman" von Karnaval (@amadions),
+  https://sketchfab.com/3d-models/free-armor-plate-carrier-gameready-metahuman-39d3b162b14444d487eb39186268e7a7
+  (Juggernaut-Plattentraeger, auf den Anzug skaliert).
+
+### Nachtrag: Erste-Person-Arme
+
+Externes Modell, CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/), Namensnennung erforderlich:
+- `assets/characters/fp_arms/`: Arme (Aermel + Handschuhe) mit Rig aus dem Paket "FPS AK-74m animations"
+  von Cransh (ccransh), https://sketchfab.com/3d-models/fps-ak-74m-animations-94be8385c402474cacd39bc096c6ca14
+  (nur Arme, Pose aus "AK_Idle" eingefroren, in den Kameraraum gebacken, Texturen 2048 px; Lizenztext in LICENSE.txt).
+  Zur Laufzeit per IK an die Waffe gestellt (game/weapons/fp_arms.gd).
+
+### Nachtrag: Hochgebirge "Weisses Rauschen" (Alpenpass-Overhaul)
+Poly Haven (https://polyhaven.com), Lizenz CC0 (gemeinfrei), keine Namensnennung erforderlich:
+- `assets/environment/textures/snow_field_aerial/`: "Snow Field Aerial" (https://polyhaven.com/a/snow_field_aerial) – grossflaechige Verwehungen im Gelaende-Shader
+- `assets/environment/textures/rock_face_03/`: "Rock Face 03" (https://polyhaven.com/a/rock_face_03) – Fels an steilen Haengen
+- `assets/environment/props/models/boulder_01/`: "Boulder 01" (https://polyhaven.com/a/boulder_01) – Felsbrocken als Deckung im Kessel
+
+### Nachtrag: Mission "Kraene" (Hafen) – Schiffe, Boote, Kraene, Container
+
+Externe Modelle von Sketchfab, eingebunden ueber die Modell-Slots in `assets/models/hafen/` (game/levels/hafen_models.gd);
+Lizenztext je Ordner in license.txt. Kollision bleibt im Code (Boxen).
+CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/), Namensnennung erforderlich:
+- `assets/models/hafen/zollboot/`: "Patrol Speed Boat" von bartolt, https://sketchfab.com/3d-models/patrol-speed-boat-0177025d02f44def9b252a36d5fd70f8
+  (Spielerboot; skaliert, verbreitert, Materialien neu eingefaerbt: Marineblau/Grau).
+- `assets/models/hafen/weber_boat/`: "Yatch I (second edition)" von dannzjs, https://sketchfab.com/3d-models/yatch-i-second-edition-b826e1c52d604c599b893967bed8a254
+  (Webers Fluchtboot, auf 9 m skaliert).
+- `assets/models/hafen/freighter_aurelia/`: "Cargo ship" von hungry_drifter, https://sketchfab.com/3d-models/cargo-ship-b7c97df584824ca682d26daabf401f87
+  (Frachter "Aurelia"; Name als Label, Fallreep und Matrosen prozedural ergaenzt).
+- `assets/models/hafen/port_crane/`: "Port crane \"Sokol\"" von Vitaliy Kovalchuk (Domender), https://sketchfab.com/3d-models/port-crane-sokol-4964eaa7634e47c9bac4c2a74fa91c20
+  (Wippdrehkrane am Westkai, Originalanimation hin und zurueck, Hindernisfeuer ergaenzt).
+- `assets/models/hafen/container/`: "Classic Shipping Container (Free/Gameready)" von Sebastian Webster, https://sketchfab.com/3d-models/classic-shipping-container-freegameready-772f4be391a245f699c54e6cf157c58d
+  (20-ft-Container als MultiMesh mit Farbvarianten je Instanz).
+Sketchfab Standard-Lizenz (https://sketchfab.com/licenses), keine Namensnennung erforderlich:
+- `assets/models/hafen/garde_boat/`: "JM 16 (ZOLFAQAR) SPEEDBOAT" von Haikyousha, https://sketchfab.com/3d-models/jm-16-zolfaqar-speedboat-37450859926a4c6280d8c45396f3896a
+  (Garde-Schnellboot; Rumpfschriftzug unkenntlich gemacht, Bug-DShK dient als Spiel-MG).
+
+### Nachtrag: Hubschrauber Mi-8 / Mi-28N
+
+CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), Hubschrauber (skaliert, gedreht, Rotoren getrennt, Texturen auf 2048 px):
+- `assets/models/vehicles/mi8/`: "Russian Transport Heli" von Mateusz Wolinski (https://sketchfab.com/jeandiz), https://sketchfab.com/3d-models/russian-transport-heli-ab981d28f7124a489cd1b1992b2e467b
+  (Mi-8-Transporter, Brandts Hubschrauber; gebacken nach mi8.scn durch tools/bake_heli_models.gd).
+- `assets/models/vehicles/mi28n/`: "Mi-28N Havoc" von Rukh3D (https://sketchfab.com/rukh3d), https://sketchfab.com/3d-models/mi-28n-havoc-3e80c95bbadf46abbafba9d9a08afc68
+  (gegnerischer Kampfhubschrauber/Garde; gebacken nach mi28n.scn durch tools/bake_heli_models.gd).

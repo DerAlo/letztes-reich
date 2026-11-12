@@ -38,3 +38,6 @@ sprint_to_fire = 0.22
 ads_eye_dist = 0.09
 shell_len = 0.06
 sfx_fire = "overwatch_dmr_fire"
+hand_r_pos = Vector3(0.02, -0.05, 0.12)
+hand_r_rot = Vector3(-15, 0, 0)
+hand_l_pos = Vector3(-0.02, -0.03, -0.22)

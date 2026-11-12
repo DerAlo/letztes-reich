@@ -4,17 +4,31 @@ extends RefCounted
 
 const VF := preload("res://game/vehicles/vehicle_fx.gd")
 const VfxLib := preload("res://game/vfx/vfx_lib.gd")
+const MG5_MUZZLE := Vector3(0.0, 0.03, -0.792)
 
 static var _hit_pm: ParticleProcessMaterial
 static var _hit_mat: Material
 static var _big_pm: ParticleProcessMaterial
 static var _spray_mat: Material
 
-## Einfaches MG auf Schwenklafette (Fuss am mount_yaw, Waffe am mount_pitch).
+## Bord-/Tuer-MG auf Schwenklafette (Fuss am mount_yaw, Waffe am mount_pitch): HK MG5 (GunModels).
+## Die Muendung (Marker "Muzzle" am mount_pitch) wird an die Waffe gesetzt. Rueckfall ohne Modell:
+## einfaches Kasten-MG.
 static func build_pintle_mg(mount_yaw: Node3D, mount_pitch: Node3D) -> void:
 	var steel := VF.mat("rr_gun_steel", Color(0.13, 0.135, 0.14), 0.45, 0.8)
 	var dark := VF.mat("rr_gun_dark", Color(0.06, 0.06, 0.065), 0.6, 0.5)
 	VF.mesh_node(mount_yaw, VF.cyl(0.05, 0.07, 0.9), steel, Vector3(0, -0.5, 0))
+	var mg := GunModels.build_mg5()
+	if mg != null:
+		# Drehpunkt unter dem Gehaeuse zwischen Gurtkasten und Griff, Seelenachse 5 cm darueber
+		mg.position = Vector3(0, 0.02, 0.12)
+		mount_pitch.add_child(mg)
+		VF.mesh_node(mount_pitch, VF.box(Vector3(0.06, 0.04, 0.1)), steel, Vector3(0, -0.035, 0))
+		VF.mesh_node(mount_yaw, VF.cyl(0.03, 0.03, 0.05), steel, Vector3(0, -0.05, 0))
+		var mz := mount_pitch.get_node_or_null("Muzzle") as Node3D
+		if mz != null:
+			mz.position = mg.position + (mg.get_meta("muzzle", MG5_MUZZLE) as Vector3)
+		return
 	VF.mesh_node(mount_yaw, VF.box(Vector3(0.18, 0.12, 0.25)), steel, Vector3(0, -0.06, 0))
 	# Gehaeuse, Lauf mit Mantel, Kolben, Patronenkasten, Griffe
 	VF.mesh_node(mount_pitch, VF.box(Vector3(0.11, 0.13, 0.62)), dark, Vector3(0, 0.04, -0.12))

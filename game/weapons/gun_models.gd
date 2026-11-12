@@ -1,6 +1,7 @@
 class_name GunModels
 extends RefCounted
-## Prozedurale Waffenmodelle (G36C, Panzerfaust 3, Holo-Visier, Munitionskisten) und Materialien.
+## Waffenmodelle: AK-74M und G36 (CC-BY-Modelle, eigene PBR-Texturen, siehe assets/CREDITS.md),
+## prozedural: G36C (Rueckfall Zielfernrohrgewehr), Rotpunkt-Visier, Panzerfaust 3, Munitionskisten.
 ## Alle Masse in Metern, Lauf entlang -Z, rechts = +X. Benannte Teile fuer die Animation:
 ## "Magazine" (Magazin bzw. Gefechtskopf) und "Charging_Handle" (Spannhebel).
 ## Die Modelle werden sowohl als Viewmodel (Layer 20) als auch als Pickup in der Welt benutzt.
@@ -11,13 +12,80 @@ extends RefCounted
 ## gecacht – jedes weitere Modell (Pickup, Drop) teilt sich die Meshes.
 ## Material: gun_surface.gdshader (objektraum-triplanare Mikrostruktur + Kantenabnutzung, ohne UVs).
 
-const AK_PATH: String = "res://assets/weapons/ak47/ak47.glb"
+# AK-74M: "creationwasteland" / FPS-Pack "Cransh" (Sketchfab, CC-BY 4.0); G36: "r4m" (Sketchfab, CC-BY 4.0).
+# Aufbereitet (statisch gebacken, Spielrahmen: Meter, Lauf -Z, oben +Y, Ursprung = Abzug, Seelenachse 3 cm darueber).
+# *_world.glb: dieselbe Waffe als EIN Mesh (Gegner, Pickups; Import-LODs).
+const AK_PATH: String = "res://assets/weapons/ak74m/ak74m.glb"
+const AK_WORLD_PATH: String = "res://assets/weapons/ak74m/ak74m_world.glb"
+const G36_PATH: String = "res://assets/weapons/g36/g36.glb"
+const G36_WORLD_PATH: String = "res://assets/weapons/g36/g36_world.glb"
+## Referenzpunkte im Modellraum. grip = Oberkante Pistolengriff (rechte Hand), hand_l = Handschutz unten
+## (linke Hand), sight_rear/sight_front = Kimme/Kornspitze (Visierlinie), optic_mount = Schienenoberkante.
+const AK_META: Dictionary = {
+	"muzzle": Vector3(0.0, 0.03, -0.6),
+	"eject": Vector3(0.022, 0.052, -0.1),
+	"sight_rear": Vector3(0.0, 0.0788, -0.1444),   # Oberkante Visierklappe (Kimme)
+	"sight_front": Vector3(0.0, 0.0762, -0.5065),
+	"grip": Vector3(0.0, -0.03, 0.06),
+	"hand_l": Vector3(0.0, -0.012, -0.27),
+	"stock_end": 0.343,
+	"length": 0.943,
+}
+const G36_META: Dictionary = {
+	"muzzle": Vector3(0.0, 0.03, -0.6155),
+	"eject": Vector3(0.026, 0.045, -0.04),
+	"optic_mount": Vector3(0.0, 0.098, -0.06),
+	"sight_rear": Vector3(0.0, 0.098 + 0.04081, 0.078),   # Lochkimme (Mitte), Magpul MBUS auf der Schiene
+	"sight_front": Vector3(0.0, 0.098 + 0.04081, -0.247), # Kornspitze (Oberkante Kornpfosten)
+	"grip": Vector3(0.0, -0.02, 0.07),
+	"hand_l": Vector3(0.0, -0.016, -0.3),
+	"stock_end": 0.3835,
+	"length": 0.999,
+}
+## Magpul MBUS Gen3 (xylvnking, Sketchfab Standard): Nodes "Rear"/"Front", aufgeklappt, Ursprung jeweils
+## Schienenoberkante unter Lochkimme bzw. Kornspitze; Lochmitte und Kornspitze MBUS_SIGHT_H darueber
+## (Korn um 0,5 mm unterlegt -> Visierlinie exakt parallel zur Schiene). Aufbereitung: echter Massstab
+## ueber die Picatinny-Klemme (21,2 mm), Texturen 2k, Polymer matt.
+const MBUS_PATH: String = "res://assets/models/weapons/mbus/mbus.glb"
+const MBUS_SIGHT_H: float = 0.04081
+const MBUS_SHADER: Shader = preload("res://game/weapons/mbus_sight.gdshader")
+static var _mbus_mat: ShaderMaterial
+const G36_RAIL_Y: float = 0.098
+const G36_SIGHT_Z: Vector2 = Vector2(0.078, -0.247)   # Lochkimme / Kornspitze (z) auf der Tragegriff-Schiene
+## HK MG5 (HK121, 7,62 mm): "low-poly HK MG5" von D_U (Sketchfab, CC-BY 4.0), Materialien schwarz/Polymer
+## nachgefaerbt (Bundeswehr), gruener Gurtkasten links unten. Spielrahmen wie AK/G36 (Ursprung = Abzug,
+## Seelenachse 3 cm darueber), 1,2 m lang. mg5_world.glb: dieselbe Waffe als EIN Mesh (Gegner).
+const MG5_PATH: String = "res://assets/models/weapons/mg5/mg5.glb"
+const MG5_WORLD_PATH: String = "res://assets/models/weapons/mg5/mg5_world.glb"
+const MG5_META: Dictionary = {
+	"muzzle": Vector3(0.0, 0.03, -0.792),
+	"eject": Vector3(0.03, 0.04, -0.1),
+	"sight_rear": Vector3(0.0, 0.110, -0.138),    # Oberkante Kimme (Klappvisier auf der Deckelschiene)
+	"sight_front": Vector3(0.0, 0.110, -0.5155),  # Kornspitze
+	"optic_mount": Vector3(0.0, 0.087, -0.06),
+	"grip": Vector3(0.0, -0.035, 0.075),
+	"hand_l": Vector3(0.0, -0.06, -0.3),
+	"stock_end": 0.408,
+	"length": 1.2,
+}
+## M2 Browning (.50 BMG) auf M3-Dreibein: Charlie Tinley (Sketchfab, CC-BY 4.0). Nodes Body/Barrel/Tripod,
+## 1,65 m lang; Ursprung = Boden unter der Waffe (Dreibeinfuesse), Lauf -Z, Seelenachse 0,324 m ueber dem
+## Boden. pivot = Lafettenzapfen (fuer Sockel ohne Dreibein), grip = Mitte der Spatengriffe.
+const M2_PATH: String = "res://assets/models/weapons/m2/m2.glb"
+const M2_META: Dictionary = {
+	"muzzle": Vector3(0.0, 0.324, -0.924),
+	"grip": Vector3(0.0, 0.33, 0.70),
+	"pivot": Vector3(0.0, 0.27, 0.1),
+	"length": 1.65,
+}
 const PISTOL_PATH: String = "res://assets/weapons/service_pistol/service_pistol.glb"   # Poly Haven, CC0
 const SURFACE_SHADER: Shader = preload("res://game/weapons/gun_surface.gdshader")
 
 static var _mats: Dictionary = {}
 static var _mesh_cache: Dictionary = {}
 static var _templates: Dictionary = {}
+# Geladene Waffen-Szenen festhalten: sonst fallen sie aus dem Ressourcen-Cache und jeder Drop laedt neu.
+static var _scenes: Dictionary = {}
 
 # ------------------------------------------------------------------ Materialien
 
@@ -145,32 +213,11 @@ static func _init_mats() -> void:
 	ret.albedo_color = Color(0.02, 0.02, 0.02)
 	ret.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mats["reticle"] = ret
-	# AK-74M (CC0-Modell mit eigenen UVs): brueniertes Metall, schwarzes Polymer, pflaumenfarbenes Magazin
-	var n1 := _noise_tex(0.06, 17)
-	var n2 := _noise_tex(0.18, 11)
-	_mats["ak_metal_std"] = _ak_pbr(Color(0.075, 0.075, 0.08), 0.8, 0.42, n1, 5.0)
-	_mats["ak_poly_std"] = _ak_pbr(Color(0.04, 0.04, 0.042), 0.0, 0.66, n2, 9.0)
-	_mats["ak_mag_std"] = _ak_pbr(Color(0.3, 0.12, 0.07), 0.0, 0.5, n2, 9.0)
-	# Wie G36: gun_surface-Shader (Kantenmaske wird in build_ak aus den Normalen gebacken)
-	_mats["ak_metal"] = _surf(Color(0.062, 0.062, 0.066), Color(0.44, 0.44, 0.46), 0.75, 1.0, 0.46, 0.24, 0.6, 9.0, 0.28,
-		{"dirt_amount": 0.22, "color_var": 0.1})
-	_mats["ak_poly"] = _surf(Color(0.038, 0.038, 0.04), Color(0.15, 0.15, 0.148), 0.0, 0.0, 0.64, 0.42, 0.5, 8.0, 0.24,
-		{"dirt_amount": 0.2, "color_var": 0.08, "specular_level": 0.4})
-	_mats["ak_mag"] = _surf(Color(0.25, 0.095, 0.055), Color(0.42, 0.24, 0.15), 0.0, 0.0, 0.52, 0.36, 0.5, 8.0, 0.2,
-		{"dirt_amount": 0.25, "color_var": 0.12})
+	# Rotpunkt-Visier: matt eloxiertes Aluminium (kaum Glanz, Kanten nur leicht blank)
+	_mats["anod_matte"] = _surf(Color(0.034, 0.036, 0.036), Color(0.3, 0.3, 0.31), 0.25, 0.9, 0.66, 0.42, 0.35, 6.0, 0.06,
+		{"dirt_amount": 0.1, "color_var": 0.06, "specular_level": 0.4})
 	_mats["metal"] = _mats["park"]
 	_mats["metal_worn"] = _mats["steel"]
-
-static func _ak_pbr(col: Color, metal: float, rough: float, rough_noise: NoiseTexture2D, tri_scale: float) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = col
-	m.metallic = metal
-	m.roughness_texture = rough_noise
-	m.roughness = minf(rough * 1.45, 1.0)
-	m.uv1_triplanar = true
-	m.uv1_scale = Vector3.ONE * tri_scale
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	return m
 
 # ------------------------------------------------------------------ Geometrie-Helfer
 
@@ -806,6 +853,60 @@ static func _holo_parts(b: Builder) -> void:
 	b.meta["glass_center"] = Vector3(0, gy, gz)
 	b.meta["glass_size"] = Vector2(gw, gh)
 
+## Rotpunkt-Visier (Rohrbauweise, Aimpoint-CompM4-Stil, prozedural): 30-mm-Rohr mit Objektivglocke,
+## Hoehen-/Seitenturm, Helligkeitsknopf, Ringmontage mit Picatinny-Klemme. Ursprung = Schienenoberkante.
+## Metas: glass_center (Objektivglas, Visierachse), glass_radius, axis_h.
+static func build_reddot() -> Node3D:
+	return _instantiate(_template("reddot", _reddot_parts), "RedDotSight")
+
+static func _reddot_parts(b: Builder) -> void:
+	var h: float = 0.03          # Visierachse ueber Schiene (niedrige Montage)
+	var ri: float = 0.0168       # Innenradius (Glas)
+	var ax := Vector3(0, h, 0)
+	# Picatinny-Klemme: Grundplatte, Klemmbacken seitlich an der Schiene, Querbolzen mit Mutter rechts
+	b.add(ext("rd_base", [Vector2(0.024, 0.0), Vector2(-0.024, 0.0), Vector2(-0.022, 0.0065), Vector2(0.022, 0.0065)],
+		0.0125, 0.0016, 0.0015), "anod_matte")
+	for sx: float in [1.0, -1.0]:
+		b.add(rbox(Vector3(0.003, 0.008, 0.04), 0.001), "anod_matte", T(Vector3(sx * 0.0122, -0.003, 0.0)))
+	b.add(cylz(0.0058, -0.0025, 0.0025, 16, 0.001), "anod_matte", T(Vector3(0.0158, -0.001, 0.004), Vector3(0, 90, 0)))
+	b.add(cylz(0.0024, -0.003, 0.003, 6, 0.0004), "park", T(Vector3(0.0188, -0.001, 0.004), Vector3(0, 90, 0)))
+	# Steg + Ring um das Rohr (Ringdeckel mit zwei Schrauben)
+	b.add(ext("rd_riser", [Vector2(0.014, 0.004), Vector2(-0.014, 0.004), Vector2(-0.011, h - 0.012), Vector2(0.011, h - 0.012)],
+		0.0085, 0.0015, 0.002), "anod_matte")
+	b.add(_cached("rd_ring", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(0.0199, -0.0085), Vector2(0.0236, -0.0085), Vector2(0.0236, 0.0085),
+			Vector2(0.0199, 0.0085)]), 28, 0.0012, true)), "anod_matte", T(ax))
+	for sx: float in [1.0, -1.0]:
+		b.add(rbox(Vector3(0.006, 0.006, 0.014), 0.0012), "anod_matte", T(Vector3(sx * 0.02, h + 0.0005, 0.0)))
+		b.add(cylz(0.0019, -0.0012, 0.0012, 8, 0.0004), "park", T(Vector3(sx * 0.0232, h + 0.0005, 0.0), Vector3(0, 90, 0)))
+	# Rohr: Objektivglocke vorn, schlanker Koerper, Okular hinten; innen geschwaerzt
+	b.add(_cached("rd_tube", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(ri + 0.0005, -0.064), Vector2(0.0222, -0.064), Vector2(0.0222, -0.043),
+			Vector2(0.0199, -0.036), Vector2(0.0199, 0.033), Vector2(0.0212, 0.038), Vector2(0.0212, 0.052),
+			Vector2(ri + 0.0012, 0.052), Vector2(ri + 0.0012, -0.06), Vector2(ri + 0.0005, -0.06)]), 36, 0.0009, true)),
+		"anod_matte", T(ax))
+	b.add(_cached("rd_bore", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(ri - 0.0004, -0.059), Vector2(ri + 0.0008, -0.059), Vector2(ri + 0.0008, 0.051),
+			Vector2(ri - 0.0004, 0.051)]), 36, 0.0, true)), "bore", T(ax))
+	# Gummi-Augenschutz-Ring am Okular, Gewinde-Ring am Objektiv
+	b.add(_cached("rd_eye", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(0.018, 0.049), Vector2(0.0216, 0.049), Vector2(0.0218, 0.058), Vector2(0.018, 0.058)]),
+			36, 0.0015, true)), "rubber", T(ax))
+	b.add(_cached("rd_obj", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(0.0222, -0.06), Vector2(0.0228, -0.06), Vector2(0.0228, -0.047), Vector2(0.0222, -0.047)]),
+			36, 0.0004, true)), "anod_matte", T(ax))
+	# Hoehenturm (oben) und Seitenturm (rechts) mit Kappen, Helligkeitsknopf links
+	var tz: float = -0.006
+	b.add(cylz(0.0082, 0.0, 0.0105, 20, 0.0012), "anod_matte", T(ax + Vector3(0, 0.0175, tz), Vector3(-90, 0, 0)))
+	b.add(cylz(0.0089, 0.0085, 0.0145, 20, 0.0016), "anod_matte", T(ax + Vector3(0, 0.0175, tz), Vector3(-90, 0, 0)))
+	b.add(cylz(0.0082, 0.0, 0.0105, 20, 0.0012), "anod_matte", T(ax + Vector3(0.0175, 0, tz), Vector3(0, 90, 0)))
+	b.add(cylz(0.0089, 0.0085, 0.0145, 20, 0.0016), "anod_matte", T(ax + Vector3(0.0175, 0, tz), Vector3(0, 90, 0)))
+	b.add(cylz(0.0095, 0.0, 0.0085, 20, 0.0012), "anod_matte", T(ax + Vector3(-0.017, -0.002, 0.02), Vector3(0, -90, 0)))
+	b.add(cylz(0.0101, 0.0065, 0.0135, 24, 0.0015), "rubber", T(ax + Vector3(-0.017, -0.002, 0.02), Vector3(0, -90, 0)))
+	b.meta["glass_center"] = Vector3(0, h, -0.058)
+	b.meta["glass_radius"] = ri
+	b.meta["axis_h"] = h
+
 # ------------------------------------------------------------------ Panzerfaust 3
 
 ## Panzerfaust 3 (Stil): geripptes Abschussrohr mit Gummi-Endkappen, Abfeuereinrichtung mit Griff,
@@ -988,67 +1089,245 @@ static func _ammo_can_parts(b: Builder) -> void:
 # ------------------------------------------------------------------ AK-74M (CC0-Modell)
 
 ## AK-Modell laden und Materialien zuweisen. Teile: Body, Wood (Schaft/Handschutz), Magazine, Charging_Handle.
-static func build_ak() -> Node3D:
-	if not ResourceLoader.exists(AK_PATH):
-		return null
-	var ps := load(AK_PATH) as PackedScene
+static func _scene(path: String) -> PackedScene:
+	if not _scenes.has(path):
+		var ps: PackedScene = load(path) as PackedScene if ResourceLoader.exists(path) else null
+		_scenes[path] = ps
+		if ps != null:
+			# Importierte Materialien einmalig (geteilt) auf anisotrope Filterung stellen: scharf im Viewmodel
+			var tmp := ps.instantiate()
+			for mi: Node in tmp.find_children("*", "MeshInstance3D", true, false):
+				var m: Mesh = (mi as MeshInstance3D).mesh
+				for si in m.get_surface_count():
+					var sm := m.surface_get_material(si) as BaseMaterial3D
+					if sm != null:
+						sm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+						if path.begins_with("res://assets/weapons/ak74m/"):
+							# Textur ist recht hellgrau -> dunkler wie die schwarz phosphatierte AK-74M
+							sm.albedo_color = Color(0.55, 0.55, 0.57)
+			tmp.free()
+	return _scenes[path]
+
+## Alle Waffen-Szenen vorab laden (Ladebildschirm): kein Ruckler beim ersten Drop / ersten Zeichnen.
+static func preload_all() -> void:
+	for p: String in [AK_PATH, AK_WORLD_PATH, G36_PATH, G36_WORLD_PATH, MBUS_PATH, MG5_WORLD_PATH]:
+		_scene(p)
+	_template("reddot", _reddot_parts)
+
+static func _glb_model(path: String, root_name: String, meta: Dictionary) -> Node3D:
+	var ps := _scene(path)
 	if ps == null:
 		return null
 	var model := ps.instantiate() as Node3D
-	model.name = "AK74M"
-	for mi: Node in model.find_children("*", "MeshInstance3D", true, false):
-		var m := mi as MeshInstance3D
-		var nm: String = m.name.to_lower()
-		m.mesh = _ak_baked(m.mesh)
-		if nm.begins_with("wood"):
-			m.material_override = mat("ak_poly")
-		elif nm.begins_with("magazine"):
-			m.material_override = mat("ak_mag")
-		else:
-			m.material_override = mat("ak_metal")
+	model.name = root_name
+	for k: String in meta:
+		model.set_meta(k, meta[k])
 	return model
 
-## AK-Meshes ohne UV/Vertexfarben: Kantenmaske fuer gun_surface (COLOR.r = Kante, G = AO) aus harten
-## Kanten backen – Vertices gleicher Position mit abweichenden Normalen gelten als Kante. Gecacht.
-static func _ak_baked(src: Mesh) -> Mesh:
-	if src == null:
-		return src
-	var key := "ak_bake_%d" % src.get_instance_id()
-	if _mesh_cache.has(key):
-		return _mesh_cache[key]
-	var out := ArrayMesh.new()
-	for si in src.get_surface_count():
-		var arr: Array = src.surface_get_arrays(si)
-		var pos: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
-		var nrm: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
-		var acc: Dictionary = {}
-		var keys: Array[Vector3i] = []
-		keys.resize(pos.size())
-		for i in pos.size():
-			var k := Vector3i((pos[i] * 4000.0).round())
-			keys[i] = k
-			acc[k] = (acc.get(k, Vector3.ZERO) as Vector3) + nrm[i]
-		var cols := PackedColorArray()
-		cols.resize(pos.size())
-		for i in pos.size():
-			var avg: Vector3 = (acc[keys[i]] as Vector3).normalized()
-			var e := clampf((1.0 - nrm[i].dot(avg)) * 5.0, 0.0, 1.0)
-			cols[i] = Color(e, 0.9 - e * 0.15, 0.0, 1.0)
-		arr[Mesh.ARRAY_COLOR] = cols
-		out.add_surface_from_arrays(src.surface_get_primitive_type(si), arr)
-	_mesh_cache[key] = out
-	return out
+## AK-74M (Viewmodel): Teile Body/Magazine/Charging_Handle, PBR-Texturen des Modells. Kimme und Korn.
+static func build_ak(world: bool = false) -> Node3D:
+	return _glb_model(AK_WORLD_PATH if world else AK_PATH, "AK74M", AK_META)
+
+## HK G36 (Tragegriff mit Picatinny-Schiene, ohne eingebaute Optik): Teile wie AK.
+static func build_g36(world: bool = false) -> Node3D:
+	var g := _glb_model(G36_WORLD_PATH if world else G36_PATH, "G36", G36_META)
+	if g != null:
+		var ms := build_mbus(G36_RAIL_Y, G36_SIGHT_Z.x, G36_SIGHT_Z.y)
+		if ms != null:
+			g.add_child(ms)
+		else:
+			# Rueckfall: prozedurales Notvisier (Visierlinie 24 mm ueber der Schiene)
+			g.add_child(build_iron_sights(G36_RAIL_Y, 0.06, -0.245))
+			g.set_meta("sight_rear", Vector3(0.0, G36_RAIL_Y + 0.024, 0.06))
+			g.set_meta("sight_front", Vector3(0.0, G36_RAIL_Y + 0.024, -0.245))
+	return g
+
+## Magpul MBUS (Kimme hinten, Korn vorn, beide aufgeklappt) auf einer Schiene der Hoehe rail_y.
+## z_rear/z_front = Lage von Lochkimme bzw. Kornspitze. null, wenn das Modell fehlt.
+static func build_mbus(rail_y: float, z_rear: float, z_front: float) -> Node3D:
+	var ps := _scene(MBUS_PATH)
+	if ps == null:
+		return null
+	var n := ps.instantiate() as Node3D
+	n.name = "IronSights"
+	var rear := n.get_node_or_null("Rear") as Node3D
+	var front := n.get_node_or_null("Front") as Node3D
+	if rear == null or front == null:
+		n.free()
+		return null
+	rear.position = Vector3(0.0, rail_y, z_rear)
+	front.position = Vector3(0.0, rail_y, z_front)
+	if _mbus_mat == null:
+		# Geteiltes Material: nah am Auge (ADS) wird die Kimme weich/dunkel, Korn und Ziel bleiben scharf
+		_mbus_mat = ShaderMaterial.new()
+		_mbus_mat.shader = MBUS_SHADER
+		var d: String = MBUS_PATH.get_base_dir() + "/mbus_"
+		_mbus_mat.set_shader_parameter("albedo_tex", load(d + "basecolor_2k.jpg"))
+		_mbus_mat.set_shader_parameter("orm_tex", load(d + "mr_2k.jpg"))
+		_mbus_mat.set_shader_parameter("normal_tex", load(d + "normal_2k.jpg"))
+	for mi: Node in n.find_children("*", "MeshInstance3D", true, false):
+		(mi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		(mi as GeometryInstance3D).material_override = _mbus_mat
+	return n
+
+static var _sight_mat: StandardMaterial3D
+
+## Rueckfall ohne MBUS-Modell: Klapp-Notvisier (MBUS-Stil, Polymer) auf einer Picatinny-Schiene: hinten Lochkimme mit Schutzflügeln,
+## vorn Kornpfosten mit Schutzohren. Visierlinie 24 mm über der Schienenoberkante (rail_y).
+static func build_iron_sights(rail_y: float, z_rear: float, z_front: float) -> Node3D:
+	if _sight_mat == null:
+		_sight_mat = StandardMaterial3D.new()
+		_sight_mat.albedo_color = Color(0.035, 0.036, 0.038)
+		_sight_mat.roughness = 0.62
+		_sight_mat.metallic = 0.1
+	var n := Node3D.new()
+	n.name = "IronSights"
+	var h: float = 0.024
+	var box := func(size: Vector3, pos: Vector3) -> void:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = size
+		mi.mesh = bm
+		mi.material_override = _sight_mat
+		mi.position = pos
+		n.add_child(mi)
+	# Hinten: Klemmfuss, Steg, Lochring, Schutzfluegel
+	box.call(Vector3(0.024, 0.008, 0.038), Vector3(0, rail_y + 0.004, z_rear))
+	box.call(Vector3(0.006, h - 0.008 - 0.0045, 0.004), Vector3(0, rail_y + 0.008 + (h - 0.0125) * 0.5, z_rear + 0.004))
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.0034                            # Ghost-Ring: grosses Loch (6,8 mm), duenner Rand
+	tm.outer_radius = 0.0049
+	tm.rings = 24
+	tm.ring_segments = 8
+	ring.mesh = tm
+	ring.material_override = _sight_mat
+	ring.rotation = Vector3(PI * 0.5, 0, 0)
+	ring.scale = Vector3(1, 2.2, 1)                     # Ring ist ~3 mm tief
+	ring.position = Vector3(0, rail_y + h, z_rear + 0.004)
+	n.add_child(ring)
+	for sx in [-1.0, 1.0]:
+		box.call(Vector3(0.0022, h + 0.001, 0.012), Vector3(sx * 0.0105, rail_y + 0.008 + (h - 0.007) * 0.5, z_rear + 0.002))
+	# Vorn: Klemmfuss, Kornpfosten, Schutzohren
+	box.call(Vector3(0.024, 0.008, 0.03), Vector3(0, rail_y + 0.004, z_front))
+	box.call(Vector3(0.0022, h - 0.008, 0.003), Vector3(0, rail_y + 0.008 + (h - 0.008) * 0.5, z_front))
+	box.call(Vector3(0.006, 0.004, 0.01), Vector3(0, rail_y + 0.01, z_front))
+	for sx in [-1.0, 1.0]:
+		box.call(Vector3(0.0028, h + 0.002, 0.012), Vector3(sx * 0.0085, rail_y + 0.008 + (h - 0.006) * 0.5, z_front))
+	for c in n.get_children():
+		(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return n
+
+## Gegnerwaffe: EIN Mesh (mit Import-LODs) + Referenzpunkte. reich -> G36, sonst AK-74M.
+static func soldier_rifle(faction: String) -> Dictionary:
+	var g36: bool = faction == "reich"
+	var ps := _scene(G36_WORLD_PATH if g36 else AK_WORLD_PATH)
+	if ps == null:
+		return {}
+	var tmp := ps.instantiate()
+	var found: Array = tmp.find_children("*", "MeshInstance3D", true, false)
+	var d := {}
+	if not found.is_empty():
+		var mi := found[0] as MeshInstance3D
+		d = {"mesh": mi.mesh, "xf": mi.transform, "meta": G36_META if g36 else AK_META, "id": "g36" if g36 else "ak74m"}
+	tmp.free()
+	return d
+
+## Gegner-MG (MG5) als EIN Mesh + Referenzpunkte wie soldier_rifle(). {} wenn das Modell fehlt
+## (soldier_visual faellt dann auf das prozedurale Kasten-MG zurueck).
+static func soldier_mg() -> Dictionary:
+	var ps := _scene(MG5_WORLD_PATH)
+	if ps == null:
+		return {}
+	var tmp := ps.instantiate()
+	var found: Array = tmp.find_children("*", "MeshInstance3D", true, false)
+	var d := {}
+	if not found.is_empty():
+		var mi := found[0] as MeshInstance3D
+		var xf := Transform3D.IDENTITY
+		var n: Node = mi
+		while n != null and n != tmp:
+			xf = (n as Node3D).transform * xf
+			n = n.get_parent()
+		d = {"mesh": mi.mesh, "xf": xf, "meta": MG5_META, "id": "mg5"}
+	tmp.free()
+	return d
+
+## HK MG5 (volle Hierarchie, Viewmodel-Qualitaet: Bord-/Tuer-MG). Rueckfall: prozedurales MG5.
+static func build_mg5(world: bool = false) -> Node3D:
+	var m := _glb_model(MG5_WORLD_PATH if world else MG5_PATH, "MG5", MG5_META)
+	if m == null:
+		m = _instantiate(_template("mg5", _mg5_parts), "MG5")
+		for k: String in MG5_META:
+			m.set_meta(k, MG5_META[k])
+	return m
+
+## M2 Browning. tripod = false: ohne Dreibein (Sockel-/Lafettenmontage, Drehpunkt = Meta "pivot").
+## Rueckfall: prozedurales M2 mit Dreibein.
+static func build_m2(tripod: bool = true) -> Node3D:
+	var m := _glb_model(M2_PATH, "M2", M2_META)
+	if m == null:
+		m = _instantiate(_template("m2", _m2_parts), "M2")
+		for k: String in M2_META:
+			m.set_meta(k, M2_META[k])
+	if not tripod:
+		var t := m.get_node_or_null("Tripod")
+		if t != null:
+			m.remove_child(t)
+			t.free()
+	return m
+
+## Prozedurales MG5 (Rueckfall): Gehaeuse mit Deckelschiene, Lauf mit Muendungsfeuerdaempfer, Handschutz,
+## Schulterstuetze, Pistolengriff, Gurtkasten, angeklapptes Zweibein. Masse/Referenzpunkte wie MG5_META.
+static func _mg5_parts(b: Builder) -> void:
+	var bore: float = 0.03
+	b.add(rbox(Vector3(0.05, 0.085, 0.42), 0.006), "park", T(Vector3(0, 0.04, -0.06)))
+	b.add(rbox(Vector3(0.028, 0.012, 0.34), 0.002), "anod", T(Vector3(0, 0.088, -0.05)))
+	b.add(cylz(0.011, -0.27, -0.74, 16), "park", T(Vector3(0, bore, 0)))
+	b.add(cylz(0.0135, -0.735, -0.792, 16), "park", T(Vector3(0, bore, 0)))
+	b.add(cylz(0.007, -0.785, -0.794, 12, 0.0), "bore", T(Vector3(0, bore, 0)))
+	b.add(rbox(Vector3(0.062, 0.072, 0.27), 0.01), "poly", T(Vector3(0, -0.02, -0.345)))
+	b.add(rbox(Vector3(0.04, 0.1, 0.2), 0.012), "poly", T(Vector3(0, 0.02, 0.3)))
+	b.add(rbox(Vector3(0.045, 0.14, 0.03), 0.01), "rubber", T(Vector3(0, 0.0, 0.393)))
+	b.add(rbox(Vector3(0.03, 0.11, 0.045), 0.008), "poly_grip", T(Vector3(0, -0.1, 0.085), Vector3(-15, 0, 0)))
+	b.add(rbox(Vector3(0.02, 0.01, 0.075), 0.003), "poly", T(Vector3(0, -0.065, 0.03)))
+	b.add(rbox(Vector3(0.08, 0.15, 0.17), 0.01), "olive_dark", T(Vector3(0, -0.17, -0.33)))
+	for sx: float in [-1.0, 1.0]:
+		b.add(cylz(0.006, -0.3, -0.5, 8), "park", T(Vector3(sx * 0.018, -0.045, 0)))
+	b.add(rbox(Vector3(0.006, 0.03, 0.006), 0.001), "park", T(Vector3(0, 0.095, -0.515)))
+	b.add(rbox(Vector3(0.02, 0.02, 0.008), 0.002), "park", T(Vector3(0, 0.1, -0.138)))
+	b.add(rbox(Vector3(0.012, 0.03, 0.04), 0.003), "park", T(Vector3(0.033, 0.05, -0.12)), "Charging_Handle")
+
+## Prozedurales M2 auf Dreibein (Rueckfall): Gehaeuse, gelochter Laufmantel, Lauf, Spatengriffe, Lafette.
+static func _m2_parts(b: Builder) -> void:
+	var bore: float = 0.324
+	b.add(rbox(Vector3(0.1, 0.2, 0.55), 0.008), "park", T(Vector3(0, 0.33, 0.27)))
+	b.add(rbox(Vector3(0.09, 0.02, 0.4), 0.004), "park", T(Vector3(0, 0.44, 0.3)))
+	b.add(cylz(0.032, 0.0, -0.34, 16), "park", T(Vector3(0, bore, 0)), "Barrel")
+	b.add(cylz(0.019, -0.34, -0.924, 14), "park", T(Vector3(0, bore, 0)), "Barrel")
+	b.add(cylz(0.024, -0.86, -0.924, 14), "park", T(Vector3(0, bore, 0)), "Barrel")
+	for sx: float in [-1.0, 1.0]:
+		b.add(rbox(Vector3(0.025, 0.11, 0.035), 0.008), "poly", T(Vector3(sx * 0.07, 0.33, 0.705)))
+		b.add(rbox(Vector3(0.012, 0.02, 0.17), 0.004), "park", T(Vector3(sx * 0.055, 0.33, 0.62)))
+	b.add(rbox(Vector3(0.06, 0.012, 0.015), 0.003), "steel", T(Vector3(0, 0.33, 0.67)))
+	b.add(rbox(Vector3(0.12, 0.1, 0.12), 0.01), "olive_dark", T(Vector3(-0.11, 0.28, 0.2)))
+	b.add(rbox(Vector3(0.07, 0.05, 0.16), 0.006), "park", T(Vector3(0, 0.235, 0.1)), "Tripod")
+	b.add(cylz(0.022, -0.04, 0.04, 12), "park", Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0.2, 0.1)), "Tripod")
+	var head := Vector3(0, 0.2, 0.1)
+	for foot: Vector3 in [Vector3(0, 0.0, -0.28), Vector3(-0.25, 0.0, 0.68), Vector3(0.25, 0.0, 0.68)]:
+		var dv: Vector3 = foot - head
+		b.add(cylz(0.014, 0.0, -dv.length(), 8), "park", Transform3D(Basis.looking_at(dv, Vector3.UP), head), "Tripod")
+	b.add(cylz(0.01, 0.0, -0.5, 8), "park", Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(0.25, 0.08, 0.5)), "Tripod")
 
 ## Weltmodell fuer Pickups (Layer 1, wirft Schatten). Laenge in Metern als Meta "length".
 static func build_world(weapon_id: String) -> Node3D:
 	var n: Node3D = null
 	match weapon_id:
 		"ak74m", "rpk74":
-			var ak := build_ak()
+			var ak := build_ak(true)
 			if ak != null:
 				n = Node3D.new()
-				ak.scale = Vector3.ONE * 1.27
-				ak.position = Vector3(0.022, 0.0, 0.0)
+				ak.position = Vector3(0.012, 0.0, 0.0)
 				n.add_child(ak)
 		"pzf3":
 			n = build_pzf()
@@ -1066,11 +1345,12 @@ static func build_world(weapon_id: String) -> Node3D:
 				b.material_override = mat("park")
 				n.add_child(b)
 	if n == null:
-		n = build_g36c()
-		# Liegende Waffe: Holo-Visier mit dazu
-		var holo := build_holo()
-		holo.position = n.get_meta("optic_mount") as Vector3
-		n.add_child(holo)
+		var g := build_g36(true)
+		if g == null:
+			g = build_g36c()
+		n = Node3D.new()
+		g.position = Vector3(0.012, 0.0, 0.0)
+		n.add_child(g)
 	# Ab ~35 m ausblenden (kleine Details, spart Draw-Calls/Schatten)
 	_set_vis_range(n, 45.0)
 	return n

@@ -70,6 +70,7 @@ Red-Dot-Visier (Geometrie in `game/weapons/weapon.gd`, Shader `game/weapons/red_
 | characters/anim_src/ual_standard.glb (+ UAL_License.txt) | https://opengameart.org/content/universal-animation-library – Quaternius, Universal Animation Library (Standard) | CC0 | Clips auf das SWAT-Rig retargetet, gebacken in characters/soldier/soldier_rig.scn |
 | characters/weapons/rifle_ar_west.glb | https://poly.pizza/m/ss1nz3gJnx – Pichuliru, "Assault Rifle West" | CC0 | unverändert, skaliert |
 | characters/weapons/rifle_ar_quaternius.glb | https://poly.pizza/m/Bgvuu4CUMV – Quaternius, "Assault Rifle" | CC0 | als MG-Basis skaliert, Anbauteile prozedural |
+| characters/soldier_op/ (soldier_op.scn, tex/*, LICENSE.txt) | "S.W.A.T. Operator – Remastered" von **Mateusz Woliński (jeandiz)**, https://sketchfab.com/3d-models/swat-operator-remastered-732d2eec5a0c456bafedd08af35134c3 | Sketchfab Standard License (https://sketchfab.com/licenses) | Gegnermodell "op" (gepanzerte Gegner, Fallback ohne realistische Soldaten): KSVR-Meshes entfernt, Texturen auf 2048 px, LOD-Kette, Skelett neu aufgebaut, UAL-/SWAT-Animationen retargetet (game/enemies/tools/bake_soldier_op.gd); Fraktionsfarbe/Tarnung/Armbinde zur Laufzeit per Shader (soldier_op.gdshader), Originaltexturen bleiben Basis |
 | characters/soldier/soldier_rig.scn | selbst erstellt (tools/bake_soldier.gd) aus den obigen Dateien | CC0 | – |
 | Drohne, Ausrüstung, Panzerung, Ragdoll | prozedural im Code (game/enemies/) | CC0 | – |
 
@@ -261,7 +262,7 @@ Alle Assets von **Poly Haven** (https://polyhaven.com), Lizenz **CC0 1.0**, unve
 |---|---|---|
 | G36C-Viewmodel und -Bodenmodell (`game/weapons/gun_models.gd`, `build_g36c`) | Eigene Arbeit: prozedural aus Extrusions-/Drehprofilen (Tragegriff mit Schiene, Klappschaft, durchscheinendes Magazin, PBR-Materialien) | CC0 |
 | Panzerfaust 3 und Rakete (`gun_models.gd`, `build_pzf`/`build_rocket`) | Eigene Arbeit, prozedural | CC0 |
-| `assets/weapons/ak47/ak47.glb` (AK-74M-Viewmodel) | "High Poly AK-47" von Lamoot, https://opengameart.org/content/high-poly-ak-47; Materialien im Spiel ersetzt (Metall/Polymer/Magazin), skaliert | CC0 |
+| `assets/weapons/ak47/ak47.glb` (AK-74M-Viewmodel) | "High Poly AK-47" von Lamoot, https://opengameart.org/content/high-poly-ak-47; Materialien im Spiel ersetzt (Metall/Polymer/Magazin), skaliert (seit Runde waffen_neu nicht mehr verwendet, ersetzt durch das AK-74M unten) | CC0 |
 | Munitionskisten, Munitionskästen (`game/pickups/pickup.gd`) | Eigene Arbeit, prozedural | CC0 |
 | `assets/sfx/rocket_launch.wav`, `rocket_fly.wav`, `shell_drop.wav`, `ammo_pickup.wav` | Synthetisch erzeugt mit `tools/gen_weapon_sfx.py` (numpy/scipy: gefiltertes Rauschen, Sinus-Moden) | CC0 |
 
@@ -273,3 +274,17 @@ Suche nach freien Modellen (CC0/CC-BY/CC-BY-SA, Download ohne Login): BlendSwap 
 |---|---|---|
 | G36C, Holo-Visier (EOTech-Stil, `build_holo`), Panzerfaust 3, Rakete, Munitionskisten, Munitionskasten (`game/weapons/gun_models.gd`) | Eigene Arbeit, komplett prozedural: Profile mit abgerundeten Ecken, mit runder Fase extrudiert, Drehkörper, 30 Einzelpatronen im transluzenten Magazin; fiktive Beschriftungen (keine Herstellermarken) | CC0 |
 | `game/weapons/gun_surface.gdshader` | Eigene Arbeit: triplanare Mikrostruktur aus Godot-`NoiseTexture2D`, Kantenabnutzung aus Vertexfarben, Rauheits-/Farbvariation | CC0 |
+
+## Waffen Runde waffen_neu (AK-74M, G36, Rotpunkt)
+
+| Datei | Quelle / Bearbeitung | Lizenz |
+|---|---|---|
+| `assets/weapons/ak74m/ak74m.glb`, `ak74m_world.glb`, Texturen | AK-74M-Waffenmodell von **creationwasteland** (Sketchfab), enthalten im Paket "FPS AK-74m animations" von **Cransh (ccransh)**, https://sketchfab.com/3d-models/fps-ak-74m-animations-94be8385c402474cacd39bc096c6ca14 (Autor: https://sketchfab.com/ccransh). Bearbeitung: nur Waffe (ohne Arme), geskinnte Teile statisch gebacken, auf 0,943 m skaliert und ausgerichtet, Texturen auf 2048 px, LOD-Weltmodell | CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/) |
+| `assets/weapons/g36/g36.glb`, `g36_world.glb`, Texturen | "HK G36" von **r4m**, https://sketchfab.com/3d-models/hk-g36-2cf3be6a834c425bbc2a416e85b52042 (Autor: https://sketchfab.com/r4m). Bearbeitung: auf 0,999 m skaliert und ausgerichtet, in Körper/Magazin/Ladehebel getrennt, Texturen auf 2048 px, LOD-Weltmodell | CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/) |
+| Rohr-Rotpunktvisier (Aimpoint-Stil, `gun_models.gd`, `build_reddot`) und Leuchtpunkt-Shader (`game/weapons/red_dot.gdshader`, rundes Glas) | Eigene Arbeit, prozedural; ersetzt das Holo-Visier `build_holo` auf dem G36 | CC0 |
+
+## Erste-Person-Arme (Viewmodel)
+
+| Datei | Quelle / Bearbeitung | Lizenz |
+|---|---|---|
+| `assets/characters/fp_arms/fp_arms.scn`, `tex/arms_albedo.jpg`, `arms_normal.jpg`, `arms_rough.jpg` | Arme (Ärmel + Handschuhe) samt Rig aus "FPS AK-74m animations" von **Cransh (ccransh)**, https://sketchfab.com/3d-models/fps-ak-74m-animations-94be8385c402474cacd39bc096c6ca14 (Autor: https://sketchfab.com/ccransh). Bearbeitung: nur die Arme (Waffe entfernt), Pose aus Bild 0 von "AK_Idle" eingefroren, in den Kameraraum umgerechnet und skaliert (`game/weapons/tools/bake_fp_arms.gd`), Texturen auf 2048 px (JPG), Roughness aus dem G-Kanal; zur Laufzeit per IK an Griff/Handschutz gestellt (`game/weapons/fp_arms.gd`), Schultern versetzt, Ober-/Unterarm gestreckt | CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/) |

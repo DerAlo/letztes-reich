@@ -83,6 +83,11 @@ var _hint: Label
 var _audio: AudioStreamPlayer
 var _vo: AudioStreamPlayer
 var _busy: bool = false
+var _warm_refs: Array = []   ## Ressourcen, die beim Laden vorgewaermt wurden (bleiben bis zum Levelwechsel im Cache)
+var _load_root: Control = null    ## Ladebildschirm (Ortsname, Balken, Status)
+var _load_name: Label = null
+var _load_fill: ColorRect = null
+var _load_status: Label = null
 var _skip: bool = false
 var _in_briefing: bool = false
 var _tracker: Node = null          ## game/progress/run_tracker.gd des laufenden Levels
@@ -98,7 +103,14 @@ func _ready() -> void:
 		sui.name = "StoryUI"
 		add_child(sui)
 	_add_pause_menu()
+	if Game.arg("spike-log", false):
+		var sp: Node = (load("res://game/debug/spike_probe.gd") as GDScript).new()
+		sp.name = "SpikeProbe"
+		add_child(sp)
 	Events.level_completed.connect(_on_level_completed)
+	if _menu_allowed():
+		_open_main_menu()   # normaler Spielstart: Hauptmenue statt direkt Mission 1
+		return
 	var has_level := Game.arg("level", null) != null
 	var want_intro: bool = bool(Game.arg("intro", false)) or (not has_level and not bool(Game.arg("autopilot", false)))
 	if want_intro and ResourceLoader.exists(INTRO_PATH):
@@ -228,9 +240,19 @@ func _load_level(level_name: String) -> void:
 	if not _episode:
 		_campaign_level = level_name
 		_mark_unlocked(level_name)
-	_level = (load(path) as PackedScene).instantiate()
+	var packed := await _load_with_screen(path, level_name)
+	if packed == null:
+		push_error("Level konnte nicht geladen werden: " + path)
+		return
+	_level = packed.instantiate()
 	_level.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(_level)
+	_level.process_mode = Node.PROCESS_MODE_DISABLED   # Level steht still, solange vorgewaermt wird
+	await _warmup(_level)
+	if not is_instance_valid(_level):
+		return
+	_level.process_mode = Node.PROCESS_MODE_PAUSABLE
+	_hide_loading()
 	_start_tracker(level_name)
 	var lvl := _level
 	var briefed: bool = await _show_title_card(level_name)
@@ -246,6 +268,96 @@ func _load_level(level_name: String) -> void:
 	var tp := float(Game.arg("teleport-end", -1.0))
 	if tp >= 0.0:
 		_debug_teleport_end(tp)
+
+## Ladebildschirm: Level im Hintergrund-Thread laden und dabei Fortschritt zeigen (Ort + Balken auf Schwarz).
+## Der letzte Schritt (instantiate/add_child) blockiert kurz – dann steht "Einsatz wird vorbereitet".
+func _load_with_screen(path: String, level_name: String) -> PackedScene:
+	_busy = true
+	_black.color.a = 1.0
+	_show_loading(level_name)
+	var t0 := Time.get_ticks_msec()
+	var shown := 0.0
+	if ResourceLoader.load_threaded_request(path, "PackedScene", true) != OK:
+		_busy = false
+		return load(path) as PackedScene
+	var prog: Array = []
+	while true:
+		var st := ResourceLoader.load_threaded_get_status(path, prog)
+		if st == ResourceLoader.THREAD_LOAD_LOADED:
+			break
+		if st != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			_busy = false
+			return null
+		var target: float = float(prog[0]) if prog.size() > 0 else 0.0
+		shown = lerpf(shown, target * 0.92, 0.25)
+		_load_bar_set(shown)
+		await get_tree().process_frame
+	var packed := ResourceLoader.load_threaded_get(path) as PackedScene
+	# kurz sichtbar lassen, sonst blitzt der Bildschirm nur auf
+	while Time.get_ticks_msec() - t0 < 600:
+		shown = lerpf(shown, 0.95, 0.3)
+		_load_bar_set(shown)
+		await get_tree().process_frame
+	_load_bar_set(1.0)
+	_load_status.text = "Einsatz wird vorbereitet …"
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_busy = false
+	return packed
+
+func _build_loading_ui() -> void:
+	_load_root = Control.new()
+	_load_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_load_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_load_root.visible = false
+	_ui.add_child(_load_root)
+	_load_name = _load_label(22, Color(0.95, 0.62, 0.2), -132.0)
+	var back := ColorRect.new()
+	back.color = Color(1, 1, 1, 0.12)
+	back.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	back.offset_left = -220.0
+	back.offset_right = 220.0
+	back.offset_top = -90.0
+	back.offset_bottom = -87.0
+	_load_root.add_child(back)
+	_load_fill = ColorRect.new()
+	_load_fill.color = Color(1.0, 0.7, 0.25)
+	_load_fill.size = Vector2(0, 3)
+	back.add_child(_load_fill)
+	_load_status = _load_label(15, Color(0.62, 0.62, 0.6), -78.0)
+
+func _load_label(size: int, col: Color, top: float) -> Label:
+	var l := Label.new()
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	l.offset_left = -400.0
+	l.offset_right = 400.0
+	l.offset_top = top
+	l.offset_bottom = top + 30.0
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", col)
+	_load_root.add_child(l)
+	return l
+
+func _show_loading(level_name: String) -> void:
+	if _load_root == null:
+		_build_loading_ui()
+	var t: Array = _titles_of(level_name)
+	_load_name.text = str(t[0]) if str(t[0]) != "" else str(t[1])
+	_title.modulate.a = 0.0
+	_sub.modulate.a = 0.0
+	_load_bar_set(0.0)
+	_load_root.visible = true
+
+func _load_bar_set(v: float) -> void:
+	if _load_fill == null:
+		return
+	_load_fill.size = Vector2(440.0 * clampf(v, 0.0, 1.0), 3.0)
+	_load_status.text = "Lade …  %d %%" % int(round(clampf(v, 0.0, 1.0) * 100.0))
+
+func _hide_loading() -> void:
+	if _load_root != null:
+		_load_root.visible = false
 
 func _debug_teleport_end(delay: float) -> void:
 	await get_tree().create_timer(delay, false).timeout
@@ -404,12 +516,184 @@ func _next_level_name() -> String:
 		return ""
 	return _first_existing(i + 1)
 
+## Hinter dem Ladebildschirm vorwaermen, was sonst beim ersten Auftauchen ruckelt:
+## Szenen/Modelle aus den Konstanten des Level-Skripts (Heli, Panzer …), je ein Gegner pro Typ
+## (Animationsbaum, Materialien, Waffe) und ein Satz Truemmer/Einschlaege.
+const WARM_ENEMIES := ["rifleman", "assault", "marksman", "officer", "heavy"]
+const WarmCache = preload("res://game/core/warm_cache.gd")
+
+func _warmup(lvl: Node) -> void:
+	var t0 := Time.get_ticks_msec()
+	_warm_refs.clear()
+	var scr := lvl.get_script() as Script
+	if scr != null:
+		for v in scr.get_script_constant_map().values():
+			if typeof(v) == TYPE_STRING and String(v).begins_with("res://") and String(v).get_extension() in ["tscn", "scn", "glb", "gltf"] 					and ResourceLoader.exists(v):
+				_warm_refs.append(load(v))
+	await get_tree().process_frame
+	var cam := get_viewport().get_camera_3d()
+	var at := Vector3(0, -400, 0)
+	var fwd := Vector3.FORWARD
+	if cam != null:
+		fwd = -cam.global_transform.basis.z
+		at = cam.global_position + fwd * 5.0 + Vector3(0, -1.0, 0)
+	var holder := Node3D.new()
+	holder.name = "Warmup"
+	holder.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child(holder)
+	var i := 0
+	# Basis-Typen + alle Typen, die das Level per Spawn-Marker oder Skript wirklich nutzt
+	var kinds: Array[String] = []
+	kinds.assign(WARM_ENEMIES)
+	for mk in get_tree().get_nodes_in_group("enemy_spawn"):
+		var t := String(mk.get_meta("enemy_type", ""))
+		if t != "" and not kinds.has(t):
+			kinds.append(t)
+	if scr != null:
+		for v in scr.get_script_constant_map().values():
+			if typeof(v) == TYPE_STRING and String(v).begins_with("res://game/enemies/") and String(v).ends_with(".tscn"):
+				var k := String(v).get_file().get_basename()
+				if not kinds.has(k):
+					kinds.append(k)
+	# Rig-Szenen (alle MH-Varianten) und Gegner-Szenen fuer die Level-Dauer im Cache halten
+	for rp: String in [SoldierVisual.RIG_PATH, SoldierVisual.OP_RIG_PATH]:
+		if ResourceLoader.exists(rp):
+			_warm_refs.append(load(rp))
+	for v: String in SoldierVisual.MH_VARIANTS:
+		if ResourceLoader.exists(SoldierVisual.MH_RIG_PATH % v):
+			_warm_refs.append(load(SoldierVisual.MH_RIG_PATH % v))
+	# Fraktionen, die das Level wirklich nutzt: Ausruestungs-Meshes (soldier_mh_gear, inkl. LOD-Erzeugung) werden
+	# je Fraktion/Rolle erst beim ersten Gegner gebaut (river_crossing "ru": 60-150 ms je neuem Typ im Wellen-Spawn)
+	var factions: Array[String] = []
+	var df = lvl.get("default_faction")
+	if typeof(df) == TYPE_STRING and String(df) != "":
+		factions.append(String(df))
+	for mk in get_tree().get_nodes_in_group("enemy_spawn"):
+		var mf := String(mk.get_meta("faction", ""))
+		if mf != "" and not factions.has(mf):
+			factions.append(mf)
+	# per Skript gesetzte Fraktionen (z. B. set_meta("faction", "garde")); ohne Quelltext (Export) wie frueher Widerstand dazu
+	var src := scr.source_code if scr != null else ""
+	for f: String in ["ru", "reich", "resistance", "garde", "garde_winter", "eu"]:
+		if not factions.has(f) and (src.contains('"%s"' % f) or (src == "" and f == "resistance")):
+			factions.append(f)
+	if factions.is_empty():
+		factions.append("reich")
+	var vi := 0
+	for kind: String in kinds:
+		var path := "res://game/enemies/%s.tscn" % kind
+		if not ResourceLoader.exists(path):
+			continue
+		var ps := load(path) as PackedScene
+		_warm_refs.append(ps)
+		for faction: String in factions:
+			var e := ps.instantiate() as Node3D
+			e.set_meta("faction", faction)
+			# reihum alle MH-Varianten (je eigenes Rig/Texturen), sonst laedt der Wellen-Spawn sie nach
+			SoldierVisual.force_variant = SoldierVisual.MH_VARIANTS[vi % SoldierVisual.MH_VARIANTS.size()]
+			vi += 1
+			holder.add_child(e)
+			SoldierVisual.force_variant = ""
+			for g in ["enemy", "damageable"]:
+				e.remove_from_group(g)
+			e.global_position = at + Vector3((i % 5 - 2) * 0.9, 0, 0)
+			i += 1
+			await get_tree().process_frame
+			if not is_instance_valid(lvl):
+				holder.queue_free()
+				return
+	# Fahrzeuge des Levels (Hubschrauber, Panzer, Jets ...) einmal je Fraktion bauen: fuellt den Modell-Klon-Cache
+	# (model_cache.gd, sonst 100-280 ms GDScript-Modellbau beim Auftauchen) und kompiliert ihre Materialien
+	if scr != null:
+		for v in scr.get_script_constant_map().values():
+			if typeof(v) != TYPE_STRING or not String(v).begins_with("res://game/vehicles/") or not String(v).ends_with(".tscn") or not ResourceLoader.exists(v):
+				continue
+			for faction: String in factions:
+				var veh := (load(v) as PackedScene).instantiate() as Node3D
+				if "faction" in veh:
+					veh.set("faction", faction)
+				veh.set_meta("faction", faction)
+				holder.add_child(veh)
+				for g in ["enemy", "damageable", "vehicle"]:
+					veh.remove_from_group(g)
+				veh.global_position = at + fwd * 14.0 + Vector3(0, 2.0, 0)
+				# Brand-Overlay der Wracks (verkohlt) gleich mit kompilieren
+				preload("res://game/vehicles/vehicle_fx.gd").char_all(veh)
+				await get_tree().process_frame
+				if not is_instance_valid(lvl):
+					holder.queue_free()
+					return
+	# Schuss-Effekte: erster eigener bzw. gegnerischer Schuss erzeugte Tracer-/Huelsen-/Muendungs-Materialien
+	# und lud den Tracer-Shader (river/rail/berlin/baltic: 40-57 ms Ruckler kurz nach Levelstart)
+	var tr_scripts := {}
+	for c in holder.get_children():
+		if c.has_method("_spawn_tracer") and not tr_scripts.has(c.get_script()):
+			tr_scripts[c.get_script()] = true
+			c.call("_spawn_tracer", at + Vector3.UP * 1.5, at + fwd * 25.0 + Vector3.UP * 1.5)
+	var pl := get_tree().get_first_node_in_group("player")
+	if pl != null and "weapons" in pl:
+		for w in pl.get("weapons"):
+			if is_instance_valid(w) and w.has_method("warmup_fx"):
+				var was: bool = w.visible
+				w.visible = true
+				w.call("warmup_fx")
+				await get_tree().process_frame
+				if not is_instance_valid(lvl):
+					holder.queue_free()
+					return
+				if is_instance_valid(w):
+					w.visible = was
+	# Sounds: alle SFX und die Rufe der Level-Fraktionen laden und festhalten (sonst load() beim ersten Schuss,
+	# Treffer, Ruf: je 1-7 ms, mehrere im selben Frame)
+	for fn in DirAccess.get_files_at("res://assets/sfx/"):
+		if fn.ends_with(".import"):
+			var sp := "res://assets/sfx/" + fn.trim_suffix(".import")
+			if ResourceLoader.exists(sp):
+				_warm_refs.append(load(sp))
+	EnemyVoice.prewarm(factions)
+	# Waffen-Drops und Munitionskisten (Waffenmodell, Materialien, Stencil-Labels): sonst ~120 ms beim ersten Drop
+	var pk := 0.0
+	for wid: String in ["ak74m", "g36c"]:
+		Pickup.spawn_weapon(holder, at + fwd * 2.5 + Vector3.RIGHT * pk, wid, 0, 0)
+		pk += 0.8
+	Pickup.spawn_ammo(holder, at + fwd * 2.5 - Vector3.RIGHT * 0.8, WeaponDefs.ammo_of("ak74m"), 1)
+	Pickup.spawn_crate(holder, at + fwd * 3.5 - Vector3.RIGHT * 1.6)
+	await get_tree().process_frame
+	if not is_instance_valid(lvl):
+		holder.queue_free()
+		return
+	# Feuer (Fahrzeugwracks, brennende Faesser): Szene + Partikel/Shader; sonst ~110 ms beim ersten Brand
+	if ResourceLoader.exists("res://game/vfx/fire.tscn"):
+		var fps := load("res://game/vfx/fire.tscn") as PackedScene
+		_warm_refs.append(fps)
+		var fire := fps.instantiate() as Node3D
+		holder.add_child(fire)
+		fire.global_position = at + fwd * 3.0
+		await get_tree().process_frame
+	# Explosion (Licht mit Schatten, Rauch, Funken, Truemmer), Einschlaege aller Oberflaechen, Staubwolke,
+	# Brandfleck einmal sichtbar rendern; danach sofort zuruecksetzen
+	# Level-eigene Effekte (z. B. rail_yard Zug-Detonation)
+	if lvl.has_method("warmup_fx"):
+		lvl.call("warmup_fx", holder, at, fwd)
+		await get_tree().process_frame
+	VFX.warmup_begin(at, fwd)
+	for f in 4:
+		await get_tree().process_frame
+	VFX.warmup_end()
+	# alles, was die Vorwaerm-Gegner referenzieren (Rigs, Texturen, Shader, Materialien), festhalten
+	var keep := {}
+	WarmCache.collect(holder, keep)
+	_warm_refs.append_array(keep.keys())
+	holder.queue_free()
+	print("[main] Vorwaermen: %d ms (%d Ressourcen, %d Gegner)" % [Time.get_ticks_msec() - t0, _warm_refs.size(), i])
+
 func _free_level() -> void:
 	if _level != null and is_instance_valid(_level):
 		_level.process_mode = Node.PROCESS_MODE_DISABLED
 		remove_child(_level)
 		_level.queue_free()
 		_level = null
+	_warm_refs.clear()
 	Events.story_objective.emit("")
 	Events.story_cinematic.emit(false)
 	var sui := get_node_or_null("StoryUI")
@@ -554,6 +838,12 @@ func _back_to_menu() -> void:
 	await _wait(3.0)
 	await _fade_labels(0.0, 1.0, [_title, _sub])
 	_busy = false
+	if _menu_allowed():
+		_title.remove_theme_color_override("font_color")
+		_free_level()
+		print("[main] Kampagne beendet -> Hauptmenue")
+		_open_main_menu()
+		return
 	_skip_brief_once = true
 	var first := _first_existing(0)
 	print("[main] Kampagne beendet -> Menue (" + first + ")")
@@ -631,6 +921,7 @@ func _mark_unlocked(level_name: String) -> void:
 	if not level_name in arr:
 		arr.append(level_name)
 		st.call("set_value", "game/unlocked", arr)
+	st.call("set_value", "game/last_level", level_name)   # Hauptmenue "Fortsetzen"
 
 ## Aktuelle Mission neu starten (Titelkarte ja, Lagebericht nicht noch einmal).
 func restart_level() -> void:
@@ -769,6 +1060,10 @@ func _finish_episode(res: Dictionary) -> void:
 	await _wait(2.0)
 	await _fade_labels(0.0, 0.5, [_title, _sub])
 	_busy = false
+	if _menu_allowed():
+		print("[main] Episode beendet -> Hauptmenue")
+		_open_main_menu("episodes")
+		return
 	var back := _campaign_return_level()
 	if back == "":
 		return
@@ -780,3 +1075,174 @@ func _finish_episode(res: Dictionary) -> void:
 	var pm := get_node_or_null("PauseMenu")
 	if pm != null and pm.has_method("open_episodes") and can_pause():
 		pm.call("open_episodes")
+
+# ================================================================== Hauptmenue
+## game/ui/main_menu.gd beim normalen Spielstart. Alle Werkzeug-/Testschalter (--level, --autopilot, --debug-server,
+## --capture, --phase, --intro, --start-paused, --no-menu) starten wie bisher direkt ohne Menue.
+const MAIN_MENU_PATH := "res://game/ui/main_menu.gd"
+var _menu: Node = null
+
+func _menu_allowed() -> bool:
+	for a in ["level", "autopilot", "debug-server", "capture", "phase", "intro", "start-paused", "no-menu"]:
+		if Game.arg(a, null) != null:
+			return false
+	return ResourceLoader.exists(MAIN_MENU_PATH)
+
+func _open_main_menu(page: String = "") -> void:
+	if _menu != null and is_instance_valid(_menu):
+		return
+	_level_name = ""
+	_episode = false
+	_black.color.a = 1.0
+	_hide_loading()
+	_menu = (load(MAIN_MENU_PATH) as GDScript).new()
+	_menu.name = "MainMenu"
+	_menu.set("start_page", page)
+	add_child(_menu)
+
+func _close_main_menu() -> void:
+	if _menu != null and is_instance_valid(_menu):
+		_menu.queue_free()
+	_menu = null
+	_black.color.a = 1.0
+
+func is_main_menu_open() -> bool:
+	return _menu != null and is_instance_valid(_menu)
+
+## Teil (1..4) einer Kampagnenmission; Grenzen = Akt-Enden (StoryData.ACT_ENDINGS). 0 = keine Kampagnenmission.
+func part_of(level_name: String) -> int:
+	var n := 1
+	for l in LEVELS:
+		if l == level_name:
+			return n
+		if StoryData.ACT_ENDINGS.has(l):
+			n += 1
+	return 0
+
+## Anzeigename eines Teils ("Teil 2 – Ordnungsfront"); Teil 1 hat keinen Zwischentitel.
+func part_title(n: int) -> String:
+	if n <= 1:
+		return "Teil 1 – Kampagne „Nord“"
+	var k := 1
+	for l in LEVELS:
+		if StoryData.ACT_ENDINGS.has(l):
+			k += 1
+			if k == n:
+				return str(StoryData.ACT_ENDINGS[l].get("next_title", "Teil %d" % n))
+	return "Teil %d" % n
+
+## Fortsetzen: zuletzt betretene Kampagnenmission (Settings "game/last_level"), sonst die am weitesten erreichte.
+## "" = kein Fortschritt.
+func menu_continue_level() -> String:
+	var saved := _saved_unlocked()
+	if saved.is_empty():
+		return ""
+	var st := get_node_or_null("/root/Settings")
+	var last := str(st.call("get_value", "game/last_level", "")) if st != null else ""
+	if last in LEVELS and last in saved and ResourceLoader.exists(_level_path(last)):
+		return last
+	var best := ""
+	for l in LEVELS:
+		if l in saved and ResourceLoader.exists(_level_path(l)):
+			best = l
+	return best
+
+## Alles, was das Hauptmenue anzeigt (Fortsetzen-Karte, Uebersicht, Teile, Episoden).
+func menu_state() -> Dictionary:
+	var cont := menu_continue_level()
+	var saved := _saved_unlocked()
+	var total := 0
+	var reached := 0
+	var parts: Array = []
+	for l in LEVELS:
+		if not ResourceLoader.exists(_level_path(l)):
+			continue
+		total += 1
+		var p := part_of(l)
+		while parts.size() < p:
+			var pt := part_title(parts.size() + 1)
+			var dash := pt.find(" – ")
+			parts.append({"short": pt.left(dash) if dash > 0 else pt, "name": pt.substr(dash + 3) if dash > 0 else "",
+				"reached": 0, "count": 0})
+		parts[p - 1]["count"] = int(parts[p - 1]["count"]) + 1
+		if cont != "" and l in saved:
+			reached += 1
+			parts[p - 1]["reached"] = int(parts[p - 1]["reached"]) + 1
+	var ss := star_summary()
+	var eps := episode_list()
+	var eo := 0
+	var et := 0
+	for e: Dictionary in eps:
+		if bool(e.get("available", false)):
+			et += 1
+			if bool(e.get("unlocked", false)):
+				eo += 1
+	var first := _first_existing(0)
+	var d := {"has_progress": cont != "", "continue": cont, "total": total, "reached": reached, "parts": parts,
+		"stars": int(ss["earned"]), "stars_total": int(ss["total"]), "difficulty": Difficulty.display_name(),
+		"episodes_open": eo, "episodes_total": et, "first_title": str(_titles_of(first)[0]) if first != "" else ""}
+	if cont != "":
+		var t: Array = _titles_of(cont)
+		var p2 := part_of(cont)
+		d.merge({"title": str(t[0]), "place": str(t[1]), "date": str(t[2]), "index": LEVELS.find(cont),
+			"part": p2, "part_title": part_title(p2), "star_mask": Progress.mask(cont)})
+	return d
+
+## Aus dem Hauptmenue: Mission starten (mit Titelkarte/Lagebericht wie gewohnt).
+func menu_start_level(level_name: String) -> void:
+	if not ResourceLoader.exists(_level_path(level_name)):
+		return
+	_close_main_menu()
+	_skip_brief_once = false
+	print("[main] Hauptmenue -> Level " + level_name)
+	_load_level(level_name)
+
+func menu_start_episode(id: String) -> void:
+	if not Episodes.is_unlocked(id, _saved_unlocked()):
+		return
+	_close_main_menu()
+	_skip_brief_once = false
+	print("[main] Hauptmenue -> Episode " + id)
+	_load_level(id)
+
+## Neue Kampagne: reset=true (nach Rueckfrage im Menue) setzt erreichte Missionen zurueck (Sterne/Bestzeiten bleiben).
+## Dann wie der fruehere Spielstart: Intro, Schwierigkeitswahl (beim allerersten Start), erste Mission.
+func menu_new_campaign(reset: bool = false) -> void:
+	_close_main_menu()
+	var st := get_node_or_null("/root/Settings")
+	if reset and st != null:
+		st.call("set_value", "game/unlocked", [])
+		st.call("set_value", "game/last_level", "")
+		print("[main] Neue Kampagne: Fortschritt zurueckgesetzt")
+	_skip_brief_once = false
+	if ResourceLoader.exists(INTRO_PATH) and not Game.arg("no-intro", false):
+		await _play_intro()
+	if _briefing_allowed():
+		await _maybe_pick_difficulty()
+	print("[main] Hauptmenue -> Neue Kampagne")
+	_load_level(_first_existing(0))
+
+## Pausenmenue "Hauptmenue": Level verlassen (wie goto_level aufraeumen) und das Hauptmenue oeffnen.
+func return_to_main_menu() -> void:
+	if _busy or _in_briefing:
+		return
+	_busy = true
+	if _title_tw != null and _title_tw.is_valid():
+		_title_tw.kill()
+	Engine.time_scale = 1.0
+	get_tree().paused = false
+	_stop_voice(0.05)
+	_free_level()
+	if _tracker != null and is_instance_valid(_tracker):
+		_tracker.queue_free()
+	_tracker = null
+	_black.color.a = 1.0
+	_title.modulate.a = 0.0
+	_sub.modulate.a = 0.0
+	_brief.modulate.a = 0.0
+	_hint.modulate.a = 0.0
+	await get_tree().process_frame
+	_busy = false
+	_skip_brief_once = false
+	print("[main] Pausenmenue -> Hauptmenue")
+	_open_main_menu()

@@ -163,7 +163,7 @@ static func bp(sk: Skeleton3D, bone: String) -> Vector3:
 
 ## Rueckgabe: Array von {id, bone, meshes: {plate|soft|visor|glow: ArrayMesh}}
 static func pieces(kind: String, faction: String, sk: Skeleton3D) -> Array:
-	var key := kind + "|" + faction
+	var key := kind + "|" + faction + "|%d" % sk.get_bone_count()   # Glied-Teile haengen vom Rig ab
 	if _cache.has(key):
 		return _cache[key]
 	var out: Array = []
@@ -181,6 +181,26 @@ static func _add(out: Array, id: String, bone: String, meshes: Dictionary) -> vo
 		if k.tri_count() > 0:
 			m[key] = k.commit()
 	out.append({"id": id, "bone": bone, "meshes": m})
+
+# ------------------------------------------------------------------ Operator-Rig
+
+## Alle Rumpf-/Kopf-Konstanten dieser Datei sind im Ruheraum des alten SWAT-Rigs gebaut. Fuer das
+## Operator-Rig (assets/characters/soldier_op) bildet op_fix(bone) diesen Raum auf dessen Ruhepose ab
+## (gemessene Querschnitte: Rumpf ~0.1 m weiter hinten, breiter/tiefer wegen der Weste; Kopf weiter
+## hinten). Glied-Teile werden aus den Knochen des Rigs gebaut und brauchen keine Korrektur.
+const OP_FIX_CHEST := Transform3D(Vector3(1.3, 0, 0), Vector3(0, 0.912, 0), Vector3(0, 0, 1.37), Vector3(0.004 - 0.004 * 1.3, 0.949 - 0.865 * 0.912, -0.005 - 0.085 * 1.37))
+const OP_FIX_HIPS := Transform3D(Vector3(1.2, 0, 0), Vector3(0, 1.0, 0), Vector3(0, 0, 1.25), Vector3(0.006 - 0.008 * 1.2, 0.949 - 0.865, -0.01 - 0.07 * 1.25))
+const OP_FIX_HEAD := Transform3D(Vector3(1.05, 0, 0), Vector3(0, 1.03, 0), Vector3(0, 0, 1.18), Vector3(-0.004 - 0.004 * 1.05, 1.665 - 1.665 * 1.03, 0.055 - 0.108 * 1.18))
+
+static func op_fix(bone: String) -> Transform3D:
+	match bone:
+		"Chest":
+			return OP_FIX_CHEST
+		"Hips":
+			return OP_FIX_HIPS
+		"Head":
+			return OP_FIX_HEAD
+	return Transform3D.IDENTITY
 
 # ================================================================== Gepanzerter Soldat
 

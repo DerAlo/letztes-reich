@@ -17,6 +17,7 @@ const SKILLS: Dictionary = {
 		"fire_cone": 2.5, "fire_range": 45.0, "burst": [0.3, 0.7], "pause": [0.1, 0.3], "fov": 100.0, "grenade": 0.9,
 	},
 }
+const FoliageSight = preload("res://game/enemies/foliage_sight.gd")
 const VIEW_RANGE: float = 60.0
 const WP_RADIUS: float = 1.8
 const STUCK_TIME: float = 5.0
@@ -534,7 +535,10 @@ func _angles_to(cam: Camera3D, point: Vector3) -> Vector2:
 
 func _los(from: Vector3, to: Vector3) -> bool:
 	var q: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from, to, 1)
-	return get_viewport().world_3d.direct_space_state.intersect_ray(q).is_empty()
+	if not get_viewport().world_3d.direct_space_state.intersect_ray(q).is_empty():
+		return false
+	# Laub: ein echter Spieler sieht durch dichte Kronen ebenso wenig wie die Gegner (foliage_sight.gd)
+	return not FoliageSight.blocks(get_tree(), from, to)
 
 
 func _update_perception(cam: Camera3D) -> void:
@@ -571,6 +575,8 @@ func _pick_target() -> void:
 	var best: Node3D = null
 	var best_d: float = 1e9
 	for e in _vis:
+		if not is_instance_valid(e):
+			continue
 		var id: int = e.get_instance_id()
 		if float(_ignore_until.get(id, 0.0)) > _sim_time:
 			continue
@@ -659,6 +665,8 @@ func _update_grenade(ext: Dictionary, grenades: int, true_err: float, cam: Camer
 	_gren_check_t = _sim_time + 0.5
 	var pts: Array[Vector3] = []
 	for e in _vis:
+		if not is_instance_valid(e) or not _seen.has(e.get_instance_id()):
+			continue
 		if _sim_time - float(_seen[e.get_instance_id()]["first"]) >= float(_prof["reaction"]):
 			pts.append(e.global_position)
 	if pts.size() < 3:

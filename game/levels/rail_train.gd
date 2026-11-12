@@ -188,6 +188,14 @@ func _blow(i: int, primary: bool) -> void:
 	if kind == "loco":
 		spin = Vector3(0, 0.1, 1.1)
 	rb.angular_velocity = spin
+	# Nach dem Ausrollen einfrieren: halb im Boden steckende Wagen blieben sonst dauerhaft wach (Jolt drueckt sie
+	# Schritt fuer Schritt heraus), ueber den Rand geflogene fielen endlos.
+	get_tree().create_timer(14.0, false, true).timeout.connect(func() -> void:
+		if not is_instance_valid(rb):
+			return
+		if rb.global_position.y < -4.0:
+			rb.visible = false
+		rb.set_deferred("freeze", true))
 	# verkohlen
 	_char(rb)
 	# Feuer + Rauch an der alten Position

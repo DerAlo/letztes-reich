@@ -89,11 +89,22 @@ func _build() -> void:
 		add_child(_drops)
 
 ## kind: concrete, dirt, metal, wood, sand, blood, cloud
+## Sofort beenden und ausblenden (nach dem Vorwaermen im Ladebildschirm).
+func reset() -> void:
+	if not _busy:
+		return
+	if _tween and _tween.is_valid():
+		_tween.kill()
+	visible = false
+	_busy = false
+	finished.emit(self)
+
 func play(kind: String, pos: Vector3, normal: Vector3, s: float = 1.0) -> void:
 	_build()
 	if _tween and _tween.is_valid():
 		_tween.kill()
 	_busy = true
+	visible = true
 	global_position = pos + normal * 0.03
 	var n := normal.normalized() if normal.length() > 0.01 else Vector3.UP
 	_dust_pm.direction = n

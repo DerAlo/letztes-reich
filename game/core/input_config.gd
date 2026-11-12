@@ -47,6 +47,7 @@ const ACTIONS: Array = [
 	["spotter_near", "Korrektur: kürzer", "Ausrüstung"],
 	["spotter_left", "Korrektur: links", "Ausrüstung"],
 	["spotter_right", "Korrektur: rechts", "Ausrüstung"],
+	["spotter_effect", "Mörser: Wirkungsfeuer", "Ausrüstung"],
 	["drone_toggle", "Drohne starten / zurückholen", "Ausrüstung"],
 	["drone_thermal", "Drohne: Wärmebild", "Ausrüstung"],
 	["squad_order", "Befehl: Feuer / Dort hin (halten: Halt)", "Begleiter"],
@@ -55,7 +56,7 @@ const ACTIONS: Array = [
 
 ## Aktionen, die Game._setup_input nicht anlegt, der Player aber (identische Standardwerte wie player.gd).
 const EXTRA_KEYS := {"weapon_3": KEY_3, "crouch_hold": KEY_CTRL, "nightvision": KEY_N, "flashlight": KEY_L,
-	"binoculars": KEY_B, "spotter_far": KEY_UP, "spotter_near": KEY_DOWN, "spotter_left": KEY_LEFT, "spotter_right": KEY_RIGHT,
+	"binoculars": KEY_B, "spotter_far": KEY_UP, "spotter_near": KEY_DOWN, "spotter_left": KEY_LEFT, "spotter_right": KEY_RIGHT, "spotter_effect": KEY_F,
 	"drone_toggle": KEY_V, "drone_thermal": KEY_T,
 	"squad_order": KEY_X, "squad_hold": KEY_H}   # Squad-Befehle light (game/squad/), nur mit Level-Opt-in wirksam
 

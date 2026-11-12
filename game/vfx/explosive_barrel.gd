@@ -111,6 +111,13 @@ func _detonate(source: Node) -> void:
 func _become_wreck() -> void:
 	for p in _parts:
 		p.material_override = _mat_burnt
+	# Feuer zeitversetzt aufbauen: Kettenexplosionen erzeugen sonst mehrere
+	# Feuer (Partikel + Licht + Rauch) im selben Frame wie die Explosion.
+	get_tree().create_timer(randf_range(0.06, 0.3)).timeout.connect(_spawn_wreck_fire)
+
+func _spawn_wreck_fire() -> void:
+	if not is_inside_tree():
+		return
 	var fire: Node3D = FireScene.instantiate()
 	fire.set("size", 0.85)
 	fire.set("light_energy", 5.0)

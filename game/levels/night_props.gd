@@ -7,6 +7,7 @@ extends RefCounted
 const Geo = preload("res://game/levels/level_geo.gd")
 const PH = preload("res://game/levels/ph_props.gd")
 const IfvModel = preload("res://game/vehicles/ifv/ifv_model.gd")
+const FoliageSight = preload("res://game/enemies/foliage_sight.gd")
 const ENV_TEX := "res://assets/environment/textures/"
 const OLD_TEX := "res://assets/textures/"
 const SNOW_SHADER: Shader = preload("res://assets/environment/snowy.gdshader")
@@ -322,6 +323,8 @@ static func forest(parent: Node3D, trees: Array, rng: RandomNumberGenerator, sha
 			lm.visibility_range_begin = LOD_DIST
 			lm.visibility_range_begin_margin = 6.0
 			parent.add_child(lm)
+	# Kronen fuer die Gegner-Sichtlinie registrieren (Laub verdeckt in beide Richtungen)
+	FoliageSight.register(parent, trees, TREE_H)
 
 static func _mm_node(mesh: Mesh, xforms: Array, shadows: bool) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()

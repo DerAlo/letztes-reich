@@ -13,6 +13,11 @@ const VfxLib = preload("res://game/vfx/vfx_lib.gd")
 @export var smoke_height: float = 1.0      ## Multiplikator fuer die Steiggeschwindigkeit des Rauchs
 @export var smoke_amount: int = 40          ## Basis; wird mit smoke_height hochskaliert
 @export var flame_amount: int = 16
+## Deckkraft der Rauchpartikel (Shader-Dichte). Weniger, dafuer dichtere Partikel = weniger Overdraw.
+@export var smoke_density: float = 1.6
+## false: Rauch empfaengt keine Schatten (smoke_billboard_fast, ~15 % guenstiger pro Pixel) –
+## fuer Nacht-/Nahfeuer, wo Schatten auf dem Rauch ohnehin nicht zu sehen sind.
+@export var smoke_shadows: bool = true
 ## > 0: Feuer erlischt nach dieser Zeit (Flammen/Licht blenden aus, Rauch glimmt kurz nach)
 @export var burn_time: float = 0.0
 
@@ -141,14 +146,14 @@ func _build_smoke(s: float) -> GPUParticles3D:
 		"smoke_color": Color(0.045, 0.042, 0.04),
 		"smoke_color_end": Color(0.15, 0.147, 0.144),
 		"color_shift": 1.4,
-		"density": 1.6,
+		"density": smoke_density,
 		"erosion": 0.2,
 		"frame_span": 7.0,
 		"soft_dist": 0.8 * s,
 		"glow": 0.45,
 		"glow_height": 0.6 * s,
 		"glow_color": Color(1.0, 0.4, 0.12),
-	})
+	}, not smoke_shadows)
 	# fx2: viele, sehr transparente Partikel (Alpha ~0.05-0.25), die sich weich ueberlagern
 	var p := VfxLib.make_particles(int(smoke_amount * big * 2.4), life, sp, VfxLib.quad(1.0), _smoke_mat)
 	p.one_shot = false

@@ -108,6 +108,12 @@ const MAX_DEBRIS: int = 16
 @export var optic_mount: Vector3 = Vector3(0.0, 0.06, -0.03)
 ## Abstand Auge -> Glas im ADS. ads_pos wird daraus automatisch berechnet (Glas exakt auf der Sichtachse).
 @export var ads_eye_dist: float = 0.15
+## Visierlinie (Pivotraum) für Modelle ohne Metas (Pistole): Kornspitze/Kimme. Kornspitze kommt im ADS
+## exakt auf die Kameraachse (= Schussachse); ZERO = ads_pos aus der Szene unverändert.
+@export var sight_front_pos: Vector3 = Vector3.ZERO
+@export var sight_rear_pos: Vector3 = Vector3.ZERO
+var _sight_f: Vector3 = Vector3.ZERO   # Kornspitze / Zielpunkt (Pivotraum), für Prüfungen
+var _sight_r: Vector3 = Vector3.ZERO   # Kimme / Augenseite der Optik (Pivotraum)
 @export var muzzle_pos: Vector3 = Vector3(0.0, 0.012, -0.80)
 ## Auswurffenster (Pivot-Raum); ZERO = keine Hülsen
 @export var eject_pos: Vector3 = Vector3.ZERO
@@ -115,6 +121,34 @@ const MAX_DEBRIS: int = 16
 ## Schalldämpfer (Level "curfew"): Zylinder an der Mündung, kaum Mündungsfeuer, kein Licht.
 @export var suppressed: bool = false
 @export var suppressor_length: float = 0.15
+
+@export_group("Arme")
+## Erste-Person-Arme (game/weapons/fp_arms.gd). Handwurzel-Lagen im Pivot-Raum (Lauf nach -Z).
+@export var arms_enabled: bool = true
+@export var hand_r_pos: Vector3 = Vector3(0.0, -0.09, 0.07)
+## Zusatzdrehung (Grad, Pivot-Achsen) auf die Griffhaltung aus dem Rig
+@export var hand_r_rot: Vector3 = Vector3.ZERO
+@export var hand_l_pos: Vector3 = Vector3(0.0, -0.06, -0.3)
+@export var hand_l_rot: Vector3 = Vector3.ZERO
+## Stützhand: gespiegelte Griffhand (Pistole beidhändig) statt Handschutz-Griff
+@export var support_mirror: bool = false
+## Stützhand-Finger etwas öffnen (0 = Griffhaltung, 1 = gestreckt)
+@export var support_open: float = 0.0
+@export var support_thumb_open: float = 0.0
+## Zeigefinger der Griffhand: 0 = am Abzug (gebacken), 1 = gestreckt am Rahmen
+@export_range(0.0, 1.0) var trigger_open: float = 0.0
+## Stützhand-Daumen nicht spiegeln, sondern eigene (gebackene) Haltung: Daumen zeigt nach vorn (Thumbs-forward).
+@export var support_thumb_own: bool = false
+## Zusatzdrehung des Stützhand-Daumengrunds (Grad, lokal), um den Daumen am Rahmen nach vorn zu legen
+@export var support_thumb_rot: Vector3 = Vector3.ZERO
+## Schulterversatz der Arme (Kameraraum, x nach außen): tiefere Schultern = steilere Unterarme
+@export var arms_shoulder_off: Vector3 = Vector3.ZERO
+## Nur im ADS: Hände (Pivotraum) versetzen/kippen, damit Handrücken und Daumen unter dem Schlitten sichtbar bleiben
+@export var arms_ads_hand_off: Vector3 = Vector3.ZERO
+@export var arms_ads_hand_rot: Vector3 = Vector3.ZERO
+## Ellbogen-Polziele (Kameraraum); ZERO = aus dem Rig
+@export var elbow_pole_r: Vector3 = Vector3.ZERO
+@export var elbow_pole_l: Vector3 = Vector3.ZERO
 
 var ammo_mag: int = 0
 var ammo_reserve: int = 0
@@ -136,6 +170,10 @@ var _since_shot: float = 10.0
 var _bloom: float = 0.0
 var _dry_clicked: bool = false
 var _optic_lens: MeshInstance3D = null
+var _arms: FpArms = null
+var _arms_fist: bool = false
+## Handwurzel -> Magazinachse bei gespiegelter Griffhaltung (Kameraraum-Achsen, gebackene Hand)
+const MAG_GRIP := Vector3(0.02, 0.0, -0.095)
 
 # --- Nachladen (Zeitleiste in Sekunden, siehe _timeline())
 var _reload_t: float = 0.0
@@ -201,6 +239,17 @@ func _ready() -> void:
 	if suppressed:
 		_build_suppressor()
 	_phase_sfx = not Sfx.get_variants(sfx_prefix + "_mag_in").is_empty()
+	if arms_enabled:
+		_arms = FpArms.new()
+		_arms.shoulder_off = arms_shoulder_off
+		_arms.name = "Arms"
+		add_child(_arms)
+		_arms.set_support_fingers("L", support_mirror, support_open, support_thumb_open, support_thumb_own, support_thumb_rot)
+		_arms.set_trigger_finger("R", trigger_open)
+		if elbow_pole_r != Vector3.ZERO:
+			_arms.set_pole("R", elbow_pole_r)
+		if elbow_pole_l != Vector3.ZERO:
+			_arms.set_pole("L", elbow_pole_l)
 	set_active(false)
 
 func setup(p: Player) -> void:
@@ -546,6 +595,26 @@ func _muzzle_flash() -> void:
 	_flash_vm_light.light_energy = _flash_peak * 0.3
 	_flash_vm_light.visible = true
 
+## Vorwaermen im Ladebildschirm (main.gd): Tracer, Huelse und Muendungsfeuer einmal erzeugen, damit Materialien,
+## Shader und Partikel nicht erst beim ersten Schuss entstehen (40-50 ms Ruckler). Keine Munition, Signale, Ton.
+func warmup_fx() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or not is_inside_tree():
+		return
+	_shell_snd_ms = Time.get_ticks_msec() + 3000
+	_spawn_tracer(cam, cam.global_position - cam.global_basis.z * 30.0)
+	_eject_shell()
+	_muzzle_flash()
+	# Vorwaerm-Huelsen sofort wieder weg: inaktive Waffen ticken _tick_shells nicht, die Huelse blieb sonst
+	# beim Levelstart als gelber Stab in der Luft haengen.
+	get_tree().create_timer(0.25, true).timeout.connect(_clear_shells)
+
+func _clear_shells() -> void:
+	for s in _shells:
+		if is_instance_valid(s.node):
+			(s.node as Node).queue_free()
+	_shells.clear()
+
 func _spawn_tracer(cam: Camera3D, end: Vector3) -> void:
 	var start: Vector3 = _tracer_start(cam)
 	var vec: Vector3 = end - start
@@ -890,6 +959,53 @@ func animate(delta: float, s: Dictionary) -> void:
 	_pivot.position = _base_pos + bpos * bm + breath_p + _sway.x + _imp.x + _rc.x + hp
 	_pivot.rotation_degrees = _base_rot + brot * bm + breath_r + _sway_r.x + _imp_r.x + _rc_r.x + hr
 	_animate_parts()
+	_update_arms(ads)
+
+## Hände an Griff und Handschutz (Pivot-Raum -> Kameraraum).
+func _update_arms(ads: float = 0.0) -> void:
+	if _arms == null:
+		return
+	var pt: Transform3D = _pivot.transform
+	var ar: Vector3 = arms_ads_hand_rot * ads
+	var ao: Vector3 = arms_ads_hand_off * ads
+	var br: Basis = Basis.from_euler((hand_r_rot + ar) * (PI / 180.0)) * _arms.grip_basis("R")
+	var bl: Basis = Basis.from_euler((hand_l_rot + ar) * (PI / 180.0)) * _arms.grip_basis("L", support_mirror)
+	var tl := Transform3D(bl, hand_l_pos + ao)
+	var fist: bool = false
+	if reloading and not is_launcher() and not _mag_part.is_empty() and _mag_part.has("now"):
+		# Stützhand: los, zur Tasche, neues Magazin von unten einführen, zurück an den Griff
+		var t: float = _reload_t
+		var rel: float = _tl("rel")
+		var new0: float = _tl("new0")
+		var mid: float = lerpf(rel, new0, 0.5)
+		var ins1: float = _tl("ins1")
+		var back: float = _tl("slap") + 0.2
+		var pouch := Transform3D(Basis.from_euler(Vector3(0.5, 0.3, 0.6)) * bl, hand_l_pos + Vector3(-0.06, -0.3, 0.18))
+		var now: Transform3D = _mag_part.now
+		var down: Vector3 = now.basis * Vector3(_mag_part.down)
+		var mb: Basis = now.basis * Basis(Vector3.RIGHT, atan2(-Vector3(_mag_part.down).z, -Vector3(_mag_part.down).y))
+		var hold := Transform3D(mb * _arms.grip_basis("L", true), now.origin + down * 0.03 - mb * MAG_GRIP)
+		if t < rel:
+			pass
+		elif t < mid:
+			tl = tl.interpolate_with(pouch, smoothstep(rel, mid, t))
+		elif t < new0:
+			tl = pouch.interpolate_with(hold, smoothstep(mid, new0, t))
+			fist = true
+		elif t < ins1:
+			tl = hold
+			fist = true
+		elif t < back:
+			var w: float = smoothstep(ins1, back, t)
+			tl = hold.interpolate_with(tl, w)
+			fist = w < 0.5
+	if fist != _arms_fist:
+		_arms_fist = fist
+		if fist:
+			_arms.set_support_fingers("L", true, 0.0, 0.2)
+		else:
+			_arms.set_support_fingers("L", support_mirror, support_open, support_thumb_open, support_thumb_own, support_thumb_rot)
+	_arms.solve(pt * Transform3D(br, hand_r_pos + ao), pt * tl)
 
 ## Landung: Waffe federt nach unten (strength 0..1).
 func land_impulse(strength: float) -> void:
@@ -973,7 +1089,11 @@ func _animate_parts() -> void:
 				var q: float = (t - rel) / maxf(out - rel, 0.001)
 				off = down * out_d * q * q
 			elif t < new0:
+				# unsichtbar; Lage = Erscheinungspunkt (Ziel für die Stützhand)
 				node.visible = false
+				var side0: float = 1.0 if model_kind == "pistol" else -1.0
+				off = down * 0.22 + Vector3(0.05 * side0, 0.0, 0.03)
+				rot = Vector3(20.0, 0.0, -18.0 * side0)
 			elif t < ins0:
 				var kk: float = smoothstep(new0, ins0, t)
 				var side: float = 1.0 if model_kind == "pistol" else -1.0
@@ -1019,6 +1139,7 @@ func _set_part(part: Dictionary, off: Vector3, rot_deg: Vector3) -> void:
 	var m := Transform3D(Basis.from_euler(rot_deg * (PI / 180.0)), Vector3.ZERO)
 	var full: Transform3D = Transform3D(Basis(), c + off) * m * Transform3D(Basis(), -c) * Transform3D(part.rest)
 	(part.node as Node3D).transform = Transform3D(part.prel_inv) * full
+	part["now"] = Transform3D(m.basis, c + off)
 
 ## Transform von n relativ zu anc (ohne globalen Baum).
 func _rel(n: Node, anc: Node) -> Transform3D:
@@ -1105,13 +1226,15 @@ func _build_model() -> void:
 		_:
 			_build_rifle()
 
-## G36C / Panzerfaust (prozedural, GunModels) bzw. AK-74M (CC0-Modell, eigene Materialien).
-## Mündung, Auswurf und Optik-Montage kommen aus den Metas des Modells (G36C/PzF).
+## G36 / AK-74M (CC-BY-Modelle mit PBR-Texturen) bzw. Panzerfaust (prozedural), alle über GunModels.
+## Mündung, Auswurf, Optik-Montage und Visierlinie (Kimme/Korn) kommen aus den Metas des Modells.
 func _build_procedural() -> void:
 	var model: Node3D = null
 	match model_kind:
 		"g36c":
-			model = GunModels.build_g36c()
+			model = GunModels.build_g36()
+			if model == null:
+				model = GunModels.build_g36c()
 		"ak":
 			model = GunModels.build_ak()
 		"launcher":
@@ -1139,6 +1262,15 @@ func _build_procedural() -> void:
 		# Zielen durch das Klappvisier: Visier-Achse auf die Kamera-Achse
 		var sp: Vector3 = xf * (model.get_meta("sight") as Vector3)
 		ads_pos = Vector3(-sp.x, -sp.y, -ads_eye_dist - sp.z)
+		_sight_r = sp
+		_sight_f = sp + Vector3(0, 0, -0.2)
+	elif not has_red_dot and model.has_meta("sight_front") and model.has_meta("sight_rear"):
+		# Kimme und Korn: Kornspitze auf die Kameraachse, Auge ads_eye_dist hinter der Kimme
+		var fp: Vector3 = xf * (model.get_meta("sight_front") as Vector3)
+		var rp: Vector3 = xf * (model.get_meta("sight_rear") as Vector3)
+		ads_pos = Vector3(-fp.x, -fp.y, -ads_eye_dist - rp.z)
+		_sight_r = rp
+		_sight_f = fp
 	muzzle.position = muzzle_pos
 	if has_red_dot:
 		_build_red_dot()
@@ -1223,8 +1355,8 @@ func _optic_box(parent: Node3D, size: Vector3, pos: Vector3, rot_deg: Vector3 = 
 	b.size = size
 	return _optic_part(parent, b, pos, rot_deg, _optic_mat)
 
-## Offenes Reflexvisier (Holosun/RMR-Stil): Basis mit Riser, Emitter hinten, dünner Rahmen,
-## klares, leicht getöntes Glas; Leuchtpunkt per Shader im Unendlichen.
+## Rotpunkt-Visier: G36 -> Rohr-Rotpunkt (GunModels.build_reddot, rundes Objektivglas), sonst offenes
+## Reflexvisier (Holosun/RMR-Stil). Glas leicht getönt, Leuchtpunkt per Shader im Unendlichen.
 func _build_red_dot() -> void:
 	if _optic_mat == null:
 		_optic_mat = StandardMaterial3D.new()          # eloxiertes Alu, matt
@@ -1245,19 +1377,27 @@ func _build_red_dot() -> void:
 	var gy: float = 0.036          # Glasmitte über Schienenoberkante
 	var gz: float = -0.012         # Glas vorn
 	var fr: float = 0.0025         # Rahmenstärke
-	var lm: ShaderMaterial = _lens_mat.duplicate() as ShaderMaterial   # pro Waffe (Ring nur G36C)
+	var lm: ShaderMaterial = _lens_mat.duplicate() as ShaderMaterial   # pro Waffe
+	var tilt: float = -3.0
 	if model_kind == "g36c":
-		# Holografisches Visier (EOTech-Stil, prozedural): Haube mit Fenster, Batteriefach vorn
-		var holo: Node3D = GunModels.build_holo()
-		o.add_child(holo)
-		_apply_view_layer(holo, null)
-		lm.set_shader_parameter("ring_radius_deg", 0.55)
+		# Rohr-Rotpunkt (Aimpoint-Stil): rundes Objektivglas vorn im Rohr, ohne Neigung
+		var rd: Node3D = GunModels.build_reddot()
+		o.add_child(rd)
+		_apply_view_layer(rd, null)
+		var gc: Vector3 = rd.get_meta("glass_center") as Vector3
+		var gr: float = float(rd.get_meta("glass_radius"))
+		gw = gr * 2.0
+		gh = gr * 2.0
+		gy = gc.y
+		gz = gc.z
+		tilt = 0.0
+		lm.set_shader_parameter("round_glass", true)
 	else:
 		_build_reflex_body(o, gw, gh, gy, gz, fr)
-	# Glas (leicht nach hinten geneigt)
+	# Glas
 	var q := QuadMesh.new()
 	q.size = Vector2(gw, gh)
-	_optic_lens = _optic_part(o, q, Vector3(0, gy, gz), Vector3(-3.0, 0, 0), lm)
+	_optic_lens = _optic_part(o, q, Vector3(0, gy, gz), Vector3(tilt, 0, 0), lm)
 	_optic_lens.sorting_offset = 1.0
 	# Punkt-Achse im Glas-Objektraum = Waffenachse (-Z des Pivots)
 	lm.set_shader_parameter("axis_local", _optic_lens.basis.inverse() * Vector3(0, 0, -1))
@@ -1265,6 +1405,8 @@ func _build_red_dot() -> void:
 	# Zielpunkt: Glasmitte exakt auf die Kameraachse legen
 	var lens_c: Vector3 = optic_mount + Vector3(0, gy, gz)
 	ads_pos = Vector3(-lens_c.x, -lens_c.y, -ads_eye_dist - lens_c.z)
+	_sight_r = lens_c
+	_sight_f = lens_c + Vector3(0, 0, -0.2)
 
 ## Offenes Reflexvisier-Gehäuse (AK / Gewehr).
 func _build_reflex_body(o: Node3D, gw: float, gh: float, gy: float, gz: float, fr: float) -> void:
@@ -1320,6 +1462,11 @@ func _build_pistol() -> void:
 	_mag_part = _make_part(mag, Vector3(0.0, -0.966, 0.259))
 	_bolt_part = _make_part(model.find_child("slider", true, false) as Node3D, Vector3.BACK)
 	muzzle.position = muzzle_pos
+	if sight_front_pos != Vector3.ZERO:
+		# Kornspitze auf die Kamera-/Schussachse; Augenabstand (z) bleibt aus der Szene
+		_sight_f = sight_front_pos
+		_sight_r = sight_rear_pos if sight_rear_pos != Vector3.ZERO else sight_front_pos + Vector3(0, 0, 0.14)
+		ads_pos = Vector3(-_sight_f.x, -_sight_f.y, ads_pos.z)
 
 ## Eigene PBR-Materialien (brüniert/Polymer) mit leichter triplanarer Rauheits-Variation.
 func _apply_pistol_mats(n: Node) -> void:

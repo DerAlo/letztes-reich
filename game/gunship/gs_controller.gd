@@ -91,7 +91,7 @@ func _ready() -> void:
 	cam.fov = ZOOMS[zoom]
 	add_child(cam)
 	cam.make_current()
-	bot_active = bool(Game.arg("autopilot", false))
+	bot_active = str(Game.arg("autopilot", "")) not in ["", "false", "0"]
 	_skill = str(Game.arg("skill", "average"))
 	if not bot_active and not bool(Game.arg("capture", false)):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

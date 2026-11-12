@@ -136,7 +136,7 @@ func _foot_button(text: String) -> Button:
 			set_desc("Setzt alle Werte dieses Reiters auf den Standard zurück." if not _confirm_reset
 					else "Noch einmal bestätigen, um zurückzusetzen.")
 		else:
-			set_desc("Zurück zum Pausenmenü. Alle Änderungen sind bereits gespeichert."))
+			set_desc("Zurück zum Menü. Alle Änderungen sind bereits gespeichert."))
 	return b
 
 

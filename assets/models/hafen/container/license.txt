@@ -1,0 +1,11 @@
+Model Information:
+* title:	Classic Shipping Container (Free/Gameready)
+* source:	https://sketchfab.com/3d-models/classic-shipping-container-freegameready-772f4be391a245f699c54e6cf157c58d
+* author:	Sebastian Webster (https://sketchfab.com/Sebastian.Hamish.Webster)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Classic Shipping Container (Free/Gameready)" (https://sketchfab.com/3d-models/classic-shipping-container-freegameready-772f4be391a245f699c54e6cf157c58d) by Sebastian Webster (https://sketchfab.com/Sebastian.Hamish.Webster) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

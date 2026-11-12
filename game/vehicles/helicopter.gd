@@ -9,8 +9,12 @@ signal destroyed
 signal crashed
 
 const VF = preload("res://game/vehicles/vehicle_fx.gd")
+const ModelCache = preload("res://game/vehicles/models/model_cache.gd")
 const VfxLib = preload("res://game/vfx/vfx_lib.gd")
 const HeliModel = preload("res://game/vehicles/models/heli_model.gd")
+const Mi8Model = preload("res://game/vehicles/models/mi8_model.gd")
+const Mi28Model = preload("res://game/vehicles/models/mi28_model.gd")
+const HeliReal = preload("res://game/vehicles/models/heli_real.gd")
 const FIRE_SCENE := "res://game/vfx/fire.tscn"
 
 enum Mode { IDLE, PATH, HOVER, DYING, WRECK }
@@ -33,6 +37,9 @@ enum Mode { IDLE, PATH, HOVER, DYING, WRECK }
 @export_group("Optik")
 @export var searchlight: bool = false               ## Suchscheinwerfer (Nacht)
 @export var downwash: bool = true
+## Modell: "auto" (oder "") = automatisch (Fraktion "eu" -> Mi-8-Transporter, sonst Mi-28N), "mi8", "mi28n",
+## "procedural" (altes Blockmodell). Auch per set_meta("model_kind").
+@export_enum("auto", "mi8", "mi28n", "procedural") var model_kind: String = "auto"
 
 var health: float = 600.0
 var mode: Mode = Mode.IDLE
@@ -70,6 +77,7 @@ var _spray: GPUParticles3D
 var _spot: SpotLight3D
 var _smoke_trail: Node3D
 var _hit_flash: float = 0.0
+var nav_lights: bool = true
 
 func _ready() -> void:
 	health = max_health
@@ -82,23 +90,41 @@ func _ready() -> void:
 	_hover_point = global_position
 	if has_meta("faction"):
 		faction = str(get_meta("faction"))
+	if has_meta("model_kind"):
+		model_kind = str(get_meta("model_kind"))
 	_build()
 	_build_audio()
 
 func _build() -> void:
 	# Kollision (am Rumpf, nicht am Neige-Pivot) — erstes Shape = Zielpunkt fuer den Bot
-	_add_shape(Vector3(0, 0.1, -0.6), Vector3(2.2, 2.4, 6.6))
-	_add_shape(Vector3(0, 0.6, 6.0), Vector3(1.2, 1.4, 6.0))
-	_add_shape(Vector3(0, 0.25, -0.3), Vector3(6.4, 0.6, 1.6))
 	_pivot = Node3D.new()
 	_pivot.name = "Model"
 	add_child(_pivot)
-	_parts = HeliModel.build(_pivot, faction)
+	_parts = ModelCache.build(model_script(faction, model_kind), _pivot, faction)   # Klon statt Neubau (100-280 ms)
+	var boxes: Array = _parts.get("hitboxes", [])
+	if boxes.is_empty():
+		_add_shape(Vector3(0, 0.1, -0.6), Vector3(2.2, 2.4, 6.6))
+		_add_shape(Vector3(0, 0.6, 6.0), Vector3(1.2, 1.4, 6.0))
+		_add_shape(Vector3(0, 0.25, -0.3), Vector3(6.4, 0.6, 1.6))
+	else:
+		for hb: AABB in boxes:
+			_add_shape(hb.get_center(), hb.size)
 	VF.merge_static(_pivot, _parts.values())
 	if downwash:
 		_build_downwash()
 	if searchlight:
 		set_searchlight(true)
+
+## Modellskript fuer Fraktion/Modellwahl (auch fuer Level, die Modelle selbst bauen).
+static func model_script(fac: String, kind: String = "") -> Script:
+	if kind == "" or kind == "auto":
+		kind = "mi8" if fac == "eu" else "mi28n"
+	match kind:
+		"mi8":
+			return Mi8Model if HeliReal.available("mi8") else HeliModel
+		"mi28n":
+			return Mi28Model if HeliReal.available("mi28n") else HeliModel
+	return HeliModel
 
 func _add_shape(pos: Vector3, size: Vector3) -> void:
 	var cs := CollisionShape3D.new()
@@ -164,13 +190,26 @@ var _rocket_frame: int = -1
 func rocket_hit(source: Node, hit_position: Vector3, hit_normal: Vector3) -> void:
 	if not _alive_mode():
 		return
+	_in_rocket = true
 	take_damage(max_health / float(ROCKET_HITS) + 0.5, source, hit_position, hit_normal)
+	_in_rocket = false
 	_rocket_frame = Engine.get_physics_frames()
+
+## Schaden zaehlt nur von der Panzerfaust (rocket_hit), von Bordwaffen (Schuetzenpanzer, Tuer-/Boots-MG)
+## und von Skript-Ereignissen (>= 500). Handwaffen, Granaten und Faesser richten nichts aus.
+var _in_rocket: bool = false
+
+static func _heavy_source(src: Node) -> bool:
+	return src != null and is_instance_valid(src) and (src.is_in_group("rail_ride") or src.has_method("rocket_hit_ifv"))
 
 func take_damage(amount: float, source: Node, hit_position: Vector3, hit_normal: Vector3) -> void:
 	if not _alive_mode() or amount <= 0.0:
 		return
 	if _rocket_frame == Engine.get_physics_frames() and bool(Combat.get("explosion_active")):
+		return
+	if not _in_rocket and amount < 500.0 and not _heavy_source(source):
+		if randf() < 0.35 and not bool(Combat.get("explosion_active")):
+			VFX.spawn_impact(hit_position, hit_normal, "metal")   # Kugel prallt ab
 		return
 	health -= amount
 	_hit_flash = 1.0
@@ -198,7 +237,8 @@ func get_status() -> Dictionary:
 ## Trefferpunkte fuer Combat.explode (Rumpfmitte, Nase, Heck).
 func get_damage_points() -> Array[Vector3]:
 	var b := global_transform.basis
-	return [global_position, global_position + b * Vector3(0, 0, -3.0), global_position + b * Vector3(0, 0.5, 5.0)]
+	var tz: float = _parts.get("tail_z", 9.5)
+	return [global_position, global_position + b * Vector3(0, 0, -3.0), global_position + b * Vector3(0, 0.5, tz * 0.55)]
 
 func _alive_mode() -> bool:
 	return mode != Mode.DYING and mode != Mode.WRECK
@@ -495,7 +535,7 @@ func _spawn_wreck_fire(p: Vector3) -> void:
 	tail.set("smoke_enabled", true)
 	tail.set("light_enabled", false)
 	root.add_child(tail)
-	tail.global_position = global_position + global_transform.basis * Vector3(0, 0, 6.0) + Vector3.DOWN * 0.6
+	tail.global_position = global_position + global_transform.basis * Vector3(0, 0, float(_parts.get("tail_z", 9.5)) * 0.63) + Vector3.DOWN * 0.6
 	# Nachexplosionen (Munition)
 	for i in 3:
 		get_tree().create_timer(1.2 + i * randf_range(0.9, 1.8), false).timeout.connect(func() -> void:
@@ -568,10 +608,18 @@ func _animate_rotors(delta: float) -> void:
 		b.transparency = 0.55 * _rotor_speed
 
 func _blink_lights() -> void:
-	var on := fmod(_t, 1.2) < 0.08
+	var on := fmod(_t, 1.2) < 0.08 and nav_lights
 	var s: Node3D = _parts.get("strobe")
 	if s and mode != Mode.WRECK:
 		s.visible = on
+
+## Positionslichter + Blitzer an/aus (z. B. verdeckter Flug "Lichter aus").
+func set_nav_lights(on: bool) -> void:
+	nav_lights = on
+	for k in ["nav_l", "nav_r", "strobe"]:
+		var b: Node3D = _parts.get(k)
+		if b:
+			b.visible = on
 
 func _update_audio() -> void:
 	if _rotor_snd:

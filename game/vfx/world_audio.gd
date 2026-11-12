@@ -66,6 +66,14 @@ func _stream(sfx_name: String, loop: bool = false) -> AudioStream:
 	_cache[sfx_name] = s
 	return s
 
+## Alle Standard-Sounds in den Cache laden (Vorwaermen hinter dem Ladebildschirm statt load() beim ersten Knall).
+func prewarm() -> void:
+	var names: Array = EXPLOSIONS + RICOCHETS + WHIZZES
+	for v in IMPACT_SETS.values():
+		names.append_array(v)
+	for n in names:
+		_stream(n)
+
 func _listener_pos() -> Vector3:
 	var vp := get_viewport()
 	var cam := vp.get_camera_3d() if vp != null else null

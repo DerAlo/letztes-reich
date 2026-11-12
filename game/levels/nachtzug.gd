@@ -762,7 +762,7 @@ func _start_ride() -> void:
 		"mount_offset": Vector3(0, 1.25, 0), "eye_offset": Vector3(0, 0.3, 0.5),
 		"yaw_limit_deg": 56.0, "pitch_min_deg": -12.0, "pitch_max_deg": 40.0,
 		"rock_roll_deg": 0.6, "rock_pitch_deg": 0.4, "bob_amp": 0.02, "cam_stabilize": 0.7,
-		"max_integrity": 100.0, "weapon": {"name": "MG3"}})
+		"max_integrity": 100.0, "weapon": {"name": "MG5"}})
 	ride.set("invulnerable", _fail_count >= 2)
 	add_child(ride)
 	ride.call("add_hull_box", Vector3(0, 1.2, 0), Vector3(0.8, 1.6, 0.8))

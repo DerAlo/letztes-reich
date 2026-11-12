@@ -13,8 +13,14 @@ extends Node
 ## senden, RMB = Zoomstufe, Pfeiltasten = Korrektur (10 m, mit Shift 50 m). rmb_raises = true: RMB-Halten
 ## hebt das Fernglas (reine Beobachter-Abschnitte).
 ##
+## Einschiessen (adjust_mode = true): Markieren/Korrektur loest EINEN Einschiess-Schuss aus (kleine
+## Streuung, kostet keine Salve); der Einschlag bleibt als Marker im Fernglas stehen (plus Rauchsaeule),
+## dazu ein "Geist" fuer die vorgemerkte Korrektur. [spotter_effect] (F) = Wirkungsfeuer mit
+## effect_rounds Granaten (elliptische Streuung laengs der Schussrichtung) auf den aktuellen Zielpunkt.
+##
 ## Bot/Level-API: raise(an), is_up(), mark_from_camera(), mark_point(p), add_correction(weiter, rechts),
-## send_correction(), refill(n), state(), busy(), last_impacts(), aim_point(), target_point(), ot_basis(p).
+## send_correction(), fire_for_effect(), refill(n), state(), busy(), is_effect(), last_impacts(),
+## aim_point(), target_point(), ot_basis(p), has_target().
 
 signal binoculars_changed(up: bool)
 signal mission_requested(target: Vector3, distance: float)
@@ -25,6 +31,8 @@ signal salvo_fired(aim: Vector3, flight_time: float, rounds: int)
 signal shell_impact(pos: Vector3, index: int)
 signal salvo_complete(impacts: Array)
 signal battery_ready
+signal effect_requested(target: Vector3)          ## Wirkungsfeuer angefordert
+signal impact_unseen(pos: Vector3)                ## Einschlag lag ausserhalb der Sicht (kein Marker)
 
 # --- Einstellungen
 @export var enabled: bool = false:
@@ -41,7 +49,15 @@ signal battery_ready
 @export var round_interval: float = 0.7
 @export var dispersion: float = 6.0              ## m (Kreisstreuung pro Granate)
 @export var bias_initial: float = 32.0           ## m Ablage des ersten Schusses auf ein neues Ziel
-@export var bias_keep_on_remark: float = 0.4     ## Restablage nach Neu-Markieren in Zielnaehe
+@export var bias_keep_on_remark: float = 1.0     ## Restablage nach Neu-Markieren in Zielnaehe (1 = korrigieren!)
+@export var adjust_mode: bool = true             ## Einschiessen mit Einzelschuss + Wirkungsfeuer [F]
+@export var adjust_dispersion: float = 3.0       ## m Streuung des Einschiess-Schusses
+@export var adjust_reload: float = 3.0           ## s Pause nach einem Einschiess-Schuss
+@export var effect_rounds: int = 4
+@export var range_spread: float = 1.7            ## Ellipse: Laengsstreuung = dispersion * range_spread
+@export var deflection_spread: float = 0.7       ## ... Querstreuung = dispersion * deflection_spread
+@export var smoke_time: float = 22.0             ## s, die eine Rauchsaeule am Einschlag steht
+@export var marker_time: float = 60.0            ## s, die ein Einschlagmarker im Fernglas bleibt
 @export var remark_radius: float = 60.0
 @export var max_range: float = 1200.0
 @export var min_range: float = 35.0
@@ -87,6 +103,9 @@ var _range_m: float = -1.0
 var _look_point := Vector3.ZERO
 var _look_ok: bool = false
 var _rmb_held: bool = false
+var _effect: bool = false          ## laufender Auftrag ist Wirkungsfeuer
+var _marks: Array = []             ## [{ "pos": Vector3, "t": float, "effect": bool }]
+var _smoke_mat: StandardMaterial3D
 
 var _hud: CanvasLayer
 var _mask: ColorRect
@@ -149,6 +168,16 @@ func aim_point() -> Vector3:
 
 func pending_correction() -> Vector2:
 	return _corr
+
+func has_target() -> bool:
+	return _has_target
+
+func is_effect() -> bool:
+	return _effect
+
+## Einschlagmarker (Fernglas) – Level kann sie z. B. beim Zielwechsel loeschen.
+func clear_marks() -> void:
+	_marks.clear()
 
 func refill(n: int) -> void:
 	salvos_left += n
@@ -236,9 +265,12 @@ func mark_point(p: Vector3) -> bool:
 		var vis := 1.0
 		var ang := _rng.randf() * TAU
 		_bias = Vector3(cos(ang), 0.0, sin(ang)) * bias_initial * _rng.randf_range(0.65, 1.0) * vis
+	if _has_target and _target.distance_to(p) >= remark_radius:
+		_marks.clear()
 	_target = p
 	_has_target = true
 	_corr = Vector2.ZERO
+	_effect = false
 	_start_mission(d)
 	return true
 
@@ -279,7 +311,47 @@ func send_correction() -> bool:
 	var c := _corr
 	_target = nt
 	_corr = Vector2.ZERO
+	_effect = false
 	correction_sent.emit(c.x, c.y)
+	var pl := _player()
+	_start_mission(pl.global_position.distance_to(nt) if pl != null else 200.0, false)
+	return true
+
+## Wirkungsfeuer auf den aktuellen Zielpunkt (vorgemerkte Korrektur wird mit uebernommen).
+func fire_for_effect() -> bool:
+	if not enabled:
+		_refuse("aus")
+		return false
+	if not _has_target:
+		_refuse("kein_ziel")
+		return false
+	if not _can_fire():
+		return false
+	if salvos_left <= 0:
+		_refuse("leer")
+		return false
+	var nt := _target
+	if _corr != Vector2.ZERO:
+		var b := ot_basis(_target)
+		nt = _ground(_target + (b[0] as Vector3) * _corr.x + (b[1] as Vector3) * _corr.y)
+	if _in_zone(nt, no_fire, 0.0) != "":
+		_refuse("gesperrt")
+		return false
+	var near := _danger_check(nt)
+	if near != "" and not (_t < _confirm_until and _confirm_point.distance_to(nt) < 25.0):
+		_confirm_until = _t + confirm_time
+		_confirm_point = nt
+		danger_close.emit(nt, near)
+		_msg("GEFAHR NAHE (%s) – erneut [%s] zum Bestätigen" % [near, _key_name("spotter_effect", "F")], 3.0)
+		return false
+	_confirm_until = -1.0
+	if _corr != Vector2.ZERO:
+		var c := _corr
+		_corr = Vector2.ZERO
+		correction_sent.emit(c.x, c.y)
+	_target = nt
+	_effect = true
+	effect_requested.emit(nt)
 	var pl := _player()
 	_start_mission(pl.global_position.distance_to(nt) if pl != null else 200.0, false)
 	return true
@@ -306,7 +378,11 @@ func _can_fire() -> bool:
 		"ready":
 			return true
 		"empty":
+			# Einschiessen geht auch ohne Wirkungssalven (nur Wirkungsfeuer ist begrenzt)
+			if adjust_mode:
+				return true
 			_refuse("leer")
+			return false
 		"reload":
 			_refuse("laden")
 		_:
@@ -321,18 +397,28 @@ func _start_mission(dist: float, announce: bool = true) -> void:
 	_impacts.clear()
 
 func _fire_salvo() -> void:
-	salvos_left -= 1
+	var single := adjust_mode and not _effect
+	var n := 1 if single else (effect_rounds if adjust_mode else rounds_per_salvo)
+	if not single:
+		salvos_left -= 1
 	var pl := _player()
 	var d: float = pl.global_position.distance_to(_aim) if pl != null else 300.0
 	var ft := flight_base + d / flight_speed
-	salvo_fired.emit(_aim, ft, rounds_per_salvo)
+	salvo_fired.emit(_aim, ft, n)
 	_sfx2d("overwatch_mortar_launch", -6.0)
-	for i in rounds_per_salvo:
-		var ang := _rng.randf() * TAU
-		var r := dispersion * sqrt(_rng.randf())
-		var p := _aim + Vector3(cos(ang) * r, 0.0, sin(ang) * r)
+	# Streuung: Ellipse laengs der Schussrichtung (Batterie -> Ziel), Gauss-artig (Mittel aus 2 Zufallswerten)
+	var fwd := -Vector3(battery_dir.x, 0.0, battery_dir.z)
+	if fwd.length() < 0.01:
+		fwd = Vector3(0, 0, -1)
+	fwd = fwd.normalized()
+	var side := fwd.cross(Vector3.UP).normalized()
+	var disp := adjust_dispersion if single else dispersion
+	for i in n:
+		var a := (_rng.randf() + _rng.randf() - 1.0) * 1.6
+		var b := (_rng.randf() + _rng.randf() - 1.0) * 1.6
+		var p := _aim + fwd * a * disp * (range_spread if not single else 1.0) + side * b * disp * (deflection_spread if not single else 1.0)
 		_pending.append({"t": _t + ft + i * round_interval + _rng.randf_range(-0.15, 0.15), "pos": p, "whistle": false, "i": i})
-	_set_state("flight", ft + rounds_per_salvo * round_interval + 0.5)
+	_set_state("flight", ft + n * round_interval + 0.5)
 
 func _impact(p: Vector3, i: int) -> void:
 	var g := _ground(p)
@@ -341,6 +427,16 @@ func _impact(p: Vector3, i: int) -> void:
 	if VFX.has_method("spawn_dust_cloud"):
 		VFX.spawn_dust_cloud(g, 6.0)
 	_impacts.append(g)
+	# Nur beobachtete Einschlaege landen als Marker im Fernglas (im Sturm sieht man auf Entfernung nichts)
+	var seen := not visibility_check.is_valid() or bool(visibility_check.call(g))
+	if seen:
+		_marks.append({"pos": g, "t": _t, "effect": _effect})
+		if _marks.size() > 12:
+			_marks.pop_front()
+	else:
+		impact_unseen.emit(g)
+		_msg("EINSCHLAG NICHT BEOBACHTET – KEINE SICHT", 2.5)
+	_smoke_column(g)
 	shell_impact.emit(g, i)
 	var pl := _player()
 	if pl != null and pl.has_method("add_trauma"):
@@ -382,13 +478,15 @@ func _tick_state(delta: float) -> void:
 		"prep":
 			_fire_salvo()
 		"flight":
+			var was_effect := _effect or not adjust_mode
+			_effect = false
 			salvo_complete.emit(_impacts.duplicate())
-			if salvos_left <= 0:
+			if salvos_left <= 0 and not adjust_mode:
 				_set_state("empty", 0.0)
 			else:
-				_set_state("reload", reload_time)
+				_set_state("reload", reload_time if was_effect else adjust_reload)
 		"reload":
-			_set_state("ready", 0.0)
+			_set_state("ready" if (salvos_left > 0 or adjust_mode) else "empty", 0.0)
 			battery_ready.emit()
 
 func _tick_shells() -> void:
@@ -446,6 +544,68 @@ func _on_respawn() -> void:
 	_corr = Vector2.ZERO
 	_confirm_until = -1.0
 
+## Dunkle Rauchsaeule am Einschlag (im Schnee gut zu sehen, steht smoke_time Sekunden).
+func _smoke_column(g: Vector3) -> void:
+	if not is_inside_tree():
+		return
+	var host := get_tree().current_scene if get_tree().current_scene != null else self
+	var p := GPUParticles3D.new()
+	p.amount = 18
+	p.lifetime = 6.0
+	p.preprocess = 0.0
+	p.local_coords = false
+	p.visibility_aabb = AABB(Vector3(-15, -2, -15), Vector3(30, 30, 30))
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 1.5
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 12.0
+	pm.initial_velocity_min = 1.5
+	pm.initial_velocity_max = 3.0
+	pm.gravity = Vector3(1.2, 0.6, 0.4)
+	pm.damping_min = 0.3
+	pm.damping_max = 0.6
+	pm.scale_min = 2.0
+	pm.scale_max = 4.5
+	var sc := Curve.new()
+	sc.add_point(Vector2(0, 0.4))
+	sc.add_point(Vector2(1, 1.6))
+	var st := CurveTexture.new()
+	st.curve = sc
+	pm.scale_curve = st
+	var gr := Gradient.new()
+	gr.set_color(0, Color(0.16, 0.15, 0.14, 0.75))
+	gr.set_color(1, Color(0.4, 0.4, 0.42, 0.0))
+	var gt := GradientTexture1D.new()
+	gt.gradient = gr
+	pm.color_ramp = gt
+	p.process_material = pm
+	if _smoke_mat == null:
+		_smoke_mat = StandardMaterial3D.new()
+		_smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_smoke_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		_smoke_mat.vertex_color_use_as_albedo = true
+		_smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+		for y in 32:
+			for x in 32:
+				var d := Vector2((x - 15.5) / 15.5, (y - 15.5) / 15.5).length()
+				img.set_pixel(x, y, Color(1, 1, 1, pow(clampf(1.0 - d, 0.0, 1.0), 1.5)))
+		_smoke_mat.albedo_texture = ImageTexture.create_from_image(img)
+	var q := QuadMesh.new()
+	q.size = Vector2(2, 2)
+	q.material = _smoke_mat
+	p.draw_pass_1 = q
+	host.add_child(p)
+	p.global_position = g + Vector3(0, 0.5, 0)
+	p.emitting = true
+	var tw := p.create_tween()
+	tw.tween_interval(maxf(smoke_time - 6.0, 1.0))
+	tw.tween_callback(func() -> void: p.emitting = false)
+	tw.tween_interval(6.5)
+	tw.tween_callback(p.queue_free)
+
 # ------------------------------------------------------------------ Eingabe
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -467,6 +627,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			send_correction()
 		else:
 			mark_from_camera()
+		return
+	if adjust_mode and InputMap.has_action("spotter_effect") and event.is_action_pressed("spotter_effect") and not event.is_echo():
+		fire_for_effect()
+		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("aim") and not event.is_echo() and not rmb_raises:
 		_zoom_i = (_zoom_i + 1) % maxi(zoom_fovs.size(), 1)
@@ -643,9 +807,9 @@ func _state_text() -> String:
 		"ready":
 			return "BEREIT"
 		"prep":
-			return "FEUERAUFTRAG…"
+			return "WIRKUNG – FEUERAUFTRAG…" if _effect else ("EINSCHIESSEN…" if adjust_mode else "FEUERAUFTRAG…")
 		"flight":
-			return "SALVE UNTERWEGS"
+			return "WIRKUNG UNTERWEGS" if _effect else ("SCHUSS UNTERWEGS" if adjust_mode else "SALVE UNTERWEGS")
 		"reload":
 			return "LADEN %d s" % ceili(_state_t)
 		"empty":
@@ -666,7 +830,7 @@ func _update_hud() -> void:
 	_lbl_small.visible = true
 	var key := _key_name("binoculars", "B")
 	if not _up:
-		_lbl_small.text = "[%s] Fernglas   ·   Mörser: %s   ·   Salven %d" % [key, _state_text(), maxi(salvos_left, 0)]
+		_lbl_small.text = "[%s] Fernglas   ·   Mörser: %s   ·   %s %d" % [key, _state_text(), "Wirkungssalven" if adjust_mode else "Salven", maxi(salvos_left, 0)]
 		return
 	var pl := _player()
 	var brg := 0.0
@@ -678,13 +842,21 @@ func _update_hud() -> void:
 		vis_ok = bool(visibility_check.call(_look_point))
 	var rng_txt := ("%d m" % roundi(_range_m)) if (_look_ok and vis_ok) else "---"
 	_lbl_top.text = "ENTF %s     RICHTUNG %03d°  (%04d ‰)" % [rng_txt, roundi(brg) % 360, roundi(brg / 360.0 * 6400.0) % 6400]
-	var line := "MÖRSER %s   ·   SALVEN %d" % [_state_text(), maxi(salvos_left, 0)]
+	var line := "MÖRSER %s   ·   %s %d" % [_state_text(), "WIRKUNGSSALVEN" if adjust_mode else "SALVEN", maxi(salvos_left, 0)]
 	if not vis_ok:
 		line += "   ·   KEINE SICHT"
+	var fk := _key_name("spotter_effect", "F")
 	if _corr != Vector2.ZERO:
-		line += "\nKORREKTUR: %s  –  [LMB] senden" % correction_text(_corr)
+		line += "\nKORREKTUR: %s  –  [LMB] Einschießen  ·  [%s] Wirkung" % [correction_text(_corr), fk] if adjust_mode else "\nKORREKTUR: %s  –  [LMB] senden" % correction_text(_corr)
+	elif adjust_mode and _has_target and not _marks.is_empty() and _state == "ready":
+		line += "\nEinschlag beobachten · [Pfeile] korrigieren · liegt er am Ziel: [%s] WIRKUNG" % fk
+	elif adjust_mode and not _has_target:
+		line += "\nZiel ins Fadenkreuz · [LMB] Einschießen"
 	_lbl_bot.text = line
-	_lbl_small.text = "[LMB] Ziel markieren   [RMB] Zoom   [Pfeile] Korrektur (Shift: 50 m)   [%s] absetzen" % key
+	if adjust_mode:
+		_lbl_small.text = "[LMB] Einschießen   [Pfeile] Korrektur 10 m (Shift 50)   [%s] Wirkung   [RMB] Zoom   [%s] absetzen" % [fk, key]
+	else:
+		_lbl_small.text = "[LMB] Ziel markieren   [RMB] Zoom   [Pfeile] Korrektur (Shift: 50 m)   [%s] absetzen" % key
 	_overlay.queue_redraw()
 
 func _draw_reticle() -> void:
@@ -712,3 +884,51 @@ func _draw_reticle() -> void:
 	_overlay.draw_arc(c, 3.0, 0.0, TAU, 12, col2, 1.0)
 	if _state == "flight" or _state == "prep":
 		_overlay.draw_arc(c, 14.0, 0.0, TAU * clampf(1.0 - _state_t / 12.0, 0.05, 1.0), 24, Color(1.0, 0.7, 0.3, 0.9), 2.0)
+	_draw_marks()
+
+## Einschlagmarker, markierter Zielpunkt und "Geist" der vorgemerkten Korrektur (projiziert).
+func _draw_marks() -> void:
+	var pl := _player()
+	if pl == null:
+		return
+	var cam: Camera3D = pl.get_camera()
+	if cam == null:
+		return
+	var vp_sz := _overlay.get_viewport_rect().size
+	var scale_v := _overlay.size / vp_sz if vp_sz.x > 0.0 else Vector2.ONE
+	var font := ThemeDB.fallback_font
+	var last: Variant = null
+	var i := 0
+	while i < _marks.size():
+		var m: Dictionary = _marks[i]
+		if _t - float(m["t"]) > marker_time:
+			_marks.remove_at(i)
+			continue
+		i += 1
+		var wp: Vector3 = m["pos"]
+		last = wp
+		if cam.is_position_behind(wp):
+			continue
+		var sp := cam.unproject_position(wp) * scale_v
+		var fresh := clampf(1.0 - (_t - float(m["t"])) / marker_time, 0.25, 1.0)
+		var col := Color(1.0, 0.45, 0.2, 0.95 * fresh) if bool(m["effect"]) else Color(1.0, 0.85, 0.3, 0.95 * fresh)
+		_overlay.draw_line(sp + Vector2(-7, -7), sp + Vector2(7, 7), col, 2.0)
+		_overlay.draw_line(sp + Vector2(-7, 7), sp + Vector2(7, -7), col, 2.0)
+	if _has_target and not cam.is_position_behind(_target):
+		var tp := cam.unproject_position(_target) * scale_v
+		var tc := Color(0.6, 1.0, 0.7, 0.8)
+		var pts := PackedVector2Array([tp + Vector2(0, -9), tp + Vector2(9, 0), tp + Vector2(0, 9), tp + Vector2(-9, 0), tp + Vector2(0, -9)])
+		_overlay.draw_polyline(pts, tc, 1.5)
+		if font != null:
+			_overlay.draw_string(font, tp + Vector2(12, -10), "ZIELPUNKT", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, tc)
+	if _corr != Vector2.ZERO and last != null:
+		var b := ot_basis(_target)
+		var gp: Vector3 = (last as Vector3) + (b[0] as Vector3) * _corr.x + (b[1] as Vector3) * _corr.y
+		if not cam.is_position_behind(gp) and not cam.is_position_behind(last as Vector3):
+			var gs := cam.unproject_position(gp) * scale_v
+			var ls := cam.unproject_position(last as Vector3) * scale_v
+			var gc := Color(0.55, 0.9, 1.0, 0.9)
+			_overlay.draw_dashed_line(ls, gs, gc, 1.5, 6.0)
+			_overlay.draw_arc(gs, 10.0, 0.0, TAU, 20, gc, 2.0)
+			if font != null:
+				_overlay.draw_string(font, gs + Vector2(13, 4), correction_text(_corr), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, gc)

@@ -175,11 +175,15 @@ func _build() -> void:
 		["missions", "MISSION WÄHLEN", "Eine bereits erreichte Mission spielen."],
 		["episodes", "EPISODEN", "Bonus-Episoden: dieselbe Geschichte aus anderen Augen."],
 		["settings", "EINSTELLUNGEN", "Steuerung, Tastenbelegung, Spiel, Audio und Grafik."],
+		["mainmenu", "HAUPTMENÜ", "Den Einsatz verlassen und zum Hauptmenü zurückkehren."],
 		["quit", "SPIEL BEENDEN", "Zurück zum Desktop."],
 	]
+	if _main == null or not _main.has_method("return_to_main_menu") or not _main.has_method("_menu_allowed") \
+			or not bool(_main.call("_menu_allowed")):
+		items = items.filter(func(it: Array) -> bool: return it[0] != "mainmenu")
 	for i in items.size():
 		var it: Array = items[i]
-		if it[0] == "quit":
+		if it[0] == "mainmenu" or (it[0] == "quit" and not _buttons.has("mainmenu")):
 			var gap := Control.new()
 			gap.custom_minimum_size = Vector2(0, 22)
 			_menu_col.add_child(gap)
@@ -581,6 +585,9 @@ func _on_item(id: String) -> void:
 			_show_page("episodes")
 		"settings":
 			_show_page("settings")
+		"mainmenu":
+			_confirm("ZUM HAUPTMENÜ?", "Der Fortschritt in dieser Mission geht verloren. Erreichte Missionen und Einstellungen bleiben gespeichert.",
+				"HAUPTMENÜ", func() -> void: _transition(func() -> void: _main.call("return_to_main_menu")))
 		"quit":
 			_confirm("SPIEL BEENDEN?", "Der Fortschritt in dieser Mission geht verloren. Erreichte Missionen und Einstellungen bleiben gespeichert.",
 				"BEENDEN", func() -> void: get_tree().quit())

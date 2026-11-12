@@ -1,0 +1,11 @@
+Model Information:
+* title:	Port crane "Sokol"
+* source:	https://sketchfab.com/3d-models/port-crane-sokol-4964eaa7634e47c9bac4c2a74fa91c20
+* author:	Vitaliy Kovalchuk (https://sketchfab.com/Domender)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Port crane "Sokol"" (https://sketchfab.com/3d-models/port-crane-sokol-4964eaa7634e47c9bac4c2a74fa91c20) by Vitaliy Kovalchuk (https://sketchfab.com/Domender) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

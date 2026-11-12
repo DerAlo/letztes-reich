@@ -54,6 +54,7 @@ var _alarm_light: OmniLight3D
 var _weber: Node3D
 var _weber_arm: Node3D
 var _weber_muzzle: Node3D
+var _kerner_puppet: CharacterBody3D = null
 var _room_screen: StaticBody3D
 var _black: ColorRect
 var _tank: Node3D
@@ -148,8 +149,8 @@ func _loop_2d(sfx_name: String, vol: float) -> AudioStreamPlayer:
 	_loops.append(p)
 	return p
 
-func _fade_out(p: Node, t: float) -> void:
-	if p == null or not is_instance_valid(p):
+func _fade_out(p: Variant, t: float) -> void:   # untypisiert: freigegebene Nodes duerfen ankommen
+	if not is_instance_valid(p):
 		return
 	var tw := create_tween()
 	tw.tween_property(p, "volume_db", -60.0, t)
@@ -1038,9 +1039,19 @@ func _blast() -> void:
 			sp.light_energy = 0.0
 	if is_instance_valid(_stage_wash):
 		_stage_wash.light_energy = 0.0
-	# Buehnenbrand
+	# Buehnenbrand. Die fuenf Rauchsaeulen stehen dicht beieinander direkt vor der Kamera und ueberlagern
+	# sich bildschirmfuellend (Overdraw war ~70 % der GPU-Zeit im Angriff). Daher halb so viele, dafuer
+	# dichtere Rauchpartikel ohne Schattenempfang (nachts unsichtbar) – gleiches Bild, ~40 % weniger GPU-Zeit.
 	for fp: Vector3 in [Vector3(-3.0, 1.45, -33.0), Vector3(3.5, 1.45, -35.0), Vector3(0.0, 1.45, -31.0), Vector3(-6.0, 0.2, -27.5), Vector3(7.0, 0.2, -26.0)]:
-		Props.fire(world, fp, 1.6 if fp.y > 1.0 else 1.0, true, 2.6, 6.0)
+		var f: Node3D = Props.FireScene.instantiate()
+		f.set("size", 1.6 if fp.y > 1.0 else 1.0)
+		f.set("light_energy", 6.0)
+		f.set("smoke_height", 2.6)
+		f.set("smoke_amount", 20)
+		f.set("smoke_density", 2.4)
+		f.set("smoke_shadows", false)
+		f.position = fp
+		world.add_child(f)
 	VFX.spawn_scorch(STAGE + Vector3(0, 0.05, 0), Vector3.UP, 9.0)
 	# Stromausfall: Lichterketten nahe der Buehne aus, uebrige gedimmt
 	for s: Array in _strings:
@@ -1205,7 +1216,7 @@ func _start_ending() -> void:
 		_tank.call("set_target", null)
 	var pl := _player()
 	if pl != null:
-		if "external_input" in pl and not bool(Game.arg("autopilot", false)):
+		if "external_input" in pl and not (str(Game.arg("autopilot", "")) not in ["", "false", "0"]):
 			pl.set("external_input", true)
 		if pl.has_method("set_view"):
 			pl.call("set_view", 0.0, -4.0)
@@ -1218,13 +1229,14 @@ func _start_ending() -> void:
 	for s in _loops:
 		if is_instance_valid(s):
 			_fade_out(s, 2.0)
+	_later(0.5, _spawn_kerner_puppet)
 	_later(1.4, func() -> void: _say(SD.WEBER, "Tut mir leid, Kerner. Deutschland braucht Ordnung.", 3.6))
 	_later(2.6, func() -> void:
 		var at := create_tween()
 		at.tween_property(_weber_arm, "rotation_degrees:x", 88.0, 0.7).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	_later(5.2, _gunshot)
 	_later(6.6, func() -> void: _say(SD.LENA, "Jonas… er war es die ganze Zeit.", 4.2))
-	_later(11.2, _on_level_end)
+	_later(12.2, _on_level_end)
 
 func _gunshot() -> void:
 	var muzzle := _weber.global_position + Vector3(-0.31, 1.6, 0.86)
@@ -1238,13 +1250,165 @@ func _gunshot() -> void:
 	add_child(fl)
 	fl.global_position = muzzle
 	_trauma(1.0)
-	# Schwarzblende sofort (Untertitel liegen darueber)
+	_later(0.06, fl.queue_free)
 	var cl := CanvasLayer.new()
 	cl.layer = 15
 	add_child(cl)
 	_black = ColorRect.new()
-	_black.color = Color(0, 0, 0, 1)
+	_black.color = Color(0, 0, 0, 0)
 	_black.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(_black)
-	_later(0.06, fl.queue_free)
+	var pl := _player()
+	var pcam: Camera3D = pl.get("camera") as Camera3D if pl != null else null
+	if pcam == null:
+		_black.color.a = 1.0   # Fallback: alte Schwarzblende
+		return
+	_vest_hit_sequence(pl, pcam, muzzle, cl)
+
+## Webers Schuss: Schnitt in die Seitenansicht – Kerner (Puppe mit Plattenträger) wird in die Weste getroffen
+## (Funken am Plattenträger), sackt zusammen und kippt um (Todesanimation -> Ragdoll, unverletzt per Story).
+## Dann Ego-Sicht vom Boden: Weber senkt die Waffe, tritt näher, Bild wird trüb und schwarz.
+func _vest_hit_sequence(pl: Node3D, pcam: Camera3D, muzzle: Vector3, cl: CanvasLayer) -> void:
+	var t0 := pcam.global_transform
+	var eye := t0.origin
+	var foot := pl.global_position
+	foot.y = _weber.global_position.y   # Spieler-Ursprung liegt nicht auf Fußhöhe
+	_obj("")
+	var fwd := _weber.global_position - foot
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.1 else Vector3(0, 0, -1)
+	var right := fwd.cross(Vector3.UP).normalized()
+	for n in ["HUD", "WeaponLayer"]:
+		var layer := pl.get_node_or_null(n) as CanvasLayer
+		if layer != null:
+			layer.visible = false
+	var cam := Camera3D.new()
+	cam.name = "VestHitCam"
+	cam.cull_mask = pcam.cull_mask
+	cam.fov = 44.0
+	add_child(cam)
+
+	# Weißer Treffer-Blitz
+	var flash := ColorRect.new()
+	flash.color = Color(1, 0.96, 0.9, 0.4)
+	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cl.add_child(flash)
+	cl.move_child(flash, 0)
+	create_tween().tween_property(flash, "color:a", 0.0, 0.25)
+
+	var k := _kerner_puppet
+	var chest := foot + Vector3(0, 1.32, 0) + fwd * 0.16
+	if k != null and is_instance_valid(k):
+		k.global_position = foot + Vector3(0, 0.02, 0)
+		k.rotation.y = atan2(-fwd.x, -fwd.z)
+		k.visible = true
+		k.set("frozen", false)
+		k.set("_last_hit_dir", fwd * -1.0)
+		chest = k.global_position + Vector3(0, 1.3, 0) + fwd * 0.17
+	VFX.spawn_impact(chest, (muzzle - chest).normalized(), "metal")
+	_stinger("armor_ping_2", 0.0)
+	_stinger("player_hurt", -3.0, 0.1)
+	if k != null and is_instance_valid(k):
+		k.call("_die")
+	# Seitenansicht, leicht vor Kerner: Treffer am Plattenträger, Weber im Hintergrund unscharf
+	var cpos := foot + fwd * 1.5 + right * 1.7 + Vector3(0, 1.35, 0)
+	var look_at_pt := foot + fwd * 0.1 + Vector3(0, 1.05, 0)
+	cam.global_transform = Transform3D(Basis.looking_at(look_at_pt - cpos, Vector3.UP), cpos)
+	cam.current = true
+	var fill := OmniLight3D.new()
+	fill.light_color = Color(1.0, 0.85, 0.7)
+	fill.light_energy = 1.2
+	fill.omni_range = 4.5
+	add_child(fill)
+	fill.global_position = foot + fwd * 1.2 + right * 0.8 + Vector3(0, 2.1, 0)
+	var ppos := cpos - right * 0.3 - fwd * 0.5 + Vector3(0, -0.35, 0)
+	var push := Transform3D(Basis.looking_at(foot - fwd * 0.6 + Vector3(0, 0.35, 0) - ppos, Vector3.UP), ppos)
+	var tw := create_tween()
+	tw.tween_method(_cam_lerp.bind(cam, cam.global_transform, push), 0.0, 1.0, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_callback(func() -> void:
+		_trauma(0.5)
+		_stinger("player_hurt_2", -6.0)
+		VFX.play_sfx_3d("destruct_wood_hit", foot, -8.0, 6.0, 30.0)).set_delay(0.9)
+
+	# Ego-Sicht vom Boden: Kopf zur Seite, Blick schräg hoch zu Weber
+	# Im Schnitt steht Weber schon nah über Kerner (statische Figur: kein langes Gleiten), danach ein kleiner Schritt
+	var w_stand := foot + fwd * 1.45
+	w_stand.y = _weber.global_position.y
+	var w_head := foot + fwd * 1.05 + Vector3(0, 1.5, 0)
+	var floor_eye := Vector3(eye.x, foot.y + 0.2, eye.z) - fwd * 0.9 + right * 0.15
+	var lie_dir := (w_head - floor_eye).normalized()
+	var lie := Transform3D(Basis.looking_at(lie_dir, Vector3.UP).rotated(lie_dir, 0.35), floor_eye)
+	var settle := lie
+	settle.origin += Vector3(0, -0.04, 0)
+	tw.tween_callback(func() -> void:
+		if k != null and is_instance_valid(k):
+			k.visible = false
+		fill.queue_free()
+		cam.fov = pcam.fov
+		cam.global_transform = lie
+		_black.color.a = 0.35
+		_stinger("overwatch_heartbeat", 0.0)
+		# Weber senkt die Waffe und tritt näher
+		_weber.global_position = w_stand
+		var wt := create_tween()
+		wt.tween_property(_weber_arm, "rotation_degrees:x", 20.0, 1.4).set_trans(Tween.TRANS_SINE)
+		wt.parallel().tween_property(_weber, "global_position", w_stand - fwd * 0.4, 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		if is_instance_valid(_room_light):
+			wt.parallel().tween_property(_room_light, "light_energy", 0.9, 1.0))
+	tw.tween_property(_black, "color:a", 0.1, 0.6)
+	tw.parallel().tween_method(_cam_lerp.bind(cam, lie, settle), 0.0, 1.0, 0.8).set_ease(Tween.EASE_OUT)
+	# Blick wird trüb, dann Schwarz
+	tw.tween_interval(0.5)
+	tw.tween_property(_black, "color:a", 0.45, 0.8)
+	tw.tween_property(_black, "color:a", 0.2, 0.5)
+	tw.tween_property(_black, "color:a", 0.65, 0.6)
+	tw.tween_property(_black, "color:a", 0.5, 0.35)
+	tw.tween_property(_black, "color:a", 1.0, 0.8)
+
+## Kerner als Puppe (wie in "Lenas Nacht"), unsichtbar vorbereitet – erscheint erst im Schnitt.
+func _spawn_kerner_puppet() -> void:
+	var pl := _player()
+	if pl == null:
+		return
+	var a: CharacterBody3D = preload("res://game/levels/overwatch_actor.gd").new()
+	a.set("role", "friendly")
+	a.set("enemy_type", "rifleman")
+	a.set_meta("faction", "resistance")
+	a.set("color_primary", Color(0.27, 0.29, 0.34))
+	a.set("color_secondary", Color(0.33, 0.27, 0.19))
+	a.set("color_armband", Color(0.3, 0.68, 1.0))
+	a.set("max_health", 60.0)
+	a.set("damage_per_hit", 0.0)
+	a.name = "KernerPuppet"
+	a.visible = false
+	add_child(a)
+	a.global_position = Vector3(pl.global_position.x, _weber.global_position.y + 0.02, pl.global_position.z)
+	a.set("frozen", true)
+	a.collision_layer = 0
+	for c in a.find_children("*", "StaticBody3D", true, false):
+		(c as StaticBody3D).collision_layer = 0
+	_kerner_puppet = a
+
+func _cam_lerp(f: float, cam: Camera3D, a: Transform3D, b: Transform3D) -> void:
+	if is_instance_valid(cam):
+		cam.global_transform = a.interpolate_with(b, f)
+
+## Nicht-räumlicher Einzelsound (Kerners eigener Körper), auch .wav.
+func _stinger(nm: String, db: float, delay: float = 0.0) -> void:
+	var path := "res://assets/sfx/%s.ogg" % nm
+	if not ResourceLoader.exists(path):
+		path = "res://assets/sfx/%s.wav" % nm
+	if not ResourceLoader.exists(path):
+		return
+	var ap := AudioStreamPlayer.new()
+	ap.stream = load(path)
+	ap.volume_db = db
+	ap.bus = &"SFX" if AudioServer.get_bus_index(&"SFX") >= 0 else &"Master"
+	add_child(ap)
+	if delay > 0.0:
+		get_tree().create_timer(delay).timeout.connect(ap.play)
+	else:
+		ap.play()
+	ap.finished.connect(ap.queue_free)

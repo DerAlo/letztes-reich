@@ -147,6 +147,8 @@ func _build_model() -> void:
 		# Zielfernrohr-Achse auf die Kamera-Achse, Augenabstand ads_eye_dist
 		var se: Vector3 = xf * (model.get_meta("scope_eye") as Vector3)
 		ads_pos = Vector3(-se.x, -se.y, -ads_eye_dist - se.z)
+		_sight_r = se
+		_sight_f = se + Vector3(0, 0, -0.3)
 	_mag_part = _make_part(model.find_child("Magazine", true, false) as Node3D, Vector3(0.0, -1.0, -0.15))
 	_bolt_part = _make_part(model.find_child("Charging_Handle", true, false) as Node3D, Vector3.BACK)
 	muzzle.position = muzzle_pos
@@ -326,6 +328,9 @@ func animate(delta: float, s: Dictionary) -> void:
 		_model_node.visible = show_model
 	if _muzzle_fx:
 		_muzzle_fx.visible = show_model
+	# Im Zielfernrohr keine Arme/Stützhand im Bild
+	if _arms:
+		_arms.visible = show_model
 	_update_overlay()
 
 # ---------------------------------------------------------------- Schuss

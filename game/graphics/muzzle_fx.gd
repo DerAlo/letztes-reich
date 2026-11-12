@@ -41,7 +41,7 @@ static var _smoke_pm: ParticleProcessMaterial
 
 
 ## small = Pistole, suppressed = Schalldaempfer (fast kein Feuer), layer_bit = Render-Layer.
-## scale: Gesamtgroesse (Werfer/Gegner), viewmodel: im Waffen-Viewport (Tiefentest aus),
+## scale: Gesamtgroesse (Werfer/Gegner), viewmodel: im Waffen-Viewport,
 ## with_light: eigenes Muendungslicht (weapon.gd hat ein eigenes -> false).
 func setup(small: bool, suppressed: bool, layer_bit: int, scale_k: float = 1.0, viewmodel: bool = true, with_light: bool = false) -> void:
 	_suppressed = suppressed
@@ -210,9 +210,10 @@ func stop() -> void:
 static func _get_shader(viewmodel: bool) -> Shader:
 	if _shader_world == null:
 		_shader_world = load(FLASH_SHADER)
-		# Viewmodel-Variante: im Waffen-Viewport ohne Tiefentest (Lauf schneidet das Glühen nicht hart ab)
-		_shader_vm = Shader.new()
-		_shader_vm.code = _shader_world.code.replace("render_mode blend_premul_alpha,", "render_mode blend_premul_alpha, depth_test_disabled,")
+		# Viewmodel: MIT Tiefentest. Ohne ihn lag der kamerazugewandte Front-Stern im Zielen (Mündung direkt
+		# hinter Korn/Verschluss) als Scheibe mitten auf der Waffe; mit Tiefentest verdeckt die Waffe den
+		# Teil des Feuers, der physikalisch hinter ihr liegt, und das Feuer sitzt sichtbar vor der Mündung.
+		_shader_vm = _shader_world
 	return _shader_vm if viewmodel else _shader_world
 
 

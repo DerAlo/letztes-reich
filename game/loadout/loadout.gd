@@ -1,6 +1,6 @@
 extends RefCounted
 ## Ausruestungswahl (Welle 4, systeme-b): Tabelle, Freischaltung, Speicherung, Anwenden auf den Spieler.
-## Default = heutige Standardausruestung (G36C + Splittergranaten) -> wer nur bestaetigt, spielt unveraendert.
+## Default = heutige Standardausruestung (G36 + Splittergranaten) -> wer nur bestaetigt, spielt unveraendert.
 ## Gespeichert pro Level in Settings "loadout/<level>" = {"primary": id, "grenade": id}.
 ## Nie unter --autopilot/Tools (dort gilt immer der Default); Debug: --loadout=<primaer>[,<granate>] erzwingt eine Wahl.
 
@@ -16,7 +16,7 @@ const GRENADE_DESC := {
 }
 const PRIMARY_DESC := {
 	"g36c": "Sturmgewehr 5,56 mm, Rotpunkt. Ausgewogen, schnell im Anschlag.",
-	"ak74m": "Beutewaffe 5,45 mm, Rotpunkt. Mehr Rückstoß, Munition beim Feind reichlich.",
+	"ak74m": "Beutewaffe 5,45 mm, Kimme und Korn. Mehr Rückstoß, Munition beim Feind reichlich.",
 	"g28": "Präzisionsgewehr 7,62 mm, Zielfernrohr. Halbautomatisch, tödlich auf Distanz, träge im Nahkampf.",
 }
 ## Freischaltung: verfuegbar, sobald das genannte Level abgeschlossen ist ("" = immer).
@@ -24,7 +24,7 @@ const UNLOCK := {"g36c": "", "ak74m": "river_crossing", "g28": "overwatch", "fra
 
 ## Level mit fester Ausruestung (Level setzt Waffen selbst bzw. eigener Spielmodus) -> nur gesperrte Anzeige.
 const FIXED := {
-	"curfew": "Schleicheinsatz: G36C und Pistole SD werden gestellt.",
+	"curfew": "Schleicheinsatz: G36 und Pistole SD werden gestellt.",
 	"overwatch": "Scharfschützeneinsatz: G28 wird gestellt.",
 	"gunship": "Bordschütze im Luftnahunterstützer – keine Handwaffen.",
 	"hafen": "Scharfschützeneinsatz: G28 wird gestellt.",

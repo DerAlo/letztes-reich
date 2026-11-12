@@ -18,6 +18,8 @@ const RailRide := preload("res://game/systems/rail_ride.gd")
 const Bot := preload("res://game/levels/overwatch_bot.gd")
 const SquadOrders := preload("res://game/squad/squad_orders.gd")
 const Companion := preload("res://game/squad/companion.gd")
+const Markers := preload("res://game/levels/hafen_markers.gd")
+const Models := preload("res://game/levels/hafen_models.gd")
 const HELI_SCENE := "res://game/vehicles/helicopter.tscn"
 
 const SNIPER_DMG := 45.0
@@ -50,6 +52,7 @@ var _glint_tex: Texture2D
 var _wind: Node3D
 var _weather: Node
 var _freighter: Node3D
+var _model_refs: Array = []   ## Boots-Modelle (PackedScene) bleiben ab dem Vorwaermen geladen
 var _bot: RefCounted = null
 var _bot_on: bool = false
 var _ready_ok: bool = false
@@ -73,6 +76,8 @@ var _s_bridge: float = 0.0
 var _s_mouth: float = 0.0
 var _squad: Node = null            ## Squad-Befehle light (game/squad/), nur Teil A
 var _lena_c: RefCounted = null     ## Lenas Befehls-Zustand; ohne Befehl laeuft sie ihre Route wie bisher
+var _markers: CanvasLayer = null   ## HUD-Zielmarker (rot = Pflichtziel, blau = nicht schiessen)
+var _gk_said: float = 0.0
 
 func _init() -> void:
 	level_name = "hafen"
@@ -81,7 +86,7 @@ func _init() -> void:
 	default_faction = "reich"
 	ambient_artillery = false
 	end_z = -1045.0
-	fog_density = 0.01
+	fog_density = 0.0016
 	build_seed = 1206
 	_wave_count = 7
 
@@ -97,47 +102,55 @@ func _setup_environment() -> void:
 	var env := VfxEnv.make_environment(0.012, 1.0)
 	var sky := Sky.new()
 	var sm := ProceduralSkyMaterial.new()
-	sm.sky_top_color = Color(0.006, 0.008, 0.018)
-	sm.sky_horizon_color = Color(0.07, 0.065, 0.08)
+	sm.sky_top_color = Color(0.03, 0.05, 0.1)
+	sm.sky_horizon_color = Color(0.24, 0.17, 0.13)
 	sm.ground_bottom_color = Color(0.01, 0.01, 0.015)
-	sm.ground_horizon_color = Color(0.07, 0.065, 0.08)
+	sm.ground_horizon_color = Color(0.2, 0.15, 0.12)
 	sm.sky_energy_multiplier = 1.0
 	sm.sun_angle_max = 2.0
 	sm.sun_curve = 0.05
 	sky.sky_material = sm
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.24, 0.26, 0.36)
-	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color(0.26, 0.31, 0.46)
+	env.ambient_light_energy = 1.15
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	env.tonemap_exposure = 1.2
+	env.tonemap_exposure = 1.6
 	env.ssr_enabled = true
 	env.ssr_max_steps = 56
 	env.sdfgi_enabled = true
 	env.sdfgi_energy = 0.6
+	# Sicht: Scharfschuetzen-Karte (Ziele 150-400 m). Frueher Tiefennebel 0.0035 + volumetrisch 0.008 mit
+	# hellem Albedo -> die von Kran-Flutlicht/Mastlampen angestrahlte Nebelwand direkt vor der Kamera
+	# ueberstrahlte alles (Sicht ~20-30 m). Jetzt: klare Luft im Nahbereich, Dunst erst in der Ferne
+	# (300 m ~76 % Durchsicht, Stadtkulisse ab 900 m deutlich verhangen), duenner Lichtdunst nur um Lampen.
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.07, 0.07, 0.09)
+	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+	env.fog_light_color = Color(0.055, 0.06, 0.075)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.0035
-	env.fog_sky_affect = 0.8
-	env.fog_aerial_perspective = 0.25
+	env.fog_density = 0.0009
+	env.fog_sky_affect = 0.6
+	env.fog_aerial_perspective = 0.2
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.008
-	env.volumetric_fog_albedo = Color(0.82, 0.83, 0.86)
-	env.volumetric_fog_emission = Color(0.006, 0.006, 0.009)
+	env.volumetric_fog_density = 0.0016
+	env.volumetric_fog_albedo = Color(0.55, 0.56, 0.6)
+	env.volumetric_fog_emission = Color(0.0015, 0.0015, 0.002)
 	env.volumetric_fog_emission_energy = 1.0
-	env.volumetric_fog_anisotropy = 0.45
-	env.volumetric_fog_length = 120.0
-	env.volumetric_fog_gi_inject = 0.4
-	env.volumetric_fog_ambient_inject = 0.1
+	env.volumetric_fog_anisotropy = 0.55
+	env.volumetric_fog_length = 96.0
+	env.volumetric_fog_detail_spread = 2.0
+	env.volumetric_fog_gi_inject = 0.12
+	env.volumetric_fog_ambient_inject = 0.04
 	env.volumetric_fog_sky_affect = 0.0
+	# Grafikstufe "Volumetrischer Nebel: Aus": Ersatz-Distanznebel nur leicht anheben (graphics.gd)
+	env.set_meta(&"gfx_fog_fallback_k", 0.8)
 	env.glow_enabled = true
 	env.glow_hdr_threshold = 0.9
 	env.glow_intensity = 0.9
 	env.glow_bloom = 0.05
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 0.9
-	env.adjustment_contrast = 1.1
+	env.adjustment_saturation = 1.0
+	env.adjustment_contrast = 1.06
 	var we := WorldEnvironment.new()
 	we.name = "WorldEnvironment"
 	we.environment = env
@@ -145,10 +158,10 @@ func _setup_environment() -> void:
 	add_child(we)
 	var moon := DirectionalLight3D.new()
 	moon.name = "Moon"
-	moon.light_color = Color(0.55, 0.64, 1.0)
-	moon.light_energy = 0.14
+	moon.light_color = Color(0.6, 0.7, 1.0)
+	moon.light_energy = 0.55
 	moon.light_indirect_energy = 0.5
-	moon.light_volumetric_fog_energy = 0.4
+	moon.light_volumetric_fog_energy = 0.25
 	moon.shadow_enabled = true
 	moon.shadow_blur = 2.0
 	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
@@ -187,11 +200,15 @@ func _build_skyline() -> void:
 func _build_atmosphere() -> void:
 	var w := Weather.new()
 	w.name = "Weather"
-	w.rain_strength = 0.75
+	w.rain_strength = 0.38
 	w.lightning = true
-	w.lightning_interval = Vector2(20.0, 40.0)
-	w.rain_volume_db = -6.0
+	w.lightning_interval = Vector2(45.0, 90.0)
+	w.flash_energy = 1.4
+	w.rain_volume_db = -8.0
 	add_child(w)
+	var rm: Variant = w.get("_rain_mat")
+	if rm is ShaderMaterial:
+		(rm as ShaderMaterial).set_shader_parameter("brightness", 0.24)   # feine, dezente Schlieren statt Vorhang
 	_weather = w
 	_wind.set("weather", w)
 	var amb := AudioStreamPlayer.new()
@@ -235,6 +252,9 @@ func _ready() -> void:
 	if _bot_on and player != null:
 		_bot = Bot.new()
 		_bot.call("setup", self, player)
+	_markers = Markers.new()
+	_markers.name = "HafenMarkers"
+	add_child(_markers)
 	_spawn_brandt()
 	_setup_squad()
 	_ready_ok = true
@@ -315,34 +335,81 @@ func _clear_phase_nodes() -> void:
 	_snipers.clear()
 	_targets.clear()
 	_heli = null
+	if _markers != null:
+		_markers.call("clear")
+	if ride != null and is_instance_valid(ride):
+		ride.set("hud_hint", "")
+	_mark_persistent()
 
-## Wartet, bis alle Pflichtziele tot sind. Nach timeout greift Brandts Tuerschuetze ein (kein Haenger).
-func _clear(req: Array, timeout: float = 80.0) -> bool:
-	var ok: bool = await _until(func() -> bool: return _all_dead(req), timeout)
-	if not ok:
-		return false
-	if not _all_dead(req):
-		var names: Array[String] = []
-		for n in req:
-			if _alive(n):
-				names.append(str((n as Node).name))
-		print("[hafen] Phase %d: Zeitlimit, Brandt hilft (%s)" % [phase, ", ".join(names)])
-		_say(SD.BRANDT, "Mein Türschütze übernimmt. Köpfe runter!")
-		await _sleep(2.5)
-		if _failed != "":
+## Wartet, bis alle Pflichtziele tot sind. Brandt loest nichts mehr selbst: gestaffelte Hinweise (Funk mit
+## Richtung/Entfernung, Marker blinken), kurz vor fail_t eine Warnung, danach Abbruch und Neustart der Phase.
+func _clear(req: Array, fail_t: float = 150.0) -> bool:
+	var t0 := _time
+	var step := 0
+	var marks: Array[float] = [fail_t * 0.17, fail_t * 0.37, fail_t - 30.0]
+	while not _all_dead(req):
+		await get_tree().process_frame
+		if _failed != "" or not is_inside_tree():
 			return false
-		for n in req:
-			if _alive(n):
-				_door_gun_burst((n as Node3D).global_position)
-				_kill(n)
+		var el := _time - t0
+		if step < marks.size() and el >= marks[step]:
+			_hint(req, step)
+			step += 1
+		if el >= fail_t:
+			var names: Array[String] = []
+			for n in req:
+				if _alive(n):
+					names.append(str((n as Node).name))
+			print("[hafen] Phase %d: Zeitlimit, Abbruch (%s)" % [phase, ", ".join(names)])
+			if phase <= 3:
+				_say(SD.LENA, "Ich bin hier festgenagelt, Jonas. So kommen wir nicht durch!")
+			else:
+				_say(SD.LENA, "Er ist weg! Wir haben ihn verloren!")
+			_fail("zeit")
+			return false
 	return true
 
-func _door_gun_burst(at: Vector3) -> void:
-	var from := at + Vector3(30.0, 45.0, 20.0)
-	if _brandt != null and is_instance_valid(_brandt):
-		from = _brandt.global_position + Vector3(0, -1.5, 0)
-	for i in 5:
-		VF.tracer(self, from, at + Vector3(randf_range(-1, 1), randf_range(0, 1.5), randf_range(-1, 1)), 380.0, "red", 1.2)
+## Hinweis-Stufe 0: Funkspruch zum naechsten lebenden Ziel; 1: Marker-Hinweis (Boot: Zeitdruck); 2: letzte Warnung.
+func _hint(req: Array, step: int) -> void:
+	var left: Array = req.filter(func(n: Variant) -> bool: return _alive(n))
+	if left.is_empty():
+		return
+	if _markers != null:
+		_markers.call("pulse", 6.0)
+	match step:
+		0:
+			var co: Variant = (left[0] as Node).get_meta("callout", null)
+			if co is Array:
+				_say(str(co[0]), str(co[1]))
+		1:
+			if phase >= 4:
+				_say(SD.LENA, "Er zieht davon, Kerner! Mach den Weg frei, sonst ist er weg!")
+			else:
+				_say(SD.BRANDT, "Folg den roten Markierungen, Kerner. Die zeigen dir, wer noch steht.")
+			var co2: Variant = (left[0] as Node).get_meta("callout", null)
+			if co2 is Array and phase <= 3:
+				_say(str(co2[0]), str(co2[1]))
+		2:
+			if phase >= 4:
+				_say(SD.LENA, "Noch eine halbe Minute, dann ist Weber außer Sicht!")
+			else:
+				_say(SD.LENA, "Jonas, ich kann hier nicht ewig liegen. Noch eine halbe Minute, dann brechen wir ab!")
+
+## HUD-Marker setzen; callout = [Sprecher, Text] fuer die Hinweis-Stufen.
+func _mark(n: Node3D, label: String, col: Color = Markers.C_RED, off: Vector3 = Vector3(0, 1.9, 0), callout: Array = []) -> void:
+	if n == null:
+		return
+	if not callout.is_empty():
+		n.set_meta("callout", callout)
+	if _markers != null:
+		_markers.call("add", n, label, col, off)
+
+## Marker, die ueber Phasen-Neustarts bestehen bleiben (Lena, Webers Boot).
+func _mark_persistent() -> void:
+	if lena != null and is_instance_valid(lena):
+		_mark(lena, "LENA", Markers.C_BLUE, Vector3(0, 1.95, 0))
+	if _weber_boat != null and is_instance_valid(_weber_boat):
+		_mark(_weber_boat, "WEBER – NICHT SCHIESSEN", Markers.C_BLUE)
 
 func _make_actor(role: String, etype: String, pos: Vector3, cols: Array, yaw: float, props: Dictionary = {}) -> Node3D:
 	var a: CharacterBody3D = Actor.new()
@@ -530,8 +597,10 @@ func _retry_boat() -> void:
 	_fail_count += 1
 	get_tree().call_group(&"story_ui", &"interrupt")
 	_radio_end = _time
-	_say(SD.LENA, "Wir laufen voll! Brandt, zieh uns raus!")
-	Events.player_died.emit()
+	var timeout := _failed == "zeit"
+	if not timeout:
+		_say(SD.LENA, "Wir laufen voll! Brandt, zieh uns raus!")
+		Events.player_died.emit()
 	ride.set("input_enabled", false)
 	ride.set("fire_held", false)
 	await get_tree().create_timer(2.5, false).timeout
@@ -545,7 +614,10 @@ func _retry_boat() -> void:
 	_wb_hits = 0
 	if _weber_boat != null and is_instance_valid(_weber_boat):
 		_weber_boat.set("offset_s", 110.0)
-	_say(SD.BRANDT, "Neues Boot, gleicher Kurs. Ich bleib über euch.")
+	if timeout:
+		_say(SD.BRANDT, "Zurück auf Position, wir setzen neu an. Diesmal schneller, Kerner.")
+	else:
+		_say(SD.BRANDT, "Neues Boot, gleicher Kurs. Ich bleib über euch.")
 	await get_tree().create_timer(1.0, false).timeout
 
 # ------------------------------------------------------------------ Teil A: Overwatch vom Kran
@@ -571,6 +643,7 @@ func _spawn_lena(pos: Vector3) -> void:
 	_lena_c.set("available_cb", func() -> bool: return ride == null and phase >= 1 and phase <= 3 and _failed == "" and not _done)
 	if _squad != null:
 		_squad.set("companion", _lena_c)
+	_mark_persistent()
 
 ## A1: Hafenwache am Wachhaeuschen.
 func _p1() -> bool:
@@ -585,12 +658,16 @@ func _p1() -> bool:
 	g1.call("walk_to", Vector3(5, 0, -104), 2.6, false)
 	g2.call("walk_to", Vector3(0, 0, -106), 2.6, false)
 	_targets = [g1, g2]
+	var c1 := [SD.LENA, "Zwei Wachen am Häuschen rechts der Gasse, dreißig Meter vor mir. Von dir aus geradeaus, hundertsiebzig Meter."]
+	_mark(g1, "HAFENWACHE", Markers.C_RED, Vector3(0, 1.9, 0), c1)
+	_mark(g2, "HAFENWACHE", Markers.C_RED, Vector3(0, 1.9, 0), c1)
 	_say(SD.LENA, "Zwei Hafenwachen am Wachhäuschen. Die haben mich gesehen!")
 	_say(SD.KERNER, "Ich hab sie. Bleib unten.")
+	_obj("Die zwei Hafenwachen ausschalten – Hauptgasse geradeaus, ~170 m (rot markiert)")
 	if not await _lena_leg(Vector3(2, 0, -72), LENA_SPEED, 15.0, false):
 		return false
 	lena.set("crouch", true)
-	var ok: bool = await _clear([g1, g2], 60.0)
+	var ok: bool = await _clear([g1, g2], 150.0)
 	if not ok:
 		return false
 	_say(SD.LENA, "Danke. Weiter zur nächsten Querreihe.")
@@ -610,7 +687,10 @@ func _p2() -> bool:
 		e.call("walk_to", dests[i], 3.4, false)
 		garde.append(e)
 	_targets = garde.duplicate()
+	for e in garde:
+		_mark(e, "GARDE-JÄGER", Markers.C_RED, Vector3(0, 1.9, 0), [SD.LENA, "Die Jäger liegen hinter den Betonsperren, direkt vor mir. Von dir aus geradeaus, gut zweihundert Meter."])
 	_say(SD.LENA, "Graue Mäntel an den Betonsperren. Das ist keine Hafenwache, Jonas. Das sind Garde-Jäger.")
+	_obj("Die drei Garde-Jäger an den Betonsperren ausschalten (geradeaus, ~220 m)")
 	if not await _lena_leg(Vector3(2, 0, -140), LENA_SPEED, 15.0, false):
 		return false
 	lena.set("crouch", true)
@@ -619,12 +699,14 @@ func _p2() -> bool:
 	var m := _spawn_sniper("m", World.MARKSMAN)
 	m.name = "GardeScharfschuetze"
 	_targets.push_front(m)
+	_mark(m, "SCHARFSCHÜTZE", Markers.C_RED, Vector3(0, 1.5, 0), [SD.BRANDT, "Der Scharfschütze liegt auf der Plattform am Lichtmast links der Gasse, gleich hinter den Betonsperren. Zweihundertvierzig Meter."])
 	_say(SD.FALK, "Kerner. Sie suchen Weber, ich suche Weber. Bleiben Sie mir aus dem Weg.")
-	_say(SD.BRANDT, "Lichtmast im Süden, oben auf der Plattform. Da blitzt ein Zielfernrohr!")
-	_obj("Garde-Jäger und den Scharfschützen am Lichtmast ausschalten")
+	_say(SD.BRANDT, "Scharfschütze! Lichtmast links der Gasse, direkt hinter den Betonsperren, oben auf der Plattform. Zweihundertvierzig Meter, leicht links von dir.")
+	_say(SD.LENA, "Wenn es da oben blitzt, zielt er auf dich. Erst ihn, dann die Jäger!")
+	_obj("Scharfschützen auf dem Lichtmast (links, ~240 m, beleuchtete Plattform) und die Garde-Jäger ausschalten")
 	var req: Array = garde.duplicate()
 	req.append(m)
-	var ok: bool = await _clear(req, 85.0)
+	var ok: bool = await _clear(req, 150.0)
 	if not ok:
 		return false
 	_say(SD.LENA, "Sperre ist frei. Ich geh außen um die Blöcke.")
@@ -646,12 +728,16 @@ func _p3() -> bool:
 	w.name = "Weber"
 	_phase_nodes.append(w)
 	_targets = esc.duplicate()
+	for e in esc:
+		_mark(e, "BEGLEITSCHUTZ", Markers.C_RED, Vector3(0, 1.9, 0), [SD.LENA, "Die Begleiter laufen mit Weber quer durch Reihe zweihundertfünfunddreißig, Richtung Kai. Knapp dreihundert Meter von dir."])
+	_mark(w, "WEBER – NICHT SCHIESSEN", Markers.C_BLUE)
 	_say(SD.LENA, "Da! Querreihe zweihundertfünfunddreißig, von Westen. Das ist Weber!")
 	_say(SD.KERNER, "Ich seh ihn. Dunkler Mantel, Aktenkoffer. Die Akte Nordlicht.")
 	_say(SD.BRANDT, "Nicht auf Weber schießen! Wir brauchen ihn lebend, und die Akte auch.")
-	_obj("Webers Begleitschutz ausschalten – Weber nicht treffen")
+	_say(SD.LENA, "Drei Begleiter um ihn, knapp dreihundert Meter. Leg die Begleiter um, bevor er am Kai ist!")
+	_obj("Webers drei Begleiter ausschalten (Querreihe 235, ~300 m) – Weber (blau) nicht treffen")
 	_weber_run(w)
-	var ok: bool = await _clear(esc, 70.0)
+	var ok: bool = await _clear(esc, 150.0)
 	if not ok:
 		return false
 	if not await _until(func() -> bool: return _weber_gone, 25.0):
@@ -677,6 +763,7 @@ func _weber_run(w: Node3D) -> void:
 	var b := _make_boat("weber", World.BERTH7 + Vector3(2.5, 0, 0), null)
 	b.set("free_target", Vector3(62, -2, -320))
 	b.set("free_speed", 9.0)
+	_mark(b, "WEBER", Markers.C_BLUE)
 	w.queue_free()
 	_weber_gone = true
 
@@ -764,7 +851,7 @@ func _spawn_sniper(key: String, pos: Vector3) -> Node3D:
 	g.material_override = m
 	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(g)
-	_snipers[key] = {"a": a, "stage": "hide", "t": 3.5, "shots": 0, "glint": g, "glow": 0.0}
+	_snipers[key] = {"a": a, "stage": "hide", "t": 7.0, "shots": 0, "glint": g, "glow": 0.0}
 	return a
 
 func _make_glint_tex() -> Texture2D:
@@ -797,7 +884,7 @@ func _tick_snipers(delta: float) -> void:
 				s["glow"] = maxf(0.0, float(s["glow"]) - delta * 3.0)
 				if float(s["t"]) <= 0.0:
 					s["stage"] = "aim"
-					s["t"] = 2.6
+					s["t"] = 3.0
 					a.set("crouch", false)
 					a.set("aiming", true)
 					if player != null and is_instance_valid(player):
@@ -933,11 +1020,11 @@ func _start_boat(start: int) -> void:
 	player = null
 	ride = RailRide.new()
 	ride.name = "Zollboot"
-	ride.call("configure", {"vehicle_name": "Zollboot", "cruise_speed": 16.0, "accel": 4.0, "decel": 5.0,
+	ride.call("configure", {"vehicle_name": "Zollboot", "cruise_speed": 22.0, "accel": 6.0, "decel": 6.0,
 		"mount_offset": Vector3(0, 1.75, -2.3), "eye_offset": Vector3(0, 0.42, 0.85),
 		"rock_roll_deg": 1.2, "rock_pitch_deg": 0.7, "bob_amp": 0.07, "cam_stabilize": 0.65,
-		"max_integrity": 120.0, "engine_sfx": "hafen_boat_engine", "water_sfx": "hafen_water_hull",
-		"weapon": {"name": "MG3"}})
+		"max_integrity": 160.0, "engine_sfx": "hafen_boat_engine", "water_sfx": "hafen_water_hull",
+		"weapon": {"name": "MG5"}})
 	ride.set("invulnerable", _fail_count >= 3)
 	add_child(ride)
 	ride.call("add_hull_box", Vector3(0, 0.6, 0.3), Vector3(2.9, 1.6, 9.0))
@@ -957,9 +1044,21 @@ func _start_boat(start: int) -> void:
 	_weber_boat.set("lateral", 0.0)
 	_weber_boat.set("weave_amp", 3.0)
 	(ride.get("avoid_nodes") as Array).append(_weber_boat)
+	_mark_persistent()
 	_checkpoint("cp_boot")
 	if _brandt != null and is_instance_valid(_brandt):
 		_brandt.call("hover_at", ride.global_position + Vector3(-30, 35, 30))
+
+## Halt-Bedingung fuer RailRide: haelt, bis die Phase release_stop() ruft (ein leeres Callable gibt sofort frei).
+func _hold() -> bool:
+	return false
+
+## Gibt den aktuellen Halt frei und verwirft noch nicht erreichte Halte (sind die Ziele schon vor dem Halt
+## erledigt, darf das Boot dort nicht mehr stehen bleiben).
+func _drop_stops() -> void:
+	ride.call("release_stop")
+	for st: Dictionary in (ride.get("_stops") as Array):
+		st["state"] = 2
 
 func _phase_s(p: int) -> float:
 	match p:
@@ -968,7 +1067,17 @@ func _phase_s(p: int) -> float:
 		7: return _s_mouth
 	return 0.0
 
+## Steuerstand im Zollboot-Modell (RIB, Mittelkonsole): Lena steht hinter der Konsole, Deckhoehe (Modell-Lokal).
+const ZOLL_HELM := Vector3(0.0, 0.42, 1.75)
+
 func _build_boat_model(root: Node3D) -> void:
+	if Models.attach(root, "zollboot", 9.0) != null:
+		_helm_figure(root, ZOLL_HELM)
+		var nav_r0 := VF.mat("hf_nav_r", Color(1, 0.1, 0.1), 0.4, 0.0, Color(1, 0.1, 0.1), 4.0)
+		var nav_g0 := VF.mat("hf_nav_g", Color(0.1, 1, 0.2), 0.4, 0.0, Color(0.1, 1, 0.2), 4.0)
+		VF.mesh_node(root, VF.box(Vector3(0.08, 0.08, 0.08)), nav_r0, Vector3(-1.05, 1.05, -2.6))
+		VF.mesh_node(root, VF.box(Vector3(0.08, 0.08, 0.08)), nav_g0, Vector3(1.05, 1.05, -2.6))
+		return
 	var hull := VF.mat("hf_zoll_hull", Color(0.1, 0.16, 0.3), 0.5, 0.2)
 	var stripe := VF.mat("hf_zoll_stripe", Color(0.85, 0.85, 0.82), 0.5, 0.1)
 	var dark := VF.mat("hf_zoll_dark", Color(0.08, 0.08, 0.09), 0.7, 0.3)
@@ -985,6 +1094,33 @@ func _build_boat_model(root: Node3D) -> void:
 	var nav_g := VF.mat("hf_nav_g", Color(0.1, 1, 0.2), 0.4, 0.0, Color(0.1, 1, 0.2), 4.0)
 	VF.mesh_node(root, VF.box(Vector3(0.1, 0.1, 0.1)), nav_r, Vector3(-1.35, 1.0, -2.6))
 	VF.mesh_node(root, VF.box(Vector3(0.1, 0.1, 0.1)), nav_g, Vector3(1.35, 1.0, -2.6))
+
+## Lena am Steuer: echte Figur (Gegner-Visual-Pipeline, Lena-Farben), ohne Waffe, Arme vorn am Rad
+## (Anschlag-Pose auf einen Punkt knapp vor/unter der Konsole); feet = Fusspunkt auf Deck (Modell-Lokal).
+func _helm_figure(root: Node3D, feet: Vector3) -> void:
+	Models.puppet(root, "resistance", C_LENA, feet, 0.0,
+		{"aim": true, "unarmed": true, "name": "LenaHelm", "aim_local": Vector3(0, 0.2, -6.0)})
+
+## Vom Ladebildschirm (main.gd _warmup) aufgerufen: die Boots-Modelle der Teil-B-Phasen einmal vorab bauen und
+## sichtbar rendern (Laden + Shader-Kompilierung beim ersten Boot sonst als Ruckler mitten in der Fahrt).
+func warmup_fx(holder: Node3D, at: Vector3, fwd: Vector3) -> void:
+	var i := 0
+	for slot: String in ["zollboot", "garde_boat", "weber_boat"]:
+		var p := Models.path_for(slot)
+		if p == "":
+			continue
+		_model_refs.append(load(p))
+		var m := Models.build(slot, 9.0)
+		if m == null:
+			continue
+		holder.add_child(m)
+		m.global_position = at + fwd * (14.0 + i * 6.0) + Vector3(0, 0.5, 0)
+		i += 1
+	# Puppen-Figuren (Garde-Schuetze, Lena am Steuer, Matrosen): Rig + Fraktions-Shader vorab
+	for f: Array in [["garde", C_GARDE], ["resistance", C_LENA]]:
+		var pp := Models.puppet(holder, str(f[0]), f[1], Vector3.ZERO, 0.0, {"unarmed": true, "name": "WarmPuppe"})
+		pp.global_position = at + fwd * (10.0 + i * 2.0)
+		i += 1
 
 func _make_boat(role: String, pos: Vector3, rd: Node3D, phase_node: bool = true) -> Node3D:
 	var b: AnimatableBody3D = Boat.new()
@@ -1006,7 +1142,12 @@ func _garde_boat(offset: float, target: float, lateral: float) -> Node3D:
 	b.set("offset_s", offset)
 	b.set("target_offset", target)
 	b.set("lateral", lateral)
-	b.set("hit_chance", 0.18)
+	b.set("hit_chance", 0.1)
+	_mark(b, "GARDE-BOOT · MG-SCHÜTZE", Markers.C_RED, Vector3(0, 2.6, 0), [SD.LENA, "Garde-Boot %s von uns! Halt auf den Mann am Bug-MG!" % ("rechts" if lateral > 0.0 else "links")])
+	b.connect("gunner_killed", func() -> void:
+		if _time >= _gk_said:
+			_gk_said = _time + 18.0
+			_say(SD.LENA, "MG-Schütze ist weg, das Boot dreht ab!"))
 	return b
 
 func on_weber_boat_hit() -> void:
@@ -1021,20 +1162,32 @@ func on_weber_boat_hit() -> void:
 
 # ------------------------------------------------------------------ Teil B: Verfolgung
 
-## B1: Hafenbecken – zwei Garde-Boote und Schuetzen am Ostkai.
+## B1: Hafenbecken – zwei Garde-Boote (eins ueberholt von hinten) und Schuetzen am Ostkai.
 func _p4() -> bool:
-	_obj("Weber verfolgen – Garde-Boote und Schützen am Kai ausschalten")
+	_obj("Weber (blau) folgen – Garde-Boote stoppen: MG-Schützen am Bug treffen")
+	ride.set("hud_hint", "ROT: Garde-Boote (MG-Schütze am Bug = Schwachstelle) + Schützen am Ostkai   ·   BLAU: Weber – nicht schießen")
 	var req: Array = []
-	req.append(_garde_boat(120.0, 45.0, -16.0))
-	req.append(_garde_boat(170.0, 70.0, 15.0))
-	for z in [-330.0, -370.0, -410.0]:
-		var e := _enemy("rifleman", Vector3(142.5, 0, z), C_GARDE, 90.0, "ride")
-		req.append(e)
-	ride.call("add_stop", _s_b1, "b1", Callable(), -1.0)
-	if not await _until(func() -> bool: return float(ride.get("path_s")) >= _s_b1 - 1.0 or _all_dead(req), 60.0):
+	req.append(_garde_boat(130.0, 40.0, -11.0))
+	_say(SD.LENA, "Garde-Boot vorn links! Halt auf den Mann am Bug-MG, dann ist das Boot erledigt.")
+	if not await _sleep(4.0):
 		return false
-	var ok: bool = await _clear(req, 25.0)
-	ride.call("release_stop")
+	var ov := _garde_boat(-55.0, 30.0, 10.0)
+	ov.set("approach_rate", 7.5)
+	req.append(ov)
+	_say(SD.LENA, "Von hinten rechts, der überholt uns! Kopf runter!")
+	var kai := [SD.BRANDT, "Drei Schützen auf dem Ostkai, rechts von euch zwischen den Kränen. Rund fünfzig Meter."]
+	for z in [-350.0, -385.0, -420.0]:
+		var e := _enemy("rifleman", Vector3(142.5, 0, z), C_GARDE, 90.0, "ride")
+		_mark(e, "KAI-SCHÜTZE", Markers.C_RED, Vector3(0, 1.9, 0), kai)
+		req.append(e)
+	var s_kai := float(ride.call("s_nearest", Vector3(84, -2, -385)))
+	ride.call("add_stop", s_kai, "b1", _hold, -1.0)
+	if not await _until(func() -> bool: return float(ride.get("path_s")) >= s_kai - 1.0 or _all_dead(req), 60.0):
+		return false
+	if not _all_dead(req):
+		_say(SD.LENA, "Ich muss hier halten, bis der Kai frei ist. Mach schnell, Weber zieht davon!")
+	var ok: bool = await _clear(req, 100.0)
+	_drop_stops()
 	if not ok:
 		return false
 	_say(SD.LENA, "Becken ist frei. Weiter zur Hubbrücke!")
@@ -1043,21 +1196,37 @@ func _p4() -> bool:
 ## B2: Hubbruecke – Schuetzen auf dem Deck, ein Boot.
 func _p5() -> bool:
 	var stop_s := _s_bridge - 45.0
-	ride.call("add_stop", stop_s, "bridge", Callable(), -1.0)
+	ride.call("add_stop", stop_s, "bridge", _hold, -1.0)
 	var req: Array = []
+	var bc := [SD.BRANDT, "Vier Mann oben am Geländer der Hubbrücke, geradeaus und hoch, unter den Lampen. Rund fünfzig Meter."]
 	for x in [70.0, 85.0, 100.0, 115.0]:
 		var e := _enemy("rifleman", Vector3(x, World.BRIDGE_DECK_Y, World.BRIDGE_Z + 6.2), C_GARDE, 0.0, "ride", {"gravity": 0.0})
+		_mark(e, "BRÜCKENSCHÜTZE", Markers.C_RED, Vector3(0, 1.9, 0), bc)
 		req.append(e)
+		# Arbeitslicht ueber jedem Schuetzen: auf dem dunklen Deck sonst kaum zu sehen
+		var sl := SpotLight3D.new()
+		sl.light_color = Color(1.0, 0.8, 0.55)
+		sl.light_energy = 7.0
+		sl.spot_range = 14.0
+		sl.spot_angle = 38.0
+		sl.shadow_enabled = false
+		sl.light_volumetric_fog_energy = 0.5
+		sl.position = Vector3(x, World.BRIDGE_DECK_Y + 7.0, World.BRIDGE_Z + 5.0)
+		sl.rotation_degrees = Vector3(-90, 0, 0)
+		add_child(sl)
+		_phase_nodes.append(sl)
+	ride.set("hud_hint", "ROT: Schützen oben auf der Hubbrücke (geradeaus, hoch)   ·   BLAU: Weber – nicht schießen")
 	_say(SD.BRANDT, "Schützen auf der Hubbrücke! Lena, halt davor an, sonst schießen sie euch von oben in den Kahn.")
-	_obj("Schützen auf der Hubbrücke ausschalten")
+	_say(SD.BRANDT, "Vier Mann oben am Brückengeländer, geradeaus und hoch, unter den Lampen. Die musst du von unten rausholen.")
+	_obj("Die vier Schützen oben auf der Hubbrücke ausschalten (geradeaus, hoch)")
 	if not await _until(func() -> bool: return float(ride.get("path_s")) >= stop_s - 60.0, 40.0):
 		return false
-	req.append(_garde_boat(-60.0, 25.0, 14.0))
+	req.append(_garde_boat(-60.0, 25.0, 10.0))
 	_say(SD.FALK, "Weber gehört der Garde, Kerner. Drehen Sie um, solange Sie noch ein Boot haben.")
 	if not await _until(func() -> bool: return bool(ride.call("is_stopped")) or _all_dead(req), 30.0):
 		return false
-	var ok: bool = await _clear(req, 32.0)
-	ride.call("release_stop")
+	var ok: bool = await _clear(req, 100.0)
+	_drop_stops()
 	if not ok:
 		return false
 	_say(SD.LENA, "Brücke ist frei. Festhalten!")
@@ -1065,21 +1234,24 @@ func _p5() -> bool:
 
 ## B3: Warnow-Muendung – Garde-Hubschrauber und zwei Boote.
 func _p6() -> bool:
-	ride.call("add_stop", _s_mouth, "mouth", Callable(), -1.0)
+	ride.call("add_stop", _s_mouth, "mouth", _hold, -1.0)
 	if not await _until(func() -> bool: return float(ride.get("path_s")) >= _s_mouth - 220.0, 50.0):
 		return false
 	var req: Array = []
 	_heli = _spawn_heli()
 	req.append(_heli)
-	req.append(_garde_boat(150.0, 40.0, -18.0))
-	req.append(_garde_boat(190.0, 60.0, 18.0))
+	_mark(_heli, "GARDE-HUBSCHRAUBER", Markers.C_RED, Vector3(0, 2.5, 0), [SD.BRANDT, "Der Garde-Hubschrauber steht rechts vor euch, tief über dem Wasser. Bleib mit dem MG drauf, bis er raucht."])
+	req.append(_garde_boat(150.0, 40.0, -12.0))
+	req.append(_garde_boat(190.0, 60.0, 11.0))
+	ride.set("hud_hint", "ROT: Garde-Hubschrauber (rechts vorn) + zwei Boote   ·   Brandt ist unbewaffnet – das musst du erledigen")
 	_say(SD.BRANDT, "Hubschrauber aus Richtung Warnemünde, Garde-Kennung! Der ist schwerer bewaffnet als ich.")
 	_say(SD.LENA, "Boote an beiden Seiten! Kerner, erst den Vogel!")
-	_obj("Den Garde-Hubschrauber und die Boote an der Mündung ausschalten")
+	_say(SD.BRANDT, "Gegen den kann ich nichts ausrichten, Kerner. Den musst du runterholen.")
+	_obj("Den Garde-Hubschrauber (rechts vorn) und die zwei Boote ausschalten")
 	if not await _until(func() -> bool: return bool(ride.call("is_stopped")) or _all_dead(req), 40.0):
 		return false
-	var ok: bool = await _clear(req, 35.0)
-	ride.call("release_stop")
+	var ok: bool = await _clear(req, 110.0)
+	_drop_stops()
 	if not ok:
 		return false
 	_say(SD.KERNER, "Hubschrauber ist unten. Wo ist Weber?")
@@ -1122,6 +1294,9 @@ func _spawn_brandt() -> void:
 		var a := TAU * float(i) / 10.0
 		pts.append(Vector3(80.0 + cos(a) * 150.0, 70.0, -90.0 + sin(a) * 150.0))
 	h.call("fly_path", pts, 16.0, true)
+	# "Lichter aus": keine Positionslichter/Blitzer (die roten Punkte am Himmel waren Brandts Navigationslichter)
+	if h.has_method("set_nav_lights"):
+		h.call("set_nav_lights", false)
 	_brandt = h
 
 # ------------------------------------------------------------------ Finale
@@ -1131,8 +1306,16 @@ func _finale() -> void:
 	if ride != null:
 		ride.call("release_stop")
 		ride.call("set_speed", 12.0)
-	_obj("Weber nicht entkommen lassen")
+	_obj("Webers Boot (blau) zur Aurelia folgen – NICHT schießen")
+	if ride != null:
+		ride.set("hud_hint", "NICHT SCHIESSEN – Weber flieht an Bord der Aurelia")
+	if _markers != null:
+		_markers.call("clear")
+	_mark_persistent()
+	if _freighter != null and is_instance_valid(_freighter):
+		_mark(_freighter, "FRACHTER AURELIA", Markers.C_WHITE, Vector3(-55.0, 26.0, 0.0))
 	_say(SD.LENA, "Er hält auf den Frachter zu! Die Aurelia!")
+	_say(SD.LENA, "Feuer einstellen, Kerner. An der Gangway stehen Matrosen, und Weber brauchen wir lebend.")
 	if _weber_boat != null and is_instance_valid(_weber_boat):
 		_weber_boat.set("free_target", World.FREIGHTER_BOARD)
 		_weber_boat.set("free_speed", 14.0)
@@ -1144,6 +1327,10 @@ func _finale() -> void:
 	_say(SD.BRANDT, "Die Aurelia hat Ausfahrt Richtung Süden angemeldet. Weiterreise über Land, in die Alpen.")
 	_say(SD.LENA, "Dann gehen wir nach Süden. Bis auf den Alpenpass, wenn es sein muss.")
 	_obj("Weber ist entkommen – Spur nach Süden")
+	if ride != null:
+		ride.set("hud_hint", "")
+	if _markers != null:
+		_markers.call("clear")
 	await _radio_wait(26.0)
 	await _sleep(1.5)
 	_on_level_end()

@@ -15,6 +15,8 @@ var _drops: Array = []
 var _crate_ids: Dictionary = {}
 
 func _ready() -> void:
+	# Waffenmodelle (AK-74M/G36 + Rotpunkt) beim Levelstart laden: kein Ruckler beim ersten Drop
+	GunModels.preload_all()
 	Events.enemy_killed.connect(_on_enemy_killed)
 	Events.checkpoint_reached.connect(_on_checkpoint)
 
@@ -24,7 +26,7 @@ func _world() -> Node:
 		root = player.get_parent()
 	return root
 
-## Drop-Tabelle: ru -> AK-74M, reich -> G36C, Drohnen/Fahrzeuge -> nichts.
+## Drop-Tabelle: ru -> AK-74M, reich -> G36, Drohnen/Fahrzeuge -> nichts.
 static func weapon_for(faction: String, etype: String) -> String:
 	if etype == "drone" or etype == "":
 		return ""

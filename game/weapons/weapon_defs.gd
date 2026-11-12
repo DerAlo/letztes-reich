@@ -4,7 +4,7 @@ extends RefCounted
 ## Slot 0 = Primärwaffe (wird per [E] getauscht), 1 = Pistole, 2 = Panzerfaust.
 
 const DEFS: Dictionary = {
-	"g36c": {"scene": "res://game/weapons/g36c.tscn", "name": "G36C", "ammo": "556", "slot": 0, "mag": 30},
+	"g36c": {"scene": "res://game/weapons/g36c.tscn", "name": "G36", "ammo": "556", "slot": 0, "mag": 30},
 	"ak74m": {"scene": "res://game/weapons/ak74m.tscn", "name": "AK-74M", "ammo": "545", "slot": 0, "mag": 30},
 	"pistol": {"scene": "res://game/weapons/pistol.tscn", "name": "P1", "ammo": "9mm", "slot": 1, "mag": 12},
 	"pistol_sd": {"scene": "res://game/weapons/pistol_sd.tscn", "name": "P1 SD", "ammo": "9mm", "slot": 1, "mag": 12},

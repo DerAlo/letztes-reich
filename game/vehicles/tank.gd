@@ -9,6 +9,7 @@ extends Node3D
 signal destroyed
 
 const VF = preload("res://game/vehicles/vehicle_fx.gd")
+const ModelCache = preload("res://game/vehicles/models/model_cache.gd")
 const VfxLib = preload("res://game/vfx/vfx_lib.gd")
 const TankModel = preload("res://game/vehicles/models/tank_model.gd")
 const ArmorScript = preload("res://game/vehicles/vehicle_armor.gd")
@@ -75,7 +76,7 @@ func _build() -> void:
 	_model_root = Node3D.new()
 	_model_root.name = "Model"
 	add_child(_model_root)
-	_parts = TankModel.build(_model_root, faction)
+	_parts = ModelCache.build(TankModel, _model_root, faction)   # Klon statt Neubau (~270 ms)
 	var keep: Array = _parts.values()
 	for key in ["barrel", "mantlet", "turret", "hull"]:
 		VF.merge_static(_parts[key], keep)
@@ -179,19 +180,25 @@ var _rocket_frame: int = -1
 func rocket_hit(source: Node, hit_position: Vector3, hit_normal: Vector3) -> void:
 	if dead:
 		return
-	var prev := bool(Combat.get("explosion_active"))
-	Combat.set("explosion_active", true)
+	_in_rocket = true
 	take_damage(max_health / float(ROCKET_HITS) + 0.5, source, hit_position, hit_normal)
-	Combat.set("explosion_active", prev)
+	_in_rocket = false
 	_rocket_frame = Engine.get_physics_frames()
 
-func take_damage(amount: float, _source: Node, _hit_position: Vector3, _hit_normal: Vector3) -> void:
+## Schaden zaehlt nur von der Panzerfaust (rocket_hit), von Bordwaffen (Schuetzenpanzer, Tuer-/Boots-MG)
+## und von Skript-Ereignissen (>= 500). Handwaffen, Granaten und Faesser richten nichts aus.
+var _in_rocket: bool = false
+
+static func _heavy_source(src: Node) -> bool:
+	return src != null and is_instance_valid(src) and (src.is_in_group("rail_ride") or src.has_method("rocket_hit_ifv"))
+
+func take_damage(amount: float, source: Node, _hit_position: Vector3, _hit_normal: Vector3) -> void:
 	if dead or amount <= 0.0:
 		return
 	if _rocket_frame == Engine.get_physics_frames() and bool(Combat.get("explosion_active")):
 		return
-	# Nur Explosionen (oder Skript-Schaden >= 500) zaehlen; Kugeln prallen ab.
-	if not bool(Combat.get("explosion_active")) and amount < 500.0:
+	# Bordwaffen nur mit Sprengwirkung (Maschinenkanone), MG-Kugeln prallen auch dort ab.
+	if not _in_rocket and amount < 500.0 and not (_heavy_source(source) and bool(Combat.get("explosion_active"))):
 		return
 	health -= amount
 	_rock_v += 1.5

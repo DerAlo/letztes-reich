@@ -44,6 +44,7 @@ var last_dealt: float = 0.0
 var stat_deflects: int = 0
 var _helmet_c: Vector3 = AK.A_HC
 var _helmet_r: float = 0.165
+var _fix: Dictionary = {}   # Knochenindex -> Ruheraum(Kit) -> Ruheraum(Rig), siehe AK.op_fix
 
 # ---------------------------------------------------------------- Aufbau
 
@@ -53,6 +54,8 @@ func _build_body() -> void:
 		return
 	_strip_default_gear()
 	_build_armor()
+	if armor_kind == "juggernaut":
+		_dress_juggernaut()
 	_build_zones()
 	_fit_head_hitbox()
 
@@ -130,7 +133,7 @@ func _build_armor() -> void:
 			bas[bone] = ba
 		var frame := Node3D.new()
 		frame.name = "Armor_" + str(pc["id"])
-		frame.transform = sk.get_bone_global_rest(bi).affine_inverse()
+		frame.transform = sk.get_bone_global_rest(bi).affine_inverse() * _rig_fix(bi)
 		(bas[bone] as Node3D).add_child(frame)
 		var hits0 := PackedVector4Array()
 		hits0.resize(8)
@@ -165,6 +168,74 @@ func _build_armor() -> void:
 			_soldier._meshes.append(mi)
 		_pieces[pc["id"]] = rec
 
+# ---------------------------------------------------------------- Juggernaut: echte Ausruestung
+## Altyn-Helm (Kenza9) + Gasmaske (TwilightFox) + Plattentraeger (Karnaval), Sketchfab, siehe CREDITS_ASSETS.md.
+## Die Primitiv-Teile bleiben fuer Treffertest/Abwurf (unsichtbar, layers = 0); die Modelle haengen als
+## Kinder daran und folgen so Abwurf und Ausblenden. Fehlt ein GLB, bleibt das Primitiv-Teil sichtbar.
+const GEAR_ALTYN := "res://assets/models/gear/altyn/altyn.glb"
+const GEAR_MASK := "res://assets/models/gear/gasmask/gasmask.glb"
+const GEAR_CARRIER := "res://assets/models/gear/plate_carrier/plate_carrier.glb"
+const J_HELM_XF := Transform3D(Basis(Vector3(1.2, 0, 0), Vector3(0, 1.2, 0), Vector3(0, 0, 1.2)), Vector3(0.004, 1.69, 0.08))
+const J_MASK_XF := Transform3D(Basis(Vector3(1.1, 0, 0), Vector3(0, 1.1, 0), Vector3(0, 0, 1.1)), Vector3(0.004, 1.66, 0.1))
+const J_CARRIER_XF := Transform3D(Basis(Vector3(1.75, 0, 0), Vector3(0, 1.35, 0), Vector3(0, 0, 1.65)), Vector3(0.004, 1.27, 0.08))
+static var _gear_cache: Dictionary = {}
+
+## [[mesh, xf (relativ zur Szenenwurzel), name], ...] eines Ausruestungs-GLB; [] wenn es fehlt.
+static func _gear_parts(path: String) -> Array:
+	if _gear_cache.has(path):
+		return _gear_cache[path]
+	var out: Array = []
+	var ps := GunModels._scene(path)
+	if ps != null:
+		var tmp := ps.instantiate()
+		for mi: Node in tmp.find_children("*", "MeshInstance3D", true, false):
+			var xf := Transform3D.IDENTITY
+			var n: Node = mi
+			while n != null and n != tmp:
+				xf = (n as Node3D).transform * xf
+				n = n.get_parent()
+			out.append([(mi as MeshInstance3D).mesh, xf, str(mi.name)])
+		tmp.free()
+	_gear_cache[path] = out
+	return out
+
+func _gear_mi(parent: MeshInstance3D, mesh: Mesh, xf: Transform3D) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.mesh = mesh
+	m.transform = xf
+	parent.add_child(m)
+	_soldier._meshes.append(m)
+	return m
+
+func _dress_juggernaut() -> void:
+	var altyn := _gear_parts(GEAR_ALTYN)
+	if not altyn.is_empty() and _pieces.has("helmet") and _pieces.has("visor"):
+		var hmi: MeshInstance3D = _pieces["helmet"]["plate_mi"]
+		var vrec: Dictionary = _pieces["visor"]
+		var vmi: MeshInstance3D = vrec["plate_mi"]
+		if hmi != null and vmi != null:
+			for part: Array in altyn:
+				var xf: Transform3D = J_HELM_XF * (part[1] as Transform3D)
+				if str(part[2]) == "zabralo":
+					# Visier: Visier-Shader (Risse in dessen Objektraum -> vis_inv in _damage_piece)
+					var vm := _gear_mi(vmi, part[0], xf)
+					vm.material_override = vrec["mat"]
+					vrec["vis_inv"] = xf.affine_inverse()
+					vrec["vis_mi"] = vm
+				else:
+					_gear_mi(hmi, part[0], xf)
+			for part: Array in _gear_parts(GEAR_MASK):
+				_gear_mi(hmi, part[0], J_MASK_XF * (part[1] as Transform3D))
+			hmi.layers = 0
+			vmi.layers = 0
+	var carrier := _gear_parts(GEAR_CARRIER)
+	if not carrier.is_empty() and _pieces.has("chest_plate"):
+		var cmi: MeshInstance3D = _pieces["chest_plate"]["plate_mi"]
+		if cmi != null:
+			for part: Array in carrier:
+				_gear_mi(cmi, part[0], J_CARRIER_XF * (part[1] as Transform3D))
+			cmi.layers = 0
+
 ## Koerperzonen fuer Treffer, die keine Platte trafen (Ruheraum, je Knochen).
 func _build_zones() -> void:
 	var sk := _soldier.skeleton
@@ -186,10 +257,11 @@ func _fit_head_hitbox() -> void:
 		return
 	var sk := _soldier.skeleton
 	var hb := sk.find_bone("Head")
-	_head_hitbox.position = sk.get_bone_global_rest(hb).affine_inverse() * _helmet_c
+	var hf := _rig_fix(hb)
+	_head_hitbox.position = sk.get_bone_global_rest(hb).affine_inverse() * (hf * _helmet_c)
 	for c in _head_hitbox.get_children():
 		if c is CollisionShape3D and (c as CollisionShape3D).shape is SphereShape3D:
-			((c as CollisionShape3D).shape as SphereShape3D).radius = _helmet_r   # Ruheraum, skaliert mit dem Rig
+			((c as CollisionShape3D).shape as SphereShape3D).radius = _helmet_r * (hf.basis.get_scale().x + hf.basis.get_scale().z) * 0.5   # Ruheraum, skaliert mit dem Rig
 
 # ---------------------------------------------------------------- Treffer-Geometrie
 
@@ -225,7 +297,13 @@ func _shot_ray(source: Node, hit_position: Vector3, hit_normal: Vector3) -> Arra
 
 func _to_rest(bi: int) -> Transform3D:
 	var sk := _soldier.skeleton
-	return sk.get_bone_global_rest(bi) * sk.get_bone_global_pose(bi).affine_inverse() * sk.global_transform.affine_inverse()
+	return _rig_fix(bi).affine_inverse() * sk.get_bone_global_rest(bi) * sk.get_bone_global_pose(bi).affine_inverse() * sk.global_transform.affine_inverse()
+
+## Kit-Ruheraum -> Rig-Ruheraum je Knochen (Operator-Rig: AK.op_fix; SWAT: Identitaet)
+func _rig_fix(bi: int) -> Transform3D:
+	if not _fix.has(bi):
+		_fix[bi] = AK.op_fix(_soldier.skeleton.get_bone_name(bi)) if _soldier.kind == "op" else Transform3D.IDENTITY
+	return _fix[bi]
 
 ## Findet das getroffene Teil. Rueckgabe {piece, zone, p (Ruheraum), t, u (0..1 entlang Glied)}.
 func _locate(o: Vector3, d: Vector3, headshot: bool) -> Dictionary:
@@ -512,6 +590,8 @@ func _damage_piece(id: String, amount: float, loc: Dictionary) -> void:
 	rec["hp"] = float(rec["hp"]) - amount
 	var mi: MeshInstance3D = rec["plate_mi"]
 	var p: Vector3 = loc.get("p", Vector3.ZERO)
+	if rec.has("vis_inv") and p != Vector3.ZERO:
+		p = (rec["vis_inv"] as Transform3D) * p   # echtes Visier: Riss im Objektraum des Modells
 	var mat: ShaderMaterial = rec["mat"]
 	if mat != null and p != Vector3.ZERO:
 		if rec["visor"]:
@@ -595,6 +675,8 @@ func _detach_piece(rec: Dictionary) -> void:
 	# Box-Achsen = Mesh-Achsen (Rotation), Mesh relativ zum Koerper
 	var keep := gt
 	_soldier._meshes.erase(mi0)
+	for gm: Node in mi0.find_children("*", "MeshInstance3D", true, false):
+		_soldier._meshes.erase(gm)   # angehaengte Ausruestungsmodelle (Juggernaut)
 	mi0.get_parent().remove_child(mi0)
 	rb.add_child(mi0)
 	mi0.global_transform = keep

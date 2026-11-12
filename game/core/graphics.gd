@@ -767,7 +767,9 @@ func _apply_env(env: Environment, is_world: bool = false) -> void:
 	if vf_off and had_vf:
 		var base := float(_orig(env, &"fog_density")) if bool(_orig(env, &"fog_enabled")) else 0.0
 		_ov(env, &"fog_enabled", true, false)
-		_ov(env, &"fog_density", base + env.volumetric_fog_density * FOG_FALLBACK_K, false)
+		# Level mit weiter Sicht (z. B. Scharfschuetzen-Karten) koennen den Faktor per Meta senken
+		var fk := float(env.get_meta(&"gfx_fog_fallback_k", FOG_FALLBACK_K))
+		_ov(env, &"fog_density", base + env.volumetric_fog_density * fk, false)
 		var oc: Color = _orig(env, &"fog_light_color")
 		var lit: Color = env.volumetric_fog_albedo * FOG_FALLBACK_LIGHT + env.volumetric_fog_emission * env.volumetric_fog_emission_energy
 		_ov(env, &"fog_light_color", Color(maxf(oc.r, lit.r), maxf(oc.g, lit.g), maxf(oc.b, lit.b)), false)

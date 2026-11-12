@@ -35,7 +35,8 @@ var _b_time: float = -1.0
 var _ending: bool = false
 var _fleeing: Array[Dictionary] = []    ## {e, mode, target, t}
 var _t: float = 0.0
-var _fps_log: bool = bool(Game.arg("rail-fps", false))   ## --rail-fps: FPS-Protokoll fuer Messungen
+const JUGGERNAUT_SCENE := "res://game/enemies/juggernaut.tscn"   ## auch fuers Vorwaermen (main.gd)
+var _fps_log: bool = Game.arg("rail-fps", null) != null   ## --rail-fps: FPS-Protokoll fuer Messungen
 var _fps_acc: float = 0.0
 var _debug_god: bool = false             ## nur bei --rail-start (Aufnahmen): Spieler unverwundbar
 
@@ -586,6 +587,22 @@ func _run_setpiece_b() -> void:
 	# Ersatz, falls keine Bombe nahe genug am Kran einschlaegt
 	_later(8.0, _topple_crane)
 
+## Vom Ladebildschirm (main.gd _warmup) aufgerufen: Effekte der Zug-Detonation einmal vorab bauen.
+## Ohne das kompilierte die erste Detonation Feuerball-/Funken-Shader und das Verkohlt-Material
+## (+14 Pipelines, 120 ms Ruckler).
+func warmup_fx(holder: Node3D, at: Vector3, fwd: Vector3) -> void:
+	if fx != null:
+		fx.call("fireball", at + fwd * 8.0, 1.0)
+		fx.call("spark_burst", at + fwd * 6.0, 8)
+	if train != null:
+		var ch = train.get("_charred")
+		if ch is Material:
+			var mi := MeshInstance3D.new()
+			mi.mesh = BoxMesh.new()
+			mi.material_override = ch
+			holder.add_child(mi)
+			mi.global_position = at + fwd * 4.0
+
 func _on_explosion(pos: Vector3, _radius: float, _strength: float) -> void:
 	if not _b_started or crane == null:
 		return
@@ -607,7 +624,12 @@ func _physics_process(delta: float) -> void:
 		_fps_acc += delta
 		if _fps_acc >= 0.5:
 			_fps_acc = 0.0
-			print("[rail_fps] t=%.1f fps=%d" % [_t, Engine.get_frames_per_second()])
+			var vp := get_viewport().get_viewport_rid()
+			RenderingServer.viewport_set_measure_render_time(vp, true)
+			print("[rail_fps] t=%.1f fps=%d proc=%.1f phys=%.1f gpu=%.1f rcpu=%.1f prim=%d draws=%d" % [_t, Engine.get_frames_per_second(),
+				Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+				RenderingServer.viewport_get_measured_render_time_gpu(vp), RenderingServer.viewport_get_measured_render_time_cpu(vp),
+				int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)), int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))])
 	if _debug_god:
 		var pl := get_tree().get_first_node_in_group("player")
 		if pl != null and "health" in pl:
@@ -665,7 +687,7 @@ var _jugg: Node3D = null
 func _spawn_juggernaut() -> void:
 	if _jugg != null or _ending or not spawn_enemies:
 		return
-	var ps := load("res://game/enemies/juggernaut.tscn") as PackedScene
+	var ps := load(JUGGERNAUT_SCENE) as PackedScene
 	if ps == null:
 		return
 	_jugg = ps.instantiate() as Node3D

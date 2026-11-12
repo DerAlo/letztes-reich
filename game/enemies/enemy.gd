@@ -16,6 +16,9 @@ const LAYER_DEBRIS := 8
 static var global_accuracy_scale: float = 1.0
 ## Schwierigkeitsgrad (Welle 4, game/progress/difficulty.gd): Soldat = 1.0 ueberall -> unveraendert.
 const _Difficulty = preload("res://game/progress/difficulty.gd")
+## Laub-Sichtlinie: Nadelbaum-Kronen verdecken die Sicht auch fuer Gegner (faire Sicht im Wald).
+const FoliageSight = preload("res://game/enemies/foliage_sight.gd")
+static var _foliage_log: int = -1
 static var _cover_owner: Dictionary = {}
 static var _sfx_cache: Dictionary = {}
 static var _tracer_mesh: QuadMesh = null
@@ -396,10 +399,16 @@ func _compute_los() -> bool:
 
 func _clear_to_player(from: Vector3, head: Vector3) -> bool:
 	var r := _ray(from, head, LAYER_WORLD | LAYER_PLAYER)
-	if r.is_empty():
-		return true
-	var c = r["collider"]
-	return c is Node and (c as Node).is_in_group("player")
+	if not r.is_empty():
+		var c = r["collider"]
+		if not (c is Node and (c as Node).is_in_group("player")):
+			return false
+	# Laub (Kronen ohne Kollision): sieht der Spieler hier nicht durch, sieht der Gegner auch nicht durch
+	return not _foliage_blocked(from, head)
+
+## true, wenn Nadelbaum-Kronen die Strecke from->to verdecken (siehe foliage_sight.gd).
+func _foliage_blocked(from: Vector3, to: Vector3) -> bool:
+	return FoliageSight.blocks(get_tree(), from, to)
 
 func _ray(from: Vector3, to: Vector3, mask: int) -> Dictionary:
 	var q := PhysicsRayQueryParameters3D.create(from, to, mask, _exclude)
@@ -770,9 +779,23 @@ func _pick_flank_target() -> void:
 		from_p = Vector3.FORWARD
 	var side := from_p.normalized().cross(Vector3.UP) * (1.0 if rng.randf() < 0.5 else -1.0)
 	var r := clampf(from_p.length() * 0.8, preferred_distance_min, preferred_distance_max)
-	var cand := ppos + side * r * 0.9 + from_p.normalized() * r * 0.3
-	cand.y = global_position.y
-	_flank_target = _snap_to_nav(cand)
+	# Kandidaten: gewuenschte Seite, Gegenseite, dann kuerzer/frontaler. Genommen wird der erste Punkt,
+	# von dem aus der Spieler nicht hinter Laub steckt (kein Ausweichen ins Dickicht).
+	var head := _player_head()
+	var stand_eye := Vector3.UP * (_eye_height * body_scale)
+	var first := Vector3.INF
+	for k in 4:
+		var sd := side if k % 2 == 0 else -side
+		var rr := r if k < 2 else maxf(r * 0.65, preferred_distance_min * 0.75)
+		var cand := ppos + sd * rr * 0.9 + from_p.normalized() * rr * (0.3 if k < 2 else 0.6)
+		cand.y = global_position.y
+		var snapped := _snap_to_nav(cand)
+		if first == Vector3.INF:
+			first = snapped
+		if not _foliage_blocked(snapped + stand_eye, head):
+			_flank_target = snapped
+			return
+	_flank_target = first
 
 func _tick_flank(delta: float) -> void:
 	_stance_target = 0.0
@@ -801,6 +824,7 @@ func _find_cover() -> Dictionary:
 	var ppos := _player.global_position
 	var my_d_player := _flat_dist(global_position, ppos)
 	var crouch_eye := Vector3.UP * (_eye_height * body_scale * 0.7)
+	var stand_eye := Vector3.UP * (_eye_height * body_scale)
 	var best: Node3D = null
 	var best_score := INF
 	for c in get_tree().get_nodes_in_group("cover_point"):
@@ -818,6 +842,8 @@ func _find_cover() -> Dictionary:
 			continue
 		if _ray(cp + crouch_eye, head, LAYER_WORLD).is_empty():
 			continue  # frei einsehbar
+		if _foliage_blocked(cp + stand_eye, head):
+			continue  # im Dickicht: von dort sieht man den Spieler nicht (und er einen selbst nicht)
 		var score := d_me + absf(d_pl - (preferred_distance_min + preferred_distance_max) * 0.5) * 0.6 + rng.randf() * 4.0
 		if d_pl > my_d_player + 6.0:
 			score += 12.0  # hinter dem Spieler
@@ -849,6 +875,8 @@ func _find_open_point() -> Vector3:
 			if _flat_dist(on_nav, cand) > 3.0:
 				continue
 			cand = on_nav
+		if _foliage_blocked(cand + Vector3.UP * (_eye_height * body_scale), _player_head()):
+			continue
 		var d := _flat_dist(cand, global_position)
 		if d < best_d:
 			best_d = d
@@ -925,6 +953,10 @@ func _fire_shot() -> void:
 	var from := _muzzle.global_position
 	var aim := _player_chest() if _los else (_last_known + Vector3.UP * 1.0)
 	var hit := _los and rng.randf() < hit_chance()
+	if _foliage_log < 0:
+		_foliage_log = 1 if Game.arg("foliagelog", false) else 0
+	if _foliage_log == 1:
+		_log_foliage_shot(hit)
 	_recoil = 1.0
 	_flash_timer = 0.05
 	stat_shots += 1
@@ -960,6 +992,18 @@ func _fire_shot() -> void:
 		else:
 			VFX.spawn_impact(hp, r["normal"], "concrete")
 		VFX.play_whiz_along(from, hp)
+
+## Messausgabe (--foliagelog): Laubtiefe Auge->Spielerkopf je Schuss, unabhaengig davon, ob die Laub-Sicht aktiv ist.
+func _log_foliage_shot(hit: bool) -> void:
+	var eye := _eye_pos()
+	var head := _player_head()
+	var dep := FoliageSight.depth(get_tree(), eye, head)
+	var dist := eye.distance_to(head)
+	var hidden := dep > 0.0 and dep > FoliageSight.limit_for(dist)
+	var forest := FoliageSight.nearest_tree(get_tree(), global_position, 4.0) < 3.0
+	print("[foliage] shot type=%s pos=%.1f,%.1f dist=%.1f depth=%.2f hidden=%d forest=%d los=%d hit=%d dmg=%.1f" % [
+		enemy_type, global_position.x, global_position.z, dist, dep, int(hidden), int(forest), int(_los), int(hit),
+		damage_per_hit if hit else 0.0])
 
 func _spawn_tracer(from: Vector3, to: Vector3) -> void:
 	var length := from.distance_to(to)

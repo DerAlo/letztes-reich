@@ -39,6 +39,9 @@ var _next_bolt: float = 5.0
 var _flash_t: float = -1.0
 var _flash_curve: Array[float] = []
 var _rng := RandomNumberGenerator.new()
+var _bolt_mat: StandardMaterial3D
+var _bolt_mi: MeshInstance3D
+var _bolt_tw: Tween
 
 func _ready() -> void:
 	_rng.randomize()
@@ -48,6 +51,9 @@ func _ready() -> void:
 	_build_audio()
 	_ensure_global_param()
 	_apply_strength()
+	if lightning:
+		# Blitz-Shader schon beim Laden kompilieren (unsichtbar tief unter der Kamera, blendet sofort aus)
+		_spawn_bolt.call_deferred(global_position + Vector3(0.0, -900.0, 0.0), 300.0)
 
 func _exit_tree() -> void:
 	if _param_ready:
@@ -273,26 +279,35 @@ func _spawn_bolt(ground: Vector3, dist: float) -> void:
 	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	_bolt_branch(im, top, ground, width, 0, cam_pos)
 	im.surface_end()
-	var mi := MeshInstance3D.new()
-	mi.mesh = im
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.vertex_color_use_as_albedo = true
-	m.albedo_color = Color(2.6, 2.8, 3.4, 1.0)
-	m.disable_fog = true
-	mi.material_override = m
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.extra_cull_margin = 2000.0
-	add_child(mi)
-	mi.global_transform = Transform3D.IDENTITY
+	# Ein dauerhafter Bolt-Knoten mit festem Material: Mit je Blitz neuem MeshInstance3D + Materialkopie
+	# kompilierte der Renderer bei jedem Blitz 6 Pipelines neu (river_crossing: 30-45 ms Ruckler alle 8-22 s).
+	if _bolt_mi == null:
+		_bolt_mat = StandardMaterial3D.new()
+		_bolt_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_bolt_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_bolt_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_bolt_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_bolt_mat.vertex_color_use_as_albedo = true
+		_bolt_mat.albedo_color = Color(2.6, 2.8, 3.4, 1.0)
+		_bolt_mat.disable_fog = true
+		_bolt_mi = MeshInstance3D.new()
+		_bolt_mi.material_override = _bolt_mat
+		_bolt_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_bolt_mi.extra_cull_margin = 2000.0
+		add_child(_bolt_mi)
+	if _bolt_tw != null and _bolt_tw.is_valid():
+		_bolt_tw.kill()
+	_bolt_mi.mesh = im
+	_bolt_mi.visible = true
+	_bolt_mi.global_transform = Transform3D.IDENTITY
+	_bolt_mat.albedo_color.a = 1.0
+	var mi := _bolt_mi
 	var tw := mi.create_tween()
-	tw.tween_property(m, "albedo_color:a", 0.2, 0.06)
-	tw.tween_property(m, "albedo_color:a", 1.0, 0.04)
-	tw.tween_property(m, "albedo_color:a", 0.0, 0.35)
-	tw.tween_callback(mi.queue_free)
+	_bolt_tw = tw
+	tw.tween_property(_bolt_mat, "albedo_color:a", 0.2, 0.06)
+	tw.tween_property(_bolt_mat, "albedo_color:a", 1.0, 0.04)
+	tw.tween_property(_bolt_mat, "albedo_color:a", 0.0, 0.35)
+	tw.tween_callback(func() -> void: mi.visible = false)
 
 ## Rekursive Zickzack-Linie mit Abzweigungen als kamerazugewandte Baender.
 func _bolt_branch(im: ImmediateMesh, a: Vector3, b: Vector3, width: float, depth: int, cam_pos: Vector3) -> void:

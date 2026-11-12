@@ -5,7 +5,7 @@
 [node name="G36C" type="Node3D"]
 script = ExtResource("1")
 weapon_id = "g36c"
-display_name = "G36C"
+display_name = "G36"
 model_kind = "g36c"
 ammo_type = "556"
 rpm = 750.0
@@ -20,6 +20,9 @@ ads_fov = 50.0
 hip_pos = Vector3(0.14, -0.165, -0.32)
 sprint_pos = Vector3(0.1, -0.22, -0.29)
 sprint_to_fire = 0.17
-has_red_dot = true
-ads_eye_dist = 0.17
+has_red_dot = false
+ads_eye_dist = 0.048
 shell_len = 0.045
+hand_r_pos = Vector3(0.02, -0.05, 0.13)
+hand_r_rot = Vector3(-15, 0, 0)
+hand_l_pos = Vector3(-0.02, -0.03, -0.21)

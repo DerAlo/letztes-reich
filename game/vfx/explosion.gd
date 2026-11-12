@@ -447,6 +447,19 @@ func play(pos: Vector3, s: float = 1.0) -> void:
 	if _has_ground:
 		VFX.spawn_scorch(Vector3(pos.x, _ground_y + 0.02, pos.z), Vector3.UP, 7.5 * s, 40.0)
 
+## Sofort beenden (Vorwaermen hinter dem Ladebildschirm): Tweens stoppen, alles ausblenden, Pool-Slot freigeben.
+func reset() -> void:
+	if _tween and _tween.is_valid():
+		_tween.kill()
+	for p: GPUParticles3D in [_fire_core, _fire_body, _smoke_col, _smoke_cap, _smoke_low, _dust, _sparks, _embers]:
+		if p != null:
+			p.emitting = false
+	if _flash != null:
+		_flash.visible = false
+		_shock.visible = false
+		_light.light_energy = 0.0
+	_finish()
+
 func _finish() -> void:
 	_busy = false
 	visible = false
@@ -471,13 +484,13 @@ func _probe_ground(pos: Vector3, s: float) -> void:
 	_has_ground = true
 
 func _spawn_debris(pos: Vector3, s: float) -> void:
-	var n := int(round(debris_count * clampf(s, 0.6, 2.5)))
+	var n := int(round(debris_count * clampf(s, 0.6, 1.6)))
 	for i in n:
 		var d := RigidBody3D.new()
 		d.collision_layer = 8
 		d.collision_mask = 1
 		d.mass = 3.0 * s
-		d.continuous_cd = true
+		d.continuous_cd = false
 		var size := Vector3(randf_range(0.18, 0.5), randf_range(0.12, 0.35), randf_range(0.18, 0.45)) * sqrt(s)
 		var cs := CollisionShape3D.new()
 		var bs := BoxShape3D.new()

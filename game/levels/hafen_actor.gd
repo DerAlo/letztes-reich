@@ -9,6 +9,14 @@ func _ready() -> void:
 		add_to_group("friendly")
 		add_to_group("no_shoot")
 
+## Puppe (hafen_models.puppet): Zielpunkt relativ zur Figur, wandert mit Boot/Lafette mit.
+var aim_local := Vector3.INF
+
+func _physics_process(delta: float) -> void:
+	if aim_local != Vector3.INF:
+		aim_point = global_transform * aim_local
+	super._physics_process(delta)
+
 func take_hit_part(amount: float, source: Node, hit_position: Vector3, hit_normal: Vector3, headshot: bool) -> void:
 	if role != "weber":
 		super.take_hit_part(amount, source, hit_position, hit_normal, headshot)

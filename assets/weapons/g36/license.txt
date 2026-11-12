@@ -1,0 +1,11 @@
+Model Information:
+* title:	HK G36
+* source:	https://sketchfab.com/3d-models/hk-g36-2cf3be6a834c425bbc2a416e85b52042
+* author:	r4m (https://sketchfab.com/r4m)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "HK G36" (https://sketchfab.com/3d-models/hk-g36-2cf3be6a834c425bbc2a416e85b52042) by r4m (https://sketchfab.com/r4m) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

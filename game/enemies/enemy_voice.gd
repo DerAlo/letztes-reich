@@ -77,6 +77,22 @@ static func _list(fac: String, voice: String, situation: String) -> Array:
 	_files[key] = out
 	return out
 
+## Alle Rufe der genannten Fraktionen vorab laden (Ladebildschirm; sonst load() 1-7 ms je erstem Ruf im Gefecht).
+static func prewarm(factions: Array) -> void:
+	var facs: Array = []
+	for f in factions:
+		var k := str(f) if REGULAR_VOICES.has(str(f)) else "ru"
+		if not facs.has(k):
+			facs.append(k)
+	for fn in DirAccess.get_files_at(DIR):
+		if not fn.ends_with(".ogg.import"):
+			continue
+		var n := fn.trim_suffix(".import")
+		for k in facs:
+			if n.begins_with(str(k) + "_"):
+				_stream(DIR + n)
+				break
+
 static func _stream(path: String) -> AudioStream:
 	if not _streams.has(path):
 		_streams[path] = load(path) as AudioStream

@@ -43,8 +43,8 @@ func _ready() -> void:
 	var ts: float = float(Game.arg("timescale", 1.0))
 	if ts != 1.0:
 		_set_timescale(ts)
-	_autopilot_wanted = Game.arg("autopilot", false) != false
-	_enabled = Game.arg("debug-server", false) != false
+	_autopilot_wanted = str(Game.arg("autopilot", "")) not in ["", "false", "0"]
+	_enabled = str(Game.arg("debug-server", "")) not in ["", "false", "0"]
 	if _enabled:
 		_server = TCPServer.new()
 		var err: int = _server.listen(PORT, "127.0.0.1")

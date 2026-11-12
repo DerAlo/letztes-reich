@@ -490,13 +490,59 @@ func _spawn_wave(index: int) -> void:
 		if scene == null:
 			push_warning("Level: Gegner-Szene nicht ladbar: " + path)
 			continue
-		var e := scene.instantiate() as Node3D
 		# Fraktion (Optik): Marker-Meta "faction" schlaegt Level-Default; Enemy liest die Meta in _ready.
-		e.set_meta("faction", str(mk.get_meta("faction", default_faction)))
-		add_child(e)
-		e.global_position = (mk as Node3D).global_position
-		# Spieler schaut nach -Z, Gegner schauen ihm entgegen (+Z)
-		e.rotation.y = 0.0
+		var faction := str(mk.get_meta("faction", default_faction))
+		if not is_node_ready():
+			_spawn_enemy_now(scene, faction, (mk as Node3D).global_position)
+			continue
+		# Im Spiel gestaffelt (WAVE_SPAWN_PER_FRAME pro Frame): ein Platzhalter in Gruppe "enemy"
+		# haelt bis zum echten Spawn die Gruppenzaehlung der Level-Skripte konstant.
+		var ph := Node3D.new()
+		ph.set_script(WavePlaceholder)
+		ph.name = "WaveSpawn"
+		add_child(ph)
+		ph.global_position = (mk as Node3D).global_position
+		_spawn_queue.append([ph, scene, faction])
+	if not _spawn_pumping and not _spawn_queue.is_empty():
+		_pump_spawn_queue()
+
+const WavePlaceholder := preload("res://game/levels/wave_placeholder.gd")
+const WAVE_SPAWN_PER_FRAME := 3
+var _spawn_queue: Array = []
+var _spawn_pumping := false
+
+func _spawn_enemy_now(scene: PackedScene, faction: String, pos: Vector3) -> Node3D:
+	var e := scene.instantiate() as Node3D
+	e.set_meta("faction", faction)
+	add_child(e)
+	e.global_position = pos
+	# Spieler schaut nach -Z, Gegner schauen ihm entgegen (+Z)
+	e.rotation.y = 0.0
+	return e
+
+func _pump_spawn_queue() -> void:
+	_spawn_pumping = true
+	while not _spawn_queue.is_empty():
+		var n := 0
+		while n < WAVE_SPAWN_PER_FRAME and not _spawn_queue.is_empty():
+			var item: Array = _spawn_queue.pop_front()
+			var ph: Node3D = item[0] as Node3D if is_instance_valid(item[0]) else null
+			# Platzhalter entfernt (Level-Ende, Checkpoint-Aufraeumen) -> Spawn entfaellt
+			if ph == null or ph.is_queued_for_deletion() or not ph.is_inside_tree():
+				continue
+			var pos := ph.global_position
+			ph.remove_from_group("enemy")
+			ph.queue_free()
+			_spawn_enemy_now(item[1], str(item[2]), pos)
+			n += 1
+		if _spawn_queue.is_empty():
+			break
+		var f0 := Engine.get_process_frames()
+		while Engine.get_process_frames() == f0:
+			await get_tree().process_frame
+		if not is_inside_tree():
+			break
+	_spawn_pumping = false
 
 # ------------------------------------------------------------------ Set-Piece
 

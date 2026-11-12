@@ -30,6 +30,13 @@ const GROUND_SPAN := 7.0             # Optik in X UND Z breiter -> Boden-/Rampen
 const BLOCKER_MARGIN := 0.6           # Kollision ueberragt Optik um mehr -> bewusste Sperre, nicht anfassen
 const MIN_PART := 0.05                # kleinere Teile (Schrauben, Kabel) ignorieren
 const BIG_MESH_VERTS := 2500          # Surfaces mit mehr Vertices -> direkt Trimesh (Ladezeit)
+## Trimesh-Kollision aus der Import-LOD statt aus dem Vollmodell: Poly-Haven-Modelle haben bis zu 61k Dreiecke
+## (Betonsperre). Jolt prueft beim Kontakt jedes Dreieck im Koerper-AABB -> herumliegende Wagen/Truemmer kosteten
+## 20-50 ms pro Physik-Schritt (rail_yard Zugexplosion). Die LOD mit Formfehler <= LOD_MAX_ERR (bzw. 6 % der
+## Modellgroesse) hat 0.5-2k Dreiecke und ist fuer Kugeln/Sichtlinien praktisch gleich.
+const LOD_MIN_TRIS := 1200            # darunter: Vollmodell behalten
+const LOD_MAX_ERR := 0.07             # m (Mesh-Einheiten), maximaler LOD-Formfehler
+const LOD_MAX_ERR_REL := 0.06         # ... bzw. Anteil der laengsten Modellachse
 const HOLLOW_RATIO := 0.05           # Teilvolumen < 5 % der Bounding-Box -> hohl/ringfoermig -> Trimesh
 const FLAT := 0.015                   # flache Teile (Decals, Planen) bekommen eine Mindestdicke
 
@@ -246,7 +253,10 @@ static func _components(mesh: Mesh) -> Array:
 		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 		if verts.size() > BIG_MESH_VERTS:
 			# detailreiches Modell: Komponentenanalyse waere teuer und meist ohnehin ein Teil -> direkt Trimesh
-			var bf := PackedVector3Array()
+			var bf := _lod_faces(mesh, s, verts, idx)
+			if not bf.is_empty():
+				out.append({"faces": bf})
+				continue
 			if idx.size() > 0:
 				bf.resize(idx.size())
 				for t in idx.size():
@@ -295,7 +305,10 @@ static func _components(mesh: Mesh) -> Array:
 				big = true
 				break
 		if big:
-			var faces := PackedVector3Array()
+			var faces := _lod_faces(mesh, s, verts, idx)
+			if not faces.is_empty():
+				out.append({"faces": faces})
+				continue
 			var ntri := (idx.size() if idx.size() > 0 else verts.size()) / 3
 			faces.resize(ntri * 3)
 			for t in ntri * 3:
@@ -330,6 +343,37 @@ static func _components(mesh: Mesh) -> Array:
 			out.append({"faces": hollow})
 	_comp_cache[key] = out
 	return out
+
+## Dreiecke der groebsten Import-LOD, deren Formfehler noch klein ist (leer = keine passende LOD -> Vollmodell).
+static func _lod_faces(mesh: Mesh, s: int, verts: PackedVector3Array, idx: PackedInt32Array) -> PackedVector3Array:
+	var none := PackedVector3Array()
+	if idx.size() / 3 <= LOD_MIN_TRIS:
+		return none
+	var d := RenderingServer.mesh_get_surface(mesh.get_rid(), s)
+	var lods: Array = d.get("lods", [])
+	var base: PackedByteArray = d.get("index_data", PackedByteArray())
+	if lods.is_empty() or base.is_empty():
+		return none
+	var bpi := base.size() / idx.size()   # Bytes pro Index (2 oder 4)
+	if bpi != 2 and bpi != 4:
+		return none
+	var a := _aabb(verts)
+	var max_err := minf(LOD_MAX_ERR, a.get_longest_axis_size() * LOD_MAX_ERR_REL)
+	var best := PackedByteArray()
+	for l: Dictionary in lods:
+		if float(l.get("edge_length", INF)) <= max_err:
+			best = l.get("index_data", PackedByteArray())   # LODs sind nach steigendem Fehler sortiert
+	var n := best.size() / bpi
+	if n < 3 or n >= idx.size():
+		return none
+	var faces := PackedVector3Array()
+	faces.resize(n - n % 3)
+	for t in faces.size():
+		var vi := best.decode_u16(t * 2) if bpi == 2 else int(best.decode_u32(t * 4))
+		if vi >= verts.size():
+			return none
+		faces[t] = verts[vi]
+	return faces
 
 static func _find(parent: PackedInt32Array, i: int) -> int:
 	while parent[i] != i:

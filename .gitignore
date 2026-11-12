@@ -13,3 +13,16 @@ tools/chatterbox/
 tools/voice_refs/raw/
 tools/.voice_cache/
 tools/voice_refs/cand/
+
+# Download-Rohdaten (Sketchfab-ZIPs, entpackte Quellen)
+/*.zip
+assets/_incoming/
+
+# Sketchfab-Standard-Lizenz: Nutzung im Spiel erlaubt, Weitergabe als Rohdatei nicht.
+# Im Release-Build enthalten, nicht im oeffentlichen Repo. Der Code hat jeweils einen Fallback.
+assets/characters/soldier_op/
+assets/models/gear/altyn/
+assets/models/gear/gasmask/
+assets/models/gear/plate_carrier/
+assets/models/hafen/garde_boat/
+assets/models/weapons/mbus/

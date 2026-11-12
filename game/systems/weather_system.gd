@@ -11,28 +11,34 @@ extends Node3D
 ## Abfragen:  visibility() 0 (Whiteout) .. 1 (klar), visibility_range() in m, is_window_open(),
 ##            wind() (m/s, Weltvektor), sight_factor() (fuer Gegner-Sichtweite).
 ## Steuerung: set_mode(m, blend), set_intensity(v, blend), open_window(dauer), close_window(dauer),
-##            set_waves(an).  Signale: window_changed(open), mode_changed(mode).
+##            set_waves(an).  Signale: window_changed(open), mode_changed(mode),
+##            wave_warning(kind, sekunden) ("window" | "storm", einmal je Wechsel, warn_time vorher).
+## HUD/Funk:  wave_phase() storm|down|window|up, seconds_to_window(), seconds_to_storm(), gust() 0..1.
+## Schnee: feine, unregelmaessige Flocken (Fern-/Nahschicht) plus bodennahes Treibschnee-Band in Boeen.
 
 signal window_changed(open: bool)
 signal mode_changed(mode: String)
+signal wave_warning(kind: String, seconds: float)
 
 const RainScript = preload("res://game/vfx/weather.gd")
 
 @export var mode: String = "snow"
 @export_range(0.0, 1.0) var base_intensity: float = 0.75      ## Sturmstaerke auf dem Wellenkamm
 @export_range(0.0, 1.0) var window_intensity: float = 0.18    ## Staerke im Sichtfenster
-@export var storm_duration: Vector2 = Vector2(20.0, 32.0)     ## Sturmphase (s, zufaellig)
-@export var window_duration: Vector2 = Vector2(9.0, 14.0)     ## Sichtfenster (s, zufaellig)
-@export var ramp_time: float = 4.0                            ## Uebergang Sturm <-> Fenster (s)
+@export var storm_duration: Vector2 = Vector2(24.0, 34.0)     ## Sturmphase (s, zufaellig)
+@export var window_duration: Vector2 = Vector2(24.0, 32.0)    ## Sichtfenster (s, zufaellig)
+@export var ramp_time: float = 5.0                            ## Uebergang Sturm <-> Fenster (s)
+@export var warn_time: float = 10.0                           ## wave_warning so viele s vor dem Wechsel
 @export var wind_base: Vector3 = Vector3(7.0, 0.0, 2.5)       ## Grundwind (m/s) bei voller Staerke
 @export var particle_amount: int = 6000
 @export var fall_speed: float = 2.2
 @export var snow_color: Color = Color(0.92, 0.94, 0.98)
 @export var fog_color: Color = Color(0.78, 0.81, 0.86)
 @export var clear_fog_density: float = 0.0035                 ## Tiefennebel bei Intensitaet 0
-@export var storm_fog_density: float = 0.05                   ## ... bei Intensitaet 1 (~45 m Sicht)
-@export var volumetric_max: float = 0.05
-@export var window_threshold: float = 0.55                    ## visibility() ab der ein Fenster "offen" ist
+@export var storm_fog_density: float = 0.013                  ## ... bei Intensitaet 1 (~175 m Sicht)
+@export var volumetric_max: float = 0.012
+@export var drift_amount: int = 900                           ## Treibschnee-Partikel (bodennah, in Boeen)
+@export var window_threshold: float = 0.6                     ## visibility() ab der ein Fenster "offen" ist
 @export var manage_environment: bool = true
 @export var muffle: bool = true
 @export var wind_volume_db: Vector2 = Vector2(-30.0, -7.0)
@@ -46,8 +52,11 @@ var _waves: bool = true
 var _wave_state: String = "storm"   ## storm | down | window | up
 var _wave_t: float = 0.0
 var _hold_t: float = 0.0
-var _forced: String = ""            ## "" | "window" | "storm"
+var _forced: String = ""            ## "" | "window" | "storm" (nur ohne Wellen / andere Modi)
 var _forced_t: float = 0.0
+var _next_hold: float = -1.0        ## erzwungene Dauer der naechsten Fenster-/Sturmphase
+var _warned: bool = false
+var _gust: float = 0.0
 var _manual: float = -1.0
 var _win_open: bool = false
 var _t: float = 0.0
@@ -59,6 +68,9 @@ var _far: GPUParticles3D
 var _near: GPUParticles3D
 var _far_mat: ParticleProcessMaterial
 var _near_mat: ParticleProcessMaterial
+var _drift: GPUParticles3D
+var _drift_mat: ParticleProcessMaterial
+var _flake_tex: Texture2D
 var _rain: Node3D
 var _wind_snd: AudioStreamPlayer
 var _env: Environment
@@ -103,18 +115,81 @@ func set_intensity(v: float, blend: float = 3.0) -> void:
 func set_waves(on: bool) -> void:
 	_waves = on
 
-## Erzwingt ein Sichtfenster fuer dauer Sekunden (Skript-Momente, Tutorials).
+## Erzwingt ein Sichtfenster fuer dauer Sekunden (Skript-Momente, Tutorials). Laeuft ueber die Wellen
+## (Uebergang + Countdown bleiben stimmig); ohne Wellen als harte Vorgabe.
 func open_window(dauer: float) -> void:
+	if mode == "blizzard" and _waves and _manual < 0.0:
+		_forced = ""
+		match _wave_state:
+			"window":
+				_hold_t = maxf(_hold_t, dauer)
+			"down":
+				_next_hold = dauer
+			_:
+				_wave_state = "down"
+				_wave_t = 0.0
+				_hold_t = ramp_time
+				_next_hold = dauer
+				_warned = true
+		return
 	_forced = "window"
 	_forced_t = dauer
 
 ## Erzwingt Sturm (kein Fenster) fuer dauer Sekunden.
 func close_window(dauer: float) -> void:
+	if mode == "blizzard" and _waves and _manual < 0.0:
+		_forced = ""
+		match _wave_state:
+			"storm":
+				_hold_t = maxf(_hold_t, dauer)
+			"up":
+				_next_hold = dauer
+			_:
+				_wave_state = "up"
+				_wave_t = 0.0
+				_hold_t = ramp_time
+				_next_hold = dauer
+				_warned = true
+		return
 	_forced = "storm"
 	_forced_t = dauer
 
+func wave_phase() -> String:
+	if _forced != "":
+		return _forced
+	return _wave_state if (mode == "blizzard" and _waves) else "storm"
+
+## Sekunden, bis das naechste Sichtfenster offen ist (0 = jetzt offen).
+func seconds_to_window() -> float:
+	match wave_phase():
+		"window":
+			return 0.0
+		"down":
+			return maxf(_hold_t, 0.0)
+		"storm":
+			return maxf(_hold_t, 0.0) + ramp_time
+		"up":
+			return maxf(_hold_t, 0.0) + storm_duration.x + ramp_time
+	return 0.0
+
+## Sekunden, bis der Sturm wieder zuzieht (nur im Fenster/Uebergang sinnvoll).
+func seconds_to_storm() -> float:
+	match wave_phase():
+		"window":
+			return maxf(_hold_t, 0.0)
+		"down":
+			return maxf(_hold_t, 0.0) + window_duration.x
+	return 0.0
+
+## Boeenstaerke 0..1 (Treibschnee, HUD).
+func gust() -> float:
+	return _gust
+
+## 0 = volle Sturmsicht, 1 = Sicht wie im Fenster (oder besser).
 func visibility() -> float:
-	return clampf((visibility_range() - 45.0) / (260.0 - 45.0), 0.0, 1.0)
+	var lo := 2.302585 / maxf(storm_fog_density, 0.0001)
+	var hi := 2.302585 / maxf(_fog_at(window_intensity), 0.0001)
+	return clampf((visibility_range() - lo) / maxf(hi - lo, 1.0), 0.0, 1.0)
 
 ## Sichtweite (m), bei der der Kontrast auf 10 % faellt.
 func visibility_range() -> float:
@@ -126,9 +201,9 @@ func is_window_open() -> bool:
 func wind() -> Vector3:
 	return _wind
 
-## Faktor fuer Gegner-Sichtweiten (0.45 im Whiteout .. 1 klar).
+## Faktor fuer Gegner-Sichtweiten (0.55 im Sturm .. 1 klar).
 func sight_factor() -> float:
-	return lerpf(0.45, 1.0, visibility())
+	return lerpf(0.55, 1.0, visibility())
 
 ## Sekunden bis zum naechsten Wellenwechsel (fuer Bots/HUD, grob).
 func time_to_change() -> float:
@@ -136,29 +211,61 @@ func time_to_change() -> float:
 
 # ------------------------------------------------------------------ Aufbau
 
-func _dot_texture() -> Texture2D:
-	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	for y in 16:
-		for x in 16:
-			var d := Vector2(x - 7.5, y - 7.5).length() / 7.5
-			var a := clampf(1.0 - d, 0.0, 1.0)
-			img.set_pixel(x, y, Color(1, 1, 1, a * a))
+## 2x2-Atlas unregelmaessiger Flocken (Klumpen aus 3-6 Kernen, weiche Kante) statt runder Punkte.
+func _flake_texture() -> Texture2D:
+	var n := 32
+	var img := Image.create(n * 2, n * 2, false, Image.FORMAT_RGBA8)
+	var r := RandomNumberGenerator.new()
+	r.seed = 4711
+	for cell in 4:
+		var ox := (cell % 2) * n
+		var oy := (cell / 2) * n
+		var blobs: Array[Vector3] = []
+		for b in r.randi_range(3, 6):
+			blobs.append(Vector3(r.randf_range(-5.0, 5.0), r.randf_range(-5.0, 5.0), r.randf_range(2.5, 5.5)))
+		for y in n:
+			for x in n:
+				var a := 0.0
+				for bl in blobs:
+					var d := Vector2(x - n * 0.5 + 0.5 - bl.x, y - n * 0.5 + 0.5 - bl.y).length() / bl.z
+					a = maxf(a, clampf(1.0 - d, 0.0, 1.0))
+				img.set_pixel(ox + x, oy + y, Color(1, 1, 1, pow(a, 1.6)))
+	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)
 
-func _flake_mat(size_px: float) -> StandardMaterial3D:
+## Weicher Fleck fuer Treibschnee (ueber das Quad in Windrichtung gestreckt).
+func _streak_texture() -> Texture2D:
+	var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+	for y in 32:
+		for x in 32:
+			var d := Vector2((x - 15.5) / 15.5, (y - 15.5) / 15.5).length()
+			var a := clampf(1.0 - d, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, a * a * a))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+func _flake_mat(size_px: float, streak: bool = false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.vertex_color_use_as_albedo = true
 	m.albedo_color = snow_color
-	m.albedo_texture = _dot_texture()
+	if streak:
+		m.albedo_texture = _streak_texture()
+	else:
+		if _flake_tex == null:
+			_flake_tex = _flake_texture()
+		m.albedo_texture = _flake_tex
+		m.particles_anim_h_frames = 2
+		m.particles_anim_v_frames = 2
+		m.particles_anim_loop = false
 	m.disable_receive_shadows = true
 	m.proximity_fade_enabled = true
 	m.proximity_fade_distance = size_px
 	return m
 
-func _make_emitter(amount: int, box: Vector3, size: float, life: float) -> GPUParticles3D:
+func _make_emitter(amount: int, box: Vector3, size: float, life: float, streak: bool = false) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
 	p.amount = maxi(amount, 16)
 	p.lifetime = life
@@ -186,21 +293,46 @@ func _make_emitter(amount: int, box: Vector3, size: float, life: float) -> GPUPa
 	pm.turbulence_influence_min = 0.05
 	pm.turbulence_influence_max = 0.25
 	pm.color = Color(1, 1, 1, 0.85)
+	if not streak:
+		pm.anim_offset_min = 0.0
+		pm.anim_offset_max = 1.0
+		pm.angle_min = 0.0
+		pm.angle_max = 360.0
+		pm.angular_velocity_min = -90.0
+		pm.angular_velocity_max = 90.0
 	p.process_material = pm
 	var q := QuadMesh.new()
 	q.size = Vector2(size, size)
-	q.material = _flake_mat(size * 6.0)
+	q.material = _flake_mat(size * 6.0, streak)
 	p.draw_pass_1 = q
 	add_child(p)
 	return p
 
 func _build_snow() -> void:
-	_far = _make_emitter(particle_amount, Vector3(26.0, 9.0, 26.0), 0.05, 6.0)
+	_far = _make_emitter(particle_amount, Vector3(26.0, 9.0, 26.0), 0.04, 6.0)
 	_far.name = "SnowFar"
 	_far_mat = _far.process_material as ParticleProcessMaterial
-	_near = _make_emitter(maxi(particle_amount / 6, 64), Vector3(5.0, 3.5, 5.0), 0.08, 2.2)
+	_near = _make_emitter(maxi(particle_amount / 5, 64), Vector3(5.0, 3.5, 5.0), 0.026, 2.2)
 	_near.name = "SnowNear"
 	_near_mat = _near.process_material as ParticleProcessMaterial
+	_near_mat.scale_min = 0.5
+	_near_mat.scale_max = 1.6
+	# Treibschnee: flache Schicht knapp ueber dem Boden, schnell in Windrichtung, nur in Boeen dicht
+	if drift_amount > 0:
+		_drift = _make_emitter(drift_amount, Vector3(18.0, 0.6, 18.0), 1.0, 1.6, true)
+		_drift.name = "SnowDrift"
+		_drift_mat = _drift.process_material as ParticleProcessMaterial
+		_drift_mat.direction = Vector3(1, 0.05, 0)
+		_drift_mat.spread = 8.0
+		_drift_mat.gravity = Vector3.ZERO
+		_drift_mat.damping_min = 0.0
+		_drift_mat.damping_max = 0.2
+		_drift_mat.scale_min = 0.6
+		_drift_mat.scale_max = 1.8
+		_drift_mat.color = Color(1, 1, 1, 0.16)
+		_drift_mat.turbulence_noise_strength = 1.2
+		_drift_mat.turbulence_influence_max = 0.12
+		(_drift.draw_pass_1 as QuadMesh).size = Vector2(2.4, 0.5)
 
 func _build_audio() -> void:
 	var nm := wind_sound if ResourceLoader.exists("res://assets/sfx/%s.ogg" % wind_sound) else "amb_wind"
@@ -263,6 +395,8 @@ func _apply_mode(instant: bool) -> void:
 	if _far != null:
 		_far.emitting = snowy
 		_near.emitting = snowy and mode == "blizzard"
+		if _drift != null:
+			_drift.emitting = mode == "blizzard"
 	if mode == "rain":
 		if _rain == null:
 			_rain = RainScript.new()
@@ -303,7 +437,10 @@ func _mode_target() -> float:
 	return 0.0
 
 func _fog_density() -> float:
-	return lerpf(clear_fog_density, storm_fog_density, pow(clampf(intensity, 0.0, 1.0), 1.25))
+	return _fog_at(intensity)
+
+func _fog_at(i: float) -> float:
+	return lerpf(clear_fog_density, storm_fog_density, pow(clampf(i, 0.0, 1.0), 1.25))
 
 # ------------------------------------------------------------------ Laufzeit
 
@@ -316,6 +453,7 @@ func _process(delta: float) -> void:
 	intensity = lerpf(intensity, _target, k)
 	var gust := 0.06 * _noise.get_noise_1d(_t * 0.7) * (1.0 if mode == "blizzard" else 0.0)
 	var eff := clampf(intensity + gust, 0.0, 1.0)
+	_gust = clampf((0.5 + 1.6 * _noise.get_noise_1d(_t * 0.22 + 300.0)) * (0.35 + intensity), 0.0, 1.0) if mode == "blizzard" else 0.0
 	# Wind: Grundwind skaliert mit der Staerke, Boeen ueber Rauschen, Richtung pendelt
 	var wk := (0.25 + eff) * (1.0 + 0.3 * _noise.get_noise_1d(_t * 0.05 + 50.0) + 0.12 * _noise.get_noise_1d(_t * 0.6 + 90.0))
 	_wind = wind_base.rotated(Vector3.UP, 0.25 * _noise.get_noise_1d(_t * 0.04 + 200.0)) * wk
@@ -338,6 +476,12 @@ func _tick_waves(delta: float) -> void:
 		return
 	_wave_t += delta
 	_hold_t -= delta
+	# Vorwarnung (Funk/HUD): "Boee laesst nach in 10 s" bzw. "Sturm kommt zurueck"
+	if not _warned and (_wave_state == "storm" or _wave_state == "window"):
+		var left := _hold_t + (ramp_time if _wave_state == "storm" else 0.0)
+		if left <= warn_time:
+			_warned = true
+			wave_warning.emit("window" if _wave_state == "storm" else "storm", left)
 	match _wave_state:
 		"storm":
 			if _hold_t <= 0.0:
@@ -348,7 +492,9 @@ func _tick_waves(delta: float) -> void:
 			if _hold_t <= 0.0:
 				_wave_state = "window"
 				_wave_t = 0.0
-				_hold_t = _rng.randf_range(window_duration.x, window_duration.y)
+				_hold_t = _next_hold if _next_hold > 0.0 else _rng.randf_range(window_duration.x, window_duration.y)
+				_next_hold = -1.0
+				_warned = false
 		"window":
 			if _hold_t <= 0.0:
 				_wave_state = "up"
@@ -358,7 +504,9 @@ func _tick_waves(delta: float) -> void:
 			if _hold_t <= 0.0:
 				_wave_state = "storm"
 				_wave_t = 0.0
-				_hold_t = _rng.randf_range(storm_duration.x, storm_duration.y)
+				_hold_t = _next_hold if _next_hold > 0.0 else _rng.randf_range(storm_duration.x, storm_duration.y)
+				_next_hold = -1.0
+				_warned = false
 
 func _update_particles(eff: float) -> void:
 	if _far == null:
@@ -375,6 +523,15 @@ func _update_particles(eff: float) -> void:
 	_far_mat.turbulence_noise_strength = 1.5 + eff * 4.0
 	_far.amount_ratio = clampf(0.15 + eff * 0.95, 0.0, 1.0)
 	_near.amount_ratio = clampf((eff - 0.3) * 1.5, 0.0, 1.0)
+	if _drift != null:
+		if cam != null:
+			_drift.global_position = Vector3(cam.global_position.x, cam.global_position.y - 1.2, cam.global_position.z) - _wind * 0.9
+		var wl := Vector3(_wind.x, 0.0, _wind.z)
+		var ws := maxf(wl.length(), 0.1)
+		_drift_mat.direction = (wl / ws) + Vector3(0, 0.04, 0)
+		_drift_mat.initial_velocity_min = ws * 1.3
+		_drift_mat.initial_velocity_max = ws * 2.2
+		_drift.amount_ratio = clampf(_gust * 1.2 - 0.15, 0.0, 1.0) * clampf(eff * 1.4, 0.0, 1.0)
 
 func _update_env(_eff: float) -> void:
 	if _env == null or _env_saved.is_empty():

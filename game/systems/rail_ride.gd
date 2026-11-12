@@ -8,7 +8,7 @@ extends AnimatableBody3D
 ## Benutzung (siehe hafen.gd):
 ##   var r = RailRide.new()                       # const RailRide = preload("res://game/systems/rail_ride.gd")
 ##   r.configure({"cruise_speed": 15.0, "mount_offset": Vector3(0, 1.9, -2.4), "rock_roll_deg": 1.4,
-##                "weapon": {"name": "MG3", "rpm": 900.0, "damage": 22.0}})
+##                "weapon": {"name": "MG5", "rpm": 900.0, "damage": 22.0}})
 ##   add_child(r); level.player = r
 ##   r.set_path(points)                           # Weltpunkte (Catmull-Rom-geglaettet), Position springt an den Anfang
 ##   FX: r.model (Node3D) mit eigener Optik fuellen; add_hull_box(center, size) fuer Kollision
@@ -36,7 +36,7 @@ const FX := preload("res://game/systems/rail_ride_fx.gd")
 const HIT_MASK := 1 | 4
 
 const DEFAULT_WEAPON := {
-	"name": "MG", "rpm": 850.0, "damage": 22.0, "spread_deg": 0.45, "range": 500.0,
+	"name": "MG5", "rpm": 850.0, "damage": 22.0, "spread_deg": 0.45, "range": 500.0,
 	"heat_per_shot": 0.012, "cool_rate": 0.34, "cool_delay": 0.22, "unlock_at": 0.35,
 	"tracer_every": 3, "tracer_color": "orange", "tracer_width": 0.9,
 	"sfx": "hafen_mg", "sfx_every": 2, "sfx_db": -5.0, "trauma": 0.02,

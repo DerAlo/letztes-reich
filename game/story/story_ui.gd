@@ -36,6 +36,7 @@ var _voice: AudioStreamPlayer
 var _streams: Dictionary = {}
 var _tween: Tween
 var _cinematic: bool = false
+var _obj_tw: Tween = null
 var _clock: float = 0.0          # Spielzeit (pausiert mit, skaliert mit time_scale) fuer die Verzugs-Messung
 var max_lag: float = 0.0         # groesster Verzug einer Zeile zwischen Signal und Anzeige (Diagnose)
 
@@ -253,9 +254,18 @@ func _next() -> void:
 # ---------------------------------------------------------------- Ziel
 
 func _on_objective(text: String) -> void:
+	if _obj_tw != null and _obj_tw.is_valid():
+		_obj_tw.kill()
+	if text == "":
+		_obj_text.text = ""   # sonst blendet set_cinematic(false) den alten Auftrag wieder ein
+	elif _cinematic:
+		_obj_text.text = text   # waehrend Zwischensequenzen nur merken, Einblenden nach set_cinematic(false)
+		_obj_head.text = "AUFTRAG"
+		return
 	if text == "" and _obj_box.modulate.a <= 0.01:
 		return   # nichts sichtbar, nichts zu tun (leerer Tween wuerde warnen)
 	var tw := create_tween()
+	_obj_tw = tw
 	if _obj_box.modulate.a > 0.01:
 		tw.tween_property(_obj_box, "modulate:a", 0.0, 0.35)
 	if text == "":
@@ -277,6 +287,8 @@ func set_cinematic(active: bool) -> void:
 	if active == _cinematic:
 		return
 	_cinematic = active
+	if _obj_tw != null and _obj_tw.is_valid():
+		_obj_tw.kill()
 	var h := get_viewport().get_visible_rect().size.y * 0.11 if active else 0.0
 	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(_bar_top, "offset_bottom", h, 0.7)
