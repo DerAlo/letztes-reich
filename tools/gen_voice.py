@@ -73,7 +73,7 @@ CAST = {
                  "desc": "Oberstleutnant Brandt – aelterer Offizier, ruhig (Riedhammer-Referenz, hoeher gestimmt); Bordfunk"},
     "falk":     {"ref": "weber.wav",    "ex": 0.3,  "cfg": 0.55, "chan": "radio",       "pitch": -2.6, "lufs": -17.0, "tempo": 0.95,
                  "desc": "Oberst Falk – Garde-Kommandeur, kalt, langsam, hoehnisch (Weber-Referenz, deutlich tiefer); Garde-Funk"},
-    "hartmann": {"ref": "rednerin.wav", "ex": 0.45, "cfg": 0.5,  "chan": "close",       "pitch": -0.5, "lufs": -18.0, "tempo": 1.00,
+    "hartmann": {"ref": "hartmann.wav", "ex": 0.45, "cfg": 0.5,  "chan": "close",       "pitch": -0.5, "lufs": -18.0, "tempo": 1.00,
                  "desc": "Praesidentin Hartmann – Geisel, gefasst, erschoepft (Rednerin-Referenz, etwas tiefer); nah"},
     "funker":   {"ref": "lage.wav",     "ex": 0.5,  "cfg": 0.5,  "chan": "radio",       "pitch": 1.0,  "lufs": -17.0,
                  "desc": "unbekannter Sprecher (Fallback)"},

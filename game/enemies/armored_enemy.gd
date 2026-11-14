@@ -226,15 +226,34 @@ func _dress_juggernaut() -> void:
 					_gear_mi(hmi, part[0], xf)
 			for part: Array in _gear_parts(GEAR_MASK):
 				_gear_mi(hmi, part[0], J_MASK_XF * (part[1] as Transform3D))
-			hmi.layers = 0
-			vmi.layers = 0
+			_set_layers_safe(hmi, 0)
+			_set_layers_safe(vmi, 0)
 	var carrier := _gear_parts(GEAR_CARRIER)
 	if not carrier.is_empty() and _pieces.has("chest_plate"):
 		var cmi: MeshInstance3D = _pieces["chest_plate"]["plate_mi"]
 		if cmi != null:
 			for part: Array in carrier:
 				_gear_mi(cmi, part[0], J_CARRIER_XF * (part[1] as Transform3D))
-			cmi.layers = 0
+			_set_layers_safe(cmi, 0)
+
+## Render-Layer einer Geometrie im Baum aendern, ohne Licht-Paarungen zu verwaisen.
+## Godot 4.7 (Forward+) loest beim Layerwechsel die Licht-Paare NICHT auf; _instance_unpair prueft
+## spaeter cull_mask & NEUE Layer und ueberspringt das Aufloesen, wenn die Maske nicht mehr passt
+## (z. B. layers = 0). Das Licht behaelt dann einen Zeiger auf die Geometrie und umgekehrt ->
+## "BUG, indexing did not unpair geometries from light" und Absturz (signal 11), sobald eines davon
+## freigegeben wird. Kurz aus dem Baum nehmen loest alle Paare mit der ALTEN Maske sauber auf.
+static func _set_layers_safe(gi: GeometryInstance3D, mask: int) -> void:
+	if gi == null or gi.layers == mask:
+		return
+	var p := gi.get_parent()
+	if p == null or not gi.is_inside_tree():
+		gi.layers = mask
+		return
+	var idx := gi.get_index()
+	p.remove_child(gi)
+	gi.layers = mask
+	p.add_child(gi)
+	p.move_child(gi, idx)
 
 ## Koerperzonen fuer Treffer, die keine Platte trafen (Ruheraum, je Knochen).
 func _build_zones() -> void:

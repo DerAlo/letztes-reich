@@ -74,6 +74,7 @@ var _fx_rect: ColorRect
 var _fx_mat: ShaderMaterial
 var _hud_layer: CanvasLayer
 var _hud: Control
+var _hroot: UIStyle.HudRoot     ## Drohnen-HUD in 1080p-Pixeln, skaliert; _marks bleibt in echten Pixeln
 var _marks_layer: CanvasLayer
 var _marks: Control
 var _font: Font
@@ -339,7 +340,9 @@ func _build_layers() -> void:
 	_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.draw.connect(_draw_hud)
-	_hud_layer.add_child(_hud)
+	_hroot = UIStyle.HudRoot.new()
+	_hud_layer.add_child(_hroot)
+	_hroot.add_child(_hud)
 
 # ------------------------------------------------------------------ Eingabe
 
@@ -544,7 +547,7 @@ func _update_hover() -> void:
 	hovered = {}
 	var vs := _hud.get_viewport_rect().size
 	var c := vs * 0.5
-	var radius := 70.0 * (70.0 / _fov) * 0.55 + 30.0
+	var radius := (70.0 * (70.0 / _fov) * 0.55 + 30.0) * _hroot.factor   # Fadenkreuzrahmen ist in HUD-Pixeln
 	var best := radius
 	for t: Dictionary in targets:
 		if not _target_valid(t):
@@ -785,6 +788,7 @@ func _key(action: String) -> String:
 
 func _text(s: String, pos: Vector2, size: int, col: Color, align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT, ctl: Control = null) -> void:
 	var c := ctl if ctl != null else _hud
+	size = UIStyle.min_fs(size, _hroot.factor if c == _hud else 1.0)
 	var w := _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var x := pos.x
 	if align == HORIZONTAL_ALIGNMENT_CENTER:
@@ -818,14 +822,15 @@ func _draw_hud() -> void:
 	_hud.draw_line(c + Vector2(0, g), c + Vector2(0, r * 0.6), fg, 1.5)
 	_hud.draw_arc(c, r, -0.4, 0.4, 10, fg, 1.5)
 	_hud.draw_arc(c, r, PI - 0.4, PI + 0.4, 10, fg, 1.5)
-	# Kopfzeile
-	_text("%s · %s" % [feed_label, pilot_label], Vector2(m + 14, m + 30), 18, fg)
+	# Kopfzeile (unter dem Auftragstext des Spieler-HUDs oben links, der auf derselben 1080p-Flaeche liegt)
+	var hy := m + 100.0
+	_text("%s · %s" % [feed_label, pilot_label], Vector2(m + 14, hy + 30), 18, fg)
 	var rec_on := fmod(_t, 1.0) < 0.6
 	if rec_on:
-		_hud.draw_circle(Vector2(m + 22, m + 52), 6.0, Color(1.0, 0.2, 0.15))
-	_text("REC %02d:%02d" % [int(_rec_t) / 60, int(_rec_t) % 60], Vector2(m + 36, m + 58), 16, fg)
+		_hud.draw_circle(Vector2(m + 22, hy + 52), 6.0, Color(1.0, 0.2, 0.15))
+	_text("REC %02d:%02d" % [int(_rec_t) / 60, int(_rec_t) % 60], Vector2(m + 36, hy + 58), 16, fg)
 	if thermal:
-		_text("WÄRMEBILD  WEISS-HEISS", Vector2(m + 14, m + 82), 16, fg)
+		_text("WÄRMEBILD  WEISS-HEISS", Vector2(m + 14, hy + 82), 16, fg)
 	# Akku und Signal
 	var bx := vs.x - m - 200.0
 	_text("AKKU %d %%" % int(round(battery * 100.0)), Vector2(bx, m + 30), 16, warn if battery < 0.25 else fg)
@@ -860,7 +865,7 @@ func _draw_hud() -> void:
 	# Ziel unter dem Fadenkreuz
 	if not hovered.is_empty():
 		var tp := _target_point(hovered)
-		var sp := cam.unproject_position(tp)
+		var sp := cam.unproject_position(tp) / _hroot.factor   # echte Pixel -> HUD-Pixel
 		var kc := _kind_color(str(hovered["kind"]))
 		_hud.draw_rect(Rect2(sp - Vector2(18, 18), Vector2(36, 36)), kc, false, 2.0)
 		var txt := str(hovered["label"]).to_upper()
@@ -918,7 +923,7 @@ func _draw_marks() -> void:
 		if sp.x < pad or sp.x > vs.x - pad or sp.y < pad or sp.y > vs.y - pad:
 			edge = true
 		sp = Vector2(clampf(sp.x, pad, vs.x - pad), clampf(sp.y, pad, vs.y - pad))
-		var s := 7.0 if edge else clampf(220.0 / maxf(dist, 1.0), 6.0, 11.0)
+		var s := (7.0 if edge else clampf(220.0 / maxf(dist, 1.0), 6.0, 11.0)) * clampf(UIStyle.hud_scale(vs), 0.6, 2.0)
 		var a := 0.55 if edge else 0.9
 		var pts := PackedVector2Array([sp + Vector2(0, -s), sp + Vector2(s, 0), sp + Vector2(0, s), sp + Vector2(-s, 0), sp + Vector2(0, -s)])
 		_marks.draw_polyline(pts, Color(0, 0, 0, 0.5 * a), 3.5)

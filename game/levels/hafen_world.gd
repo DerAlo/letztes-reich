@@ -10,6 +10,9 @@ const PH = preload("res://game/levels/ph_props.gd")
 const VF := preload("res://game/vehicles/vehicle_fx.gd")
 const RP = preload("res://game/levels/river_props.gd")
 const Models := preload("res://game/levels/hafen_models.gd")
+const FarCity := preload("res://game/levels/far_city.gd")
+const Night := preload("res://game/levels/hafen_night.gd")   ## glow_light(): runde Positions-/Hindernisfeuer
+const ENV_TEX := "res://assets/environment/"
 
 const WATER_Y := -2.0
 const CRANE_Z := 61.0
@@ -37,6 +40,7 @@ const C_W := 2.44
 const C_PITCH := 2.84
 
 static var _corr_tex: Texture2D = null
+static var _tmats: Dictionary = {}
 static var _cont_mesh: Mesh = null
 static var _cont_xf := Transform3D.IDENTITY
 static var _cont_m: StandardMaterial3D = null
@@ -96,15 +100,47 @@ static func _cyl_mesh(r_top: float, r_bot: float, h: float, segs: int = 12) -> C
 	cm.rings = 1
 	return cm
 
+## PBR-Material aus assets/environment/<rel>/ (diffuse/normal/arm, Poly Haven CC0), Welt-Triplanar wie Geo.mat.
+static func _tmat(rel: String, tint: Color, scale: float, rough_mul: float = 1.0, metallic: float = 0.0) -> StandardMaterial3D:
+	var key := "%s|%s|%s|%s|%s" % [rel, tint.to_html(), scale, rough_mul, metallic]
+	if _tmats.has(key):
+		return _tmats[key]
+	var d := ENV_TEX + rel + "/"
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(d + "diffuse.jpg")
+	m.albedo_color = tint
+	m.normal_enabled = true
+	m.normal_texture = load(d + "normal.jpg")
+	m.roughness_texture = load(d + "arm.jpg")
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+	m.roughness = rough_mul
+	m.ao_enabled = true
+	m.ao_texture = load(d + "arm.jpg")
+	m.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	m.metallic = metallic
+	if metallic > 0.0:
+		m.metallic_texture = load(d + "arm.jpg")
+		m.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_BLUE
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * scale
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_tmats[key] = m
+	return m
+
 # ------------------------------------------------------------------ Wasser
 
 const WATER_SHADER := """
 shader_type spatial;
-uniform vec4 deep : source_color = vec4(0.02, 0.035, 0.045, 1.0);
-uniform vec4 crest : source_color = vec4(0.06, 0.08, 0.09, 1.0);
+uniform vec4 deep : source_color = vec4(0.024, 0.04, 0.052, 1.0);
+uniform vec4 crest : source_color = vec4(0.07, 0.09, 0.1, 1.0);
 uniform sampler2D n1 : hint_normal;
 uniform sampler2D n2 : hint_normal;
 uniform float amp = 0.17;
+// Himmelsspiegelung nach Fresnel (flacher Blickwinkel -> heller Horizontschimmer, steil -> dunkles Wasser).
+// Die Bootsnacht (hafen_night.gd) setzt sky_tint auf den Nachthorizont.
+uniform vec4 sky_tint : source_color = vec4(0.2, 0.16, 0.14, 1.0);
+uniform float fresnel_amt = 0.5;
 varying vec3 wpos;
 varying float hgt;
 void vertex() {
@@ -125,16 +161,23 @@ void fragment() {
 	vec2 uv = wpos.xz;
 	vec3 a = texture(n1, uv * 0.045 + vec2(TIME * 0.018, TIME * 0.011)).rgb;
 	vec3 b = texture(n2, uv * 0.13 - vec2(TIME * 0.015, -TIME * 0.022)).rgb;
-	NORMAL_MAP = mix(a, b, 0.5);
+	// grosse, langsame Duenung als dritte Lage: bricht Spiegelungen in lange, unruhige Bahnen
+	vec3 s = texture(n1, uv * 0.012 + vec2(-TIME * 0.006, TIME * 0.009)).rgb;
+	NORMAL_MAP = normalize(mix(mix(a, b, 0.5), s, 0.35) * 2.0 - 1.0) * 0.5 + 0.5;
 	// Feine Normalen + sehr glatte Oberflaeche gaben unter Scheinwerfern grelle Einzel-Glitzerpunkte
 	// ("Konfetti"): Normal-Detail flacher, Rauheit hoeher und mit der Entfernung steigend (gegen Aliasing),
 	// Spekular auf Wasser-F0 (~0.02) -> weiche, breitere nasse Lichtbahnen statt Funkeln.
 	float dist = length(VERTEX);
 	NORMAL_MAP_DEPTH = mix(0.32, 0.16, smoothstep(15.0, 140.0, dist));
 	ALBEDO = mix(deep.rgb, crest.rgb, clamp(hgt * 0.5 + 0.5, 0.0, 1.0) * 0.6);
-	ROUGHNESS = mix(0.24, 0.32, smoothstep(10.0, 160.0, dist));
+	ROUGHNESS = mix(0.2, 0.3, smoothstep(10.0, 160.0, dist));
 	METALLIC = 0.0;
-	SPECULAR = 0.3;
+	SPECULAR = 0.42;
+	float nv = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+	float fr = 0.02 + 0.98 * pow(1.0 - nv, 5.0);
+	// Wellenkaemme fangen mehr Himmel, Taeler weniger (gegen eine glatte, tote Flaeche)
+	float crest_k = 0.75 + 0.5 * clamp(hgt * 0.5 + 0.5, 0.0, 1.0);
+	EMISSION = sky_tint.rgb * fr * fresnel_amt * crest_k;
 }
 """
 
@@ -217,8 +260,9 @@ static func _build_land(world: Node3D) -> void:
 ## Kaimauern: Betonwand mit Algen-/Wasserlinie, heller Kantenbalken mit gelber Kantenmarkierung,
 ## gusseiserne Poller (Pilzform), Gummifender und Steigleitern.
 static func _build_quay_walls(world: Node3D) -> void:
-	var wall := Geo.mat("concrete_wall_008", Color(0.36, 0.36, 0.37), 0.25)
-	var cope := Geo.mat("concrete_wall_008", Color(0.62, 0.62, 0.6), 0.3)
+	# Ortbeton mit Schalungsstruktur, Kante aus Granitquadern (statt flachem Dunkelgrau)
+	var wall := _tmat("river/textures/rough_concrete", Color(0.6, 0.6, 0.58), 0.3)
+	var cope := _tmat("berlin/textures/large_sandstone_blocks", Color(0.6, 0.6, 0.62), 0.32, 0.85)
 	var algae := Geo.flat(Color(0.05, 0.07, 0.05), 0.35)
 	var paint := Geo.flat(Color(0.85, 0.66, 0.08), 0.55)
 	# [x Wandmitte, Richtung zum Wasser, z Mitte, Laenge]
@@ -276,12 +320,71 @@ static func _build_quay_walls(world: Node3D) -> void:
 	world.add_child(Geo.mesh_node(_mesh_batch(head, hx), pol, Vector3.ZERO, false))
 	world.add_child(Geo.mesh_node(_mesh_batch(fender, fx), rubber, Vector3.ZERO, false))
 	world.add_child(Geo.mesh_node(lb.build(), steel, Vector3.ZERO, false))
+	_quay_wall_details(world, walls)
 	# Kranschiene der Containerbruecken (landseitig) im Kai
 	var rail := Geo.flat(Color(0.3, 0.29, 0.28), 0.45, 0.8)
 	var rb := Geo.batch()
 	rb.add(Vector3(37.0, 0.04, -125.0), Vector3(0.14, 0.08, 350.0))
 	rb.add(Vector3(37.0, 0.005, -125.0), Vector3(0.7, 0.01, 350.0))
 	world.add_child(Geo.mesh_node(rb.build(), rail, Vector3.ZERO, false))
+
+## Kaimauer-Details: Dehnfugen, Reibepfaehle aus Holz, Autoreifen-Fender an Ketten, Entwaesserungsrohre mit
+## Rostfahne, nasser Streifen ueber der Wasserlinie. Alles nur Optik (Kollision bleibt die Wand-/Landplatte).
+static func _quay_wall_details(world: Node3D, walls: Array) -> void:
+	var joint := Geo.flat(Color(0.05, 0.05, 0.05), 0.9)
+	var timber := _tmat("textures/weathered_planks", Color(0.5, 0.42, 0.34), 0.7)
+	var rubber := Geo.flat(Color(0.03, 0.03, 0.03), 0.75)
+	var chain := Geo.flat(Color(0.25, 0.2, 0.16), 0.6, 0.8)
+	var rust := Geo.flat(Color(0.2, 0.1, 0.05), 0.9)
+	var wet := Geo.flat(Color(0.09, 0.09, 0.085), 0.25)
+	var jb := Geo.batch()
+	var tb := Geo.batch()
+	var cb := Geo.batch()
+	var rb := Geo.batch()
+	var wb := Geo.batch()
+	var tires: Array = []
+	var pipes: Array = []
+	var tire := TorusMesh.new()
+	tire.inner_radius = 0.24
+	tire.outer_radius = 0.46
+	tire.rings = 14
+	tire.ring_segments = 8
+	var pipe := _cyl_mesh(0.16, 0.16, 0.5, 10)
+	for w: Array in walls:
+		var x: float = w[0]
+		var sd: float = w[1]
+		var face := x + sd * 0.4
+		var z0: float = float(w[2]) + float(w[3]) * 0.5 - 3.0
+		var z1: float = float(w[2]) - float(w[3]) * 0.5 + 3.0
+		wb.add(Vector3(face + sd * 0.006, -1.25, float(w[2])), Vector3(0.012, 0.45, float(w[3])))
+		var z := z0
+		var i := 0
+		while z > z1:
+			# Dehnfuge alle 15 m
+			if i % 5 == 0:
+				jb.add(Vector3(face + sd * 0.01, -1.15, z), Vector3(0.03, 2.1, 0.05))
+			# Reibepfahl alle 6 m
+			if i % 2 == 1:
+				tb.add(Vector3(face + sd * 0.16, -1.05, z), Vector3(0.3, 2.3, 0.3))
+				tb.add(Vector3(face + sd * 0.16, 0.12, z), Vector3(0.34, 0.06, 0.34))
+			# Reifenfender an Ketten alle 24 m
+			if i % 8 == 4:
+				tires.append(Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(face + sd * 0.48, -0.95, z)))
+				cb.add(Vector3(face + sd * 0.42, -0.28, z - 0.2), Vector3(0.03, 0.62, 0.03))
+				cb.add(Vector3(face + sd * 0.42, -0.28, z + 0.2), Vector3(0.03, 0.62, 0.03))
+			# Entwaesserungsrohr mit Rostfahne alle 36 m
+			if i % 12 == 7:
+				pipes.append(Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(face + sd * 0.12, -0.75, z)))
+				rb.add(Vector3(face + sd * 0.008, -1.25, z), Vector3(0.012, 0.85, 0.32))
+			z -= 3.0
+			i += 1
+	world.add_child(Geo.mesh_node(jb.build(), joint, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(tb.build(), timber, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(cb.build(), chain, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(rb.build(), rust, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(wb.build(), wet, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(_mesh_batch(tire, tires), rubber, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(_mesh_batch(pipe, pipes), rubber, Vector3.ZERO, false))
 
 # ------------------------------------------------------------------ Containerlager
 
@@ -766,15 +869,13 @@ static func _sts_crane(world: Node3D, z: float, m: Material, boom_up: bool) -> v
 	sp.position = Vector3(42.0, 38.5, z)
 	sp.rotation_degrees = Vector3(-90, 0, 0)
 	world.add_child(sp)
-	var red := Geo.flat(Color(1, 0.1, 0.05), 0.4, 0.0, Color(1, 0.1, 0.05), 8.0)
-	var rb := Geo.batch()
-	rb.add(apex + Vector3(0.0, 1.3, 0.0), Vector3(0.45, 0.45, 0.45))
-	rb.add(Vector3(20.0, by + 1.4, z), Vector3(0.4, 0.4, 0.4))
-	if boom_up:
-		rb.add(Vector3(xw, by, z) + d * 50.0, Vector3(0.45, 0.45, 0.45))
-	else:
-		rb.add(Vector3(100.0, by + 1.2, z), Vector3(0.4, 0.4, 0.4))
-	world.add_child(Geo.mesh_node(rb.build(), red, Vector3.ZERO, false))
+	# Hindernisfeuer: kleine Kugelleuchte + runder Lichtpunkt (vorher leuchtende Wuerfel -> Glow-Quadrate)
+	var red := Geo.flat(Color(1, 0.1, 0.05), 0.4, 0.0, Color(1, 0.1, 0.05), 3.0)
+	var lamps: Array[Vector3] = [apex + Vector3(0.0, 1.3, 0.0), Vector3(20.0, by + 1.4, z)]
+	lamps.append(Vector3(xw, by, z) + d * 50.0 if boom_up else Vector3(100.0, by + 1.2, z))
+	for lp: Vector3 in lamps:
+		world.add_child(Geo.mesh_node(_nav_sphere(0.16), red, lp, false))
+		Night.glow_light(world, lp, Color(1.0, 0.1, 0.05), 4.0, 0.6)
 
 ## Hohe Flutlichtmasten (32 m) neben den Quergassen: machen Gassen und Gegnerstellungen auf 150-400 m lesbar,
 ## ohne Lichtkegel im Dunst (geringe Volumetrik-Energie, keine Schatten).
@@ -818,13 +919,20 @@ static func _build_quay(world: Node3D) -> void:
 	_sts_crane(world, -55.0, m, true)
 	_sts_crane(world, -140.0, m, false)
 	_sts_crane(world, -275.0, m, true)
-	# Lagerhallen am Ostufer (Ziel-Kulisse fuer die Kai-Schuetzen)
-	var wall := Geo.mat("brick_wall_02", Color(0.5, 0.45, 0.42), 0.12)
-	var roof := Geo.mat("rusty_metal_02", Color(0.6, 0.6, 0.6), 0.1, 1.0, 0.4)
+	# Lagerhallen am Ostufer (Ziel-Kulisse fuer die Kai-Schuetzen). Kollision wie bisher (Kasten 50 x 12 x 60),
+	# Optik aus far_city: Backstein mit Sprossenfensterband, Gesims, Satteldach; dazu Tore/Tueren zum Wasser.
+	var fb := FarCity.Builder.new()
+	var hall_i := 0
 	var z := -280.0
 	while z > -900.0:
-		Geo.solid_box(world, Vector3(175.0, 6.0, z), Vector3(50.0, 12.0, 60.0), wall)
-		world.add_child(Geo.box_mesh_node(Vector3(52.0, 0.6, 62.0), roof, Vector3(175.0, 12.3, z)))
+		var body := Geo.static_body(Vector3(175.0, 6.0, z))
+		Geo.add_box_shape(body, Vector3.ZERO, Vector3(50.0, 12.0, 60.0))
+		world.add_child(body)
+		fb.block(Vector3(175.0, 0.0, z), Vector3(50.0, 12.0, 60.0), "hall", "brick_old" if hall_i % 3 != 1 else "factory",
+			Color(0.8, 0.7, 0.62), {"seed": fposmod(float(hall_i) * 0.381 + 0.2, 1.0), "damage": 0.12, "lit": 0.9,
+			"roof": "gable", "roof_h": 5.5, "roof_col": Color(0.34, 0.33, 0.33), "trim_tex": "concrete_old", "cornice": true})
+		_hall_front(world, z, hall_i)
+		hall_i += 1
 		var lamp := OmniLight3D.new()
 		lamp.light_color = Color(1.0, 0.75, 0.45)
 		lamp.light_energy = 2.0
@@ -832,6 +940,7 @@ static func _build_quay(world: Node3D) -> void:
 		lamp.position = Vector3(149.0, 8.0, z)
 		world.add_child(lamp)
 		z -= 80.0
+	FarCity.build(fb, world, true, {"lit_ratio": 0.16, "emission_energy": 1.8, "sky_tint": Color(0.13, 0.14, 0.19), "reflect_amt": 0.16}, "Lagerhallen")
 	# Kai-Deckung fuer die Schuetzen (Paletten/Kisten)
 	var crate := Geo.flat(Color(0.35, 0.28, 0.18), 0.9)
 	for zz in [-350.0, -385.0, -420.0, -470.0]:
@@ -844,33 +953,96 @@ static func _build_quay(world: Node3D) -> void:
 	berth.position = Vector3(40.0, 5.0, BERTH7.z)
 	world.add_child(berth)
 
+## Wasserseite einer Lagerhalle (Wand x = 150): drei Rolltore mit Stahlzarge (eins je Halle offen, Licht
+## dahinter), Schlupftuer, Leuchte ueber dem Mitteltor (OmniLight aus _build_quay), Fallrohre, Sockel, Nummer.
+static func _hall_front(world: Node3D, z: float, n: int) -> void:
+	var fx := 150.0
+	var gate := _tmat("rail/textures/rusty_corrugated_iron", Color(0.55, 0.6, 0.62), 0.5, 1.0, 0.3)
+	var steel := _tmat("rail/textures/rusty_painted_metal", Color(0.35, 0.38, 0.4), 0.5, 0.9, 0.4)
+	var conc := _tmat("river/textures/rough_concrete", Color(0.55, 0.55, 0.53), 0.4)
+	var lens := Geo.flat(Color(1.0, 0.8, 0.55), 0.4, 0.0, Color(1.0, 0.75, 0.45), 5.0)
+	var inner := Geo.flat(Color(0.02, 0.018, 0.015), 0.9, 0.0, Color(1.0, 0.68, 0.38), 0.45)
+	var gb := Geo.batch()
+	var sb := Geo.batch()
+	var cb := Geo.batch()
+	var ib := Geo.batch()
+	for k in 3:
+		var gz := z + (float(k) - 1.0) * 18.0
+		if (n + k) % 3 == 2:
+			# hochgefahrenes Tor: Torpaket oben, dahinter die schwach beleuchtete Halle
+			gb.add(Vector3(fx - 0.12, 4.75, gz), Vector3(0.22, 0.9, 6.0))
+			ib.add(Vector3(fx - 0.01, 2.15, gz), Vector3(0.02, 4.3, 5.9))
+		else:
+			gb.add(Vector3(fx - 0.06, 2.6, gz), Vector3(0.1, 5.2, 6.0))
+		sb.add(Vector3(fx - 0.15, 2.65, gz - 3.15), Vector3(0.3, 5.3, 0.3))
+		sb.add(Vector3(fx - 0.15, 2.65, gz + 3.15), Vector3(0.3, 5.3, 0.3))
+		sb.add(Vector3(fx - 0.18, 5.45, gz), Vector3(0.36, 0.5, 6.6))
+		cb.add(Vector3(fx - 0.6, 0.06, gz), Vector3(1.2, 0.12, 6.4))
+	# Schlupftuer, Fallrohre, Sockel
+	sb.add(Vector3(fx - 0.05, 1.1, z + 9.0), Vector3(0.08, 2.2, 1.1))
+	sb.add(Vector3(fx - 0.08, 2.3, z + 9.0), Vector3(0.14, 0.12, 1.3))
+	for dz: float in [-29.6, 29.6]:
+		sb.add(Vector3(fx - 0.14, 6.2, z + dz), Vector3(0.14, 12.4, 0.14))
+	cb.add(Vector3(fx - 0.05, 0.45, z), Vector3(0.12, 0.9, 60.2))
+	world.add_child(Geo.mesh_node(gb.build(), gate, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(sb.build(), steel, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(cb.build(), conc, Vector3.ZERO, false))
+	if ib.count > 0:
+		world.add_child(Geo.mesh_node(ib.build(), inner, Vector3.ZERO, false))
+	# Leuchte ueber dem Mitteltor (die OmniLight sitzt bei x 149, y 8)
+	world.add_child(Geo.box_mesh_node(Vector3(1.0, 0.1, 0.1), steel, Vector3(fx - 0.5, 8.45, z)))
+	world.add_child(Geo.box_mesh_node(Vector3(0.45, 0.22, 0.36), steel, Vector3(fx - 1.0, 8.3, z)))
+	var lm := Geo.box_mesh_node(Vector3(0.38, 0.03, 0.3), lens, Vector3(fx - 1.0, 8.18, z))
+	lm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	world.add_child(lm)
+	var lbl := Label3D.new()
+	lbl.text = "SCHUPPEN %d" % (12 + n)
+	lbl.font_size = 160
+	lbl.pixel_size = 0.01
+	lbl.modulate = Color(0.85, 0.82, 0.74, 0.9)
+	lbl.outline_size = 0
+	lbl.shaded = true
+	lbl.double_sided = false
+	lbl.position = Vector3(fx - 0.05, 9.6, z)
+	lbl.rotation_degrees = Vector3(0, -90, 0)
+	world.add_child(lbl)
+
 # ------------------------------------------------------------------ Bruecke
 
+## Hubbruecke: Fahrbahnplatte und Pfeiler wie bisher als Kollision (Masse unveraendert); Optik:
+##   Pfeiler aus Stampfbeton mit Betonierfugen, Granitsockel mit Vorkoepfen (Eisbrecher), Reibhoelzer zur
+##   Fahrrinne, Auflagerbank mit Lagern; darunter genietete Vollwandtraeger (Stegbleche mit Aussteifungen
+##   und Laschen), Quertraeger und Windverband; Hubtuerme als Fachwerk mit Seilscheiben und Gegengewichten.
 static func _build_bridge(world: Node3D) -> void:
-	var conc := Geo.mat("concrete_wall_008", Color(0.45, 0.45, 0.47), 0.1)
-	var steel := Geo.flat(Color(0.3, 0.32, 0.3), 0.6, 0.6)
+	var conc := _tmat("river/textures/rough_concrete", Color(0.66, 0.65, 0.63), 0.16)
+	var deck_m := _tmat("river/textures/rough_concrete", Color(0.55, 0.55, 0.54), 0.14)
 	var deck_c := Vector3(90.0, BRIDGE_DECK_Y - 0.6, BRIDGE_Z)
-	var b := Geo.solid_box(world, deck_c, Vector3(260.0, 1.2, 14.0), conc)
+	var b := Geo.solid_box(world, deck_c, Vector3(260.0, 1.2, 14.0), deck_m)
 	b.set_meta("surface", "concrete")
 	for x in [62.0, 118.0]:
 		var p := Geo.solid_box(world, Vector3(x, (BRIDGE_DECK_Y - 1.2 + WATER_Y - 6.0) * 0.5, BRIDGE_Z), Vector3(4.0, BRIDGE_DECK_Y - 1.2 - WATER_Y + 6.0, 10.0), conc)
 		p.set_meta("surface", "concrete")
 	# Rampen auf beide Ufer (Optik)
-	world.add_child(Geo.box_mesh_node(Vector3(80.0, 1.2, 14.0), conc, Vector3(-20.0, BRIDGE_DECK_Y * 0.5 - 0.6, BRIDGE_Z), Vector3(0, 0, -12.5)))
-	world.add_child(Geo.box_mesh_node(Vector3(80.0, 1.2, 14.0), conc, Vector3(200.0, BRIDGE_DECK_Y * 0.5 - 0.6, BRIDGE_Z), Vector3(0, 0, 12.5)))
-	# Gelaender (ohne Kollision) + Fachwerk-Hubtuerme
+	world.add_child(Geo.box_mesh_node(Vector3(80.0, 1.2, 14.0), deck_m, Vector3(-20.0, BRIDGE_DECK_Y * 0.5 - 0.6, BRIDGE_Z), Vector3(0, 0, -12.5)))
+	world.add_child(Geo.box_mesh_node(Vector3(80.0, 1.2, 14.0), deck_m, Vector3(200.0, BRIDGE_DECK_Y * 0.5 - 0.6, BRIDGE_Z), Vector3(0, 0, 12.5)))
+	var steel := _tmat("rail/textures/rusty_painted_metal", Color(0.44, 0.52, 0.5), 0.35, 0.9, 0.45)
+	_bridge_piers(world)
+	# Traeger: lackierter Stahl mit Blechstoessen (Poly Haven "Blue Metal Plate", entsaettigt) statt der dunklen
+	# Rostfarbe - liest sich nachts als Stahlbau statt als flache Platte; darunter das Fachwerk der Hubspanne
+	var girder := _tmat("bunker/textures/painted_steel", Color(0.5, 0.58, 0.56), 0.3, 0.8, 0.35)
+	_bridge_girders(world, girder)
+	_lift_span_truss(world, girder)
+	# Gelaender (ohne Kollision)
 	var rb := Geo.batch()
 	for side in [-1.0, 1.0]:
 		rb.add(Vector3(90.0, BRIDGE_DECK_Y + 1.0, BRIDGE_Z + side * 6.8), Vector3(130.0, 0.1, 0.1))
+		rb.add(Vector3(90.0, BRIDGE_DECK_Y + 0.5, BRIDGE_Z + side * 6.8), Vector3(130.0, 0.05, 0.05))
 		var x := 26.0
 		while x <= 154.0:
 			rb.add(Vector3(x, BRIDGE_DECK_Y + 0.5, BRIDGE_Z + side * 6.8), Vector3(0.08, 1.0, 0.08))
 			x += 2.5
-	for x in [62.0, 118.0]:
-		for side in [-1.0, 1.0]:
-			rb.add(Vector3(x, BRIDGE_DECK_Y + 12.0, BRIDGE_Z + side * 5.5), Vector3(2.0, 24.0, 2.0))
-		rb.add(Vector3(x, BRIDGE_DECK_Y + 24.0, BRIDGE_Z), Vector3(2.4, 2.0, 13.0))
 	world.add_child(Geo.mesh_node(rb.build(), steel, Vector3.ZERO))
+	_lift_towers(world, steel)
 	for x in [40.0, 90.0, 140.0]:
 		var l := OmniLight3D.new()
 		l.light_color = Color(1.0, 0.78, 0.5)
@@ -878,10 +1050,238 @@ static func _build_bridge(world: Node3D) -> void:
 		l.omni_range = 18.0
 		l.position = Vector3(x, BRIDGE_DECK_Y + 5.0, BRIDGE_Z)
 		world.add_child(l)
-	var red := Geo.flat(Color(1, 0.1, 0.05), 0.4, 0.0, Color(1, 0.1, 0.05), 6.0)
-	var grn := Geo.flat(Color(0.1, 1, 0.2), 0.4, 0.0, Color(0.1, 1, 0.2), 6.0)
-	world.add_child(Geo.box_mesh_node(Vector3(0.5, 0.5, 0.5), red, Vector3(64.5, BRIDGE_DECK_Y - 2.0, BRIDGE_Z + 7.2)))
-	world.add_child(Geo.box_mesh_node(Vector3(0.5, 0.5, 0.5), grn, Vector3(115.5, BRIDGE_DECK_Y - 2.0, BRIDGE_Z + 7.2)))
+	# Durchfahrtsfeuer (rot backbord / gruen steuerbord): Kugelleuchte + runder Lichtpunkt statt Wuerfel
+	for nav: Array in [[Vector3(64.5, BRIDGE_DECK_Y - 2.0, BRIDGE_Z + 7.2), Color(1, 0.1, 0.05)],
+			[Vector3(115.5, BRIDGE_DECK_Y - 2.0, BRIDGE_Z + 7.2), Color(0.1, 1, 0.25)]]:
+		var nc: Color = nav[1]
+		world.add_child(Geo.mesh_node(_nav_sphere(0.17), Geo.flat(nc, 0.4, 0.0, nc, 3.0), nav[0], false))
+		Night.glow_light(world, nav[0], nc, 4.5, 0.6)
+
+static func _bridge_piers(world: Node3D) -> void:
+	var granite := _tmat("berlin/textures/large_sandstone_blocks", Color(0.52, 0.52, 0.55), 0.24, 0.8)
+	var conc := _tmat("river/textures/rough_concrete", Color(0.72, 0.71, 0.68), 0.2)
+	var timber := _tmat("textures/weathered_planks", Color(0.45, 0.38, 0.31), 0.6)
+	var bearing := _tmat("rail/textures/rusty_painted_metal", Color(0.3, 0.32, 0.32), 0.6, 0.9, 0.5)
+	var joint := Geo.flat(Color(0.12, 0.12, 0.12), 0.9)
+	var algae := Geo.flat(Color(0.035, 0.05, 0.04), 0.3)
+	var lamp_m := Geo.flat(Color(1.0, 0.8, 0.55), 0.4, 0.0, Color(1.0, 0.7, 0.42), 5.0)
+	var gb := Geo.batch()
+	var cb := Geo.batch()
+	var tb := Geo.batch()
+	var bb := Geo.batch()
+	var jb := Geo.batch()
+	var ab := Geo.batch()
+	var r45 := Basis(Vector3.UP, PI * 0.25)
+	for px: float in [62.0, 118.0]:
+		var ch := 1.0 if px < 90.0 else -1.0     # Richtung Fahrrinne
+		# Granitsockel mit Vorkoepfen an beiden Enden (bis 3 m ueber Wasser)
+		gb.add(Vector3(px, 0.3, BRIDGE_Z), Vector3(4.3, 5.6, 10.1))
+		gb.add(Vector3(px, 3.2, BRIDGE_Z), Vector3(4.6, 0.35, 10.4))
+		for s: float in [-1.0, 1.0]:
+			gb.add(Vector3(px, 0.3, BRIDGE_Z + s * 5.05), Vector3(3.04, 5.6, 3.04), r45)
+			gb.add(Vector3(px, 3.2, BRIDGE_Z + s * 5.05), Vector3(3.25, 0.35, 3.25), r45)
+			ab.add(Vector3(px, -1.75, BRIDGE_Z + s * 5.05), Vector3(3.1, 0.5, 3.1), r45)
+		ab.add(Vector3(px, -1.75, BRIDGE_Z), Vector3(4.36, 0.5, 10.16))
+		# Betonierfugen am Schaft
+		var y := 4.6
+		while y < 14.0:
+			jb.add(Vector3(px, y, BRIDGE_Z), Vector3(4.04, 0.05, 10.04))
+			y += 1.6
+		# Auflagerbank mit Lagern unter den Traegern
+		cb.add(Vector3(px, 14.45, BRIDGE_Z), Vector3(4.8, 0.7, 10.8))
+		for gz: float in [-6.0, -2.0, 2.0, 6.0]:
+			bb.add(Vector3(px, 15.0, BRIDGE_Z + gz), Vector3(0.9, 0.4, 0.7))
+		# Reibhoelzer zur Fahrrinne (senkrechte Pfaehle + zwei Gurte)
+		var fz := -4.2
+		while fz <= 4.21:
+			tb.add(Vector3(px + ch * 2.32, 0.4, BRIDGE_Z + fz), Vector3(0.3, 6.2, 0.3))
+			fz += 1.4
+		for wy: float in [0.4, 2.5]:
+			tb.add(Vector3(px + ch * 2.55, wy, BRIDGE_Z), Vector3(0.22, 0.3, 9.4))
+		# Leuchte unter der Fahrbahn: beleuchtet Pfeilerkopf, Traeger und die Durchfahrt
+		var lp := Vector3(px + ch * 5.5, 14.7, BRIDGE_Z + 2.0)
+		var lm := Geo.box_mesh_node(Vector3(0.5, 0.08, 0.3), lamp_m, lp)
+		lm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		world.add_child(lm)
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.72, 0.42)
+		l.light_energy = 1.6
+		l.omni_range = 12.0
+		l.omni_attenuation = 1.4
+		l.light_volumetric_fog_energy = 0.3
+		l.position = lp - Vector3(0, 0.4, 0)
+		world.add_child(l)
+	world.add_child(Geo.mesh_node(gb.build(), granite, Vector3.ZERO))
+	world.add_child(Geo.mesh_node(cb.build(), conc, Vector3.ZERO))
+	world.add_child(Geo.mesh_node(tb.build(), timber, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(bb.build(), bearing, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(jb.build(), joint, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(ab.build(), algae, Vector3.ZERO, false))
+
+## Genietete Vollwandtraeger unter der Fahrbahnplatte (Unterkante 16,8): vier Laengstraeger mit Gurten,
+## Aussteifungen und Stosslaschen (Nietbild als Andeutung), Quertraeger und Windverband in der Untersicht.
+static func _bridge_girders(world: Node3D, steel: Material) -> void:
+	var gb := Geo.batch()
+	var rv := Geo.batch()
+	var top := BRIDGE_DECK_Y - 1.2
+	var web_h := 1.5
+	var yc := top - web_h * 0.5
+	var x0 := -38.0
+	var x1 := 218.0
+	var L := x1 - x0
+	var xm := (x0 + x1) * 0.5
+	for gz: float in [-6.0, -2.0, 2.0, 6.0]:
+		var z := BRIDGE_Z + gz
+		gb.add(Vector3(xm, yc, z), Vector3(L, web_h, 0.04))
+		gb.add(Vector3(xm, top - web_h + 0.03, z), Vector3(L, 0.06, 0.55))
+		gb.add(Vector3(xm, top - 0.03, z), Vector3(L, 0.06, 0.55))
+		if absf(gz) > 4.0:
+			var out := signf(gz)
+			# Aussteifungen alle 1,6 m, Laschen an den Stoessen alle 12,8 m, Nietreihen an den Gurten
+			var x := x0 + 0.8
+			var i := 0
+			while x < x1:
+				if i % 8 == 0:
+					gb.add(Vector3(x, yc, z + out * 0.04), Vector3(0.7, web_h - 0.1, 0.03))
+					for k in 5:
+						rv.add(Vector3(x - 0.24, yc - 0.56 + k * 0.28, z + out * 0.06), Vector3(0.05, 0.05, 0.03))
+						rv.add(Vector3(x + 0.24, yc - 0.56 + k * 0.28, z + out * 0.06), Vector3(0.05, 0.05, 0.03))
+				else:
+					gb.add(Vector3(x, yc, z + out * 0.08), Vector3(0.1, web_h - 0.12, 0.13))
+				rv.add(Vector3(x, top - web_h + 0.1, z + out * 0.04), Vector3(0.6, 0.045, 0.02))
+				rv.add(Vector3(x, top - 0.1, z + out * 0.04), Vector3(0.6, 0.045, 0.02))
+				x += 1.6
+				i += 1
+	# Quertraeger alle 4,8 m, dazwischen Windverband (Diagonalen in der Untersicht)
+	var cx := x0 + 2.4
+	var j := 0
+	while cx < x1:
+		gb.add(Vector3(cx, top - 0.5, BRIDGE_Z), Vector3(0.28, 1.0, 12.0))
+		if j % 2 == 0 and cx + 9.6 < x1:
+			_strut(gb, Vector3(cx, top - web_h + 0.08, BRIDGE_Z - 5.9), Vector3(cx + 9.6, top - web_h + 0.08, BRIDGE_Z + 5.9), 0.14, 0.1)
+			_strut(gb, Vector3(cx, top - web_h + 0.08, BRIDGE_Z + 5.9), Vector3(cx + 9.6, top - web_h + 0.08, BRIDGE_Z - 5.9), 0.14, 0.1)
+		cx += 4.8
+		j += 1
+	world.add_child(Geo.mesh_node(gb.build(), steel, Vector3.ZERO))
+	world.add_child(Geo.mesh_node(rv.build(), steel, Vector3.ZERO, false))
+
+## Hubspanne (zwischen den Pfeilern, x 64,6..115,4): unter die beiden aeusseren Vollwandtraeger gehaengtes,
+## genietetes Fachwerk (Strebenfachwerk mit Pfosten, 8 Felder, 3,2 m hoch) aus Kastenprofilen mit
+## Knotenblechen und Nietbild, Querriegel/Windverband im Untergurt, Arbeitsleuchten unter dem Untergurt.
+## Reine Optik (keine Kollision; Durchfahrtshoehe bleibt > 12 m).
+static func _lift_span_truss(world: Node3D, steel: Material) -> void:
+	var tb := Geo.batch()
+	var gp := Geo.batch()
+	var rv := Geo.batch()
+	var xa := 64.9
+	var xb := 115.1
+	var n := 8
+	var pw := (xb - xa) / float(n)
+	var yt := BRIDGE_DECK_Y - 1.2 - 1.5      # Unterkante Vollwandtraeger = Obergurt
+	var yb := yt - 3.2
+	for gz: float in [-6.0, 6.0]:
+		var z := BRIDGE_Z + gz
+		var out := signf(gz)
+		# Ober-/Untergurt (Kastenprofil 0,5 x 0,42) mit Gurtplatte
+		tb.add(Vector3((xa + xb) * 0.5, yt - 0.21, z), Vector3(xb - xa, 0.42, 0.5))
+		tb.add(Vector3((xa + xb) * 0.5, yb, z), Vector3(xb - xa, 0.46, 0.52))
+		tb.add(Vector3((xa + xb) * 0.5, yb - 0.25, z), Vector3(xb - xa, 0.04, 0.62))
+		for i in n + 1:
+			var x := xa + pw * i
+			# Pfosten
+			tb.add(Vector3(x, (yt + yb) * 0.5, z), Vector3(0.3, yt - yb, 0.36))
+			# Knotenbleche oben/unten (aussen und innen) mit Nietbild 3 x 3
+			for ny: float in [yt - 0.35, yb + 0.1]:
+				for side: float in [-1.0, 1.0]:
+					gp.add(Vector3(x, ny, z + side * 0.29), Vector3(1.15, 0.95, 0.03))
+				for ix in 3:
+					for iy in 3:
+						rv.add_ball(Vector3(x - 0.36 + ix * 0.36, ny - 0.3 + iy * 0.3, z + out * 0.32), Vector3(0.07, 0.07, 0.05))
+			if i < n:
+				# Diagonale (fallend zur Feldmitte hin: Strebenfachwerk symmetrisch zur Spannmitte)
+				var a := Vector3(x, yt - 0.3, z)
+				var b := Vector3(x + pw, yb + 0.2, z)
+				if i * 2 >= n:
+					a = Vector3(x, yb + 0.2, z)
+					b = Vector3(x + pw, yt - 0.3, z)
+				_strut(tb, a, b, 0.32, 0.3)
+				# Bindebleche auf der Diagonale (Gitterstab-Andeutung)
+				for k in [0.3, 0.5, 0.7]:
+					var c := a.lerp(b, k)
+					rv.add(c + Vector3(0, 0, out * 0.16), Vector3(0.42, 0.42, 0.02))
+	# Querriegel und Windverband im Untergurt
+	for i in n + 1:
+		var x := xa + pw * i
+		tb.add(Vector3(x, yb, BRIDGE_Z), Vector3(0.26, 0.3, 12.0))
+		if i < n:
+			_strut(tb, Vector3(x, yb + 0.05, BRIDGE_Z - 5.8), Vector3(x + pw, yb + 0.05, BRIDGE_Z + 5.8), 0.14, 0.1)
+			_strut(tb, Vector3(x, yb + 0.05, BRIDGE_Z + 5.8), Vector3(x + pw, yb + 0.05, BRIDGE_Z - 5.8), 0.14, 0.1)
+	world.add_child(Geo.mesh_node(tb.build(), steel, Vector3.ZERO))
+	world.add_child(Geo.mesh_node(gp.build(), steel, Vector3.ZERO, false))
+	world.add_child(Geo.mesh_node(rv.build(), steel, Vector3.ZERO, false))
+	# Arbeitsleuchten unter dem Untergurt (Fahrrinnenseite Sued = Anfahrt): machen das Fachwerk nachts lesbar
+	var lamp_m := Geo.flat(Color(1.0, 0.85, 0.6), 0.4, 0.0, Color(1.0, 0.78, 0.5), 4.0)
+	for lx: float in [77.5, 102.5]:
+		for gz2: float in [6.9, -6.9]:
+			var lp := Vector3(lx, yb - 0.35, BRIDGE_Z + gz2)
+			var lm := Geo.box_mesh_node(Vector3(0.6, 0.12, 0.3), lamp_m, lp)
+			lm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			world.add_child(lm)
+			if gz2 > 0.0:
+				var l := OmniLight3D.new()
+				l.light_color = Color(1.0, 0.8, 0.55)
+				l.light_energy = 2.4
+				l.omni_range = 9.0
+				l.omni_attenuation = 1.2
+				l.light_volumetric_fog_energy = 0.25
+				l.position = lp + Vector3(0, -0.3, 1.6)
+				world.add_child(l)
+
+## Hubtuerme ueber den Pfeilern: je zwei Fachwerkstiele (Eckwinkel, Riegel, Kreuzverband), oben ein
+## Fachwerkriegel mit Maschinenhaus, Seilscheiben, Gegengewichte und Seile. Gleiche Grundflaeche wie frueher.
+static func _lift_towers(world: Node3D, steel: Material) -> void:
+	var tb := Geo.batch()
+	var dark := _tmat("rail/textures/rusty_painted_metal", Color(0.24, 0.26, 0.26), 0.5, 0.9, 0.5)
+	var weight := _tmat("river/textures/rough_concrete", Color(0.5, 0.5, 0.49), 0.4)
+	var hut := _tmat("rail/textures/rusty_corrugated_iron", Color(0.45, 0.5, 0.5), 0.6, 1.0, 0.3)
+	var y0 := BRIDGE_DECK_Y
+	var y1 := BRIDGE_DECK_Y + 24.0
+	var e := 0.85
+	for x: float in [62.0, 118.0]:
+		for side: float in [-1.0, 1.0]:
+			var c := Vector3(x, 0.0, BRIDGE_Z + side * 5.5)
+			var corners: Array[Vector3] = [Vector3(-e, 0, -e), Vector3(e, 0, -e), Vector3(e, 0, e), Vector3(-e, 0, e)]
+			for k in 4:
+				tb.add(c + corners[k] + Vector3(0, (y0 + y1) * 0.5, 0), Vector3(0.26, y1 - y0, 0.26))
+			var y := y0
+			while y < y1 - 0.1:
+				var yn := minf(y + 3.0, y1)
+				for k in 4:
+					var a: Vector3 = c + corners[k]
+					var bq: Vector3 = c + corners[(k + 1) % 4]
+					tb.add((a + bq) * 0.5 + Vector3(0, yn, 0), (Vector3(absf(bq.x - a.x), 0, absf(bq.z - a.z)) + Vector3(0.14, 0.14, 0.14)))
+					_strut(tb, a + Vector3(0, y, 0), bq + Vector3(0, yn, 0), 0.09)
+					_strut(tb, bq + Vector3(0, y, 0), a + Vector3(0, yn, 0), 0.09)
+				y = yn
+			# Gegengewicht im Turm, Seilscheibe oben, Seile
+			world.add_child(Geo.box_mesh_node(Vector3(1.1, 3.6, 1.1), weight, c + Vector3(0, y1 - 7.0, 0)))
+			world.add_child(Geo.cylinder_node(1.25, 0.3, dark, c + Vector3(0, y1 + 1.4, 0), Vector3(0, 0, 90), 18))
+			for dz: float in [-0.25, 0.25]:
+				tb.add(c + Vector3(-0.6, y1 - 2.0, dz), Vector3(0.04, 4.6, 0.04))
+				tb.add(c + Vector3(0.6, (y0 + y1 + 1.4) * 0.5, dz), Vector3(0.04, y1 + 1.4 - y0, 0.04))
+		# Fachwerkriegel oben (laengs z zwischen den Stielen) und Maschinenhaus
+		for yy: float in [y1, y1 + 2.2]:
+			for dx: float in [-e, e]:
+				tb.add(Vector3(x + dx, yy, BRIDGE_Z), Vector3(0.28, 0.3, 13.0))
+		var zz := -5.5
+		while zz < 5.4:
+			for dx: float in [-e, e]:
+				tb.add(Vector3(x + dx, y1 + 1.1, BRIDGE_Z + zz), Vector3(0.14, 2.2, 0.14))
+				_strut(tb, Vector3(x + dx, y1, BRIDGE_Z + zz), Vector3(x + dx, y1 + 2.2, BRIDGE_Z + zz + 1.375), 0.1)
+			zz += 1.375
+		world.add_child(Geo.box_mesh_node(Vector3(2.6, 2.4, 4.4), hut, Vector3(x, y1 + 3.5, BRIDGE_Z)))
+		world.add_child(Geo.box_mesh_node(Vector3(3.0, 0.15, 4.8), dark, Vector3(x, y1 + 4.75, BRIDGE_Z)))
+	world.add_child(Geo.mesh_node(tb.build(), steel, Vector3.ZERO))
 
 # ------------------------------------------------------------------ Muendung, Molen, Leuchtturm
 
@@ -892,22 +1292,146 @@ static func _build_mouth(world: Node3D) -> void:
 	w.set_meta("surface", "concrete")
 	var e := Geo.solid_box(world, Vector3(425.0, -0.5, -967.0), Vector3(10.0, 5.0, 74.0), stone)
 	e.set_meta("surface", "concrete")
-	# Leuchttuerme an den Molenkoepfen
-	var white := Geo.flat(Color(0.85, 0.85, 0.82), 0.6)
-	var redm := Geo.flat(Color(0.6, 0.1, 0.08), 0.6)
-	world.add_child(Geo.cylinder_node(2.0, 18.0, white, Vector3(305.0, 11.0, -1155.0)))
-	world.add_child(Geo.cylinder_node(1.6, 14.0, redm, Vector3(425.0, 9.0, -1000.0)))
-	for p: Vector3 in [Vector3(305.0, 21.0, -1155.0), Vector3(425.0, 17.0, -1000.0)]:
-		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.95, 0.8) if p.x < 400.0 else Color(1.0, 0.3, 0.2)
-		l.light_energy = 6.0
-		l.omni_range = 40.0
-		l.position = p
-		world.add_child(l)
+	# Leuchttuerme an den Molenkoepfen (Molenoberkante y 2): West weiss mit rotem Band, Ost rot mit weissen Baendern
+	var white := _tmat("facade/textures/painted_plaster_wall", Color(0.9, 0.9, 0.87), 0.35)
+	var redm := _tmat("facade/textures/painted_plaster_wall", Color(0.62, 0.12, 0.09), 0.35)
+	_lighthouse(world, Vector3(305.0, 2.0, -1155.0), 18.0, 2.2, white, redm, [0.62], Color(1.0, 0.95, 0.8))
+	_lighthouse(world, Vector3(425.0, 2.0, -1000.0), 14.0, 1.8, redm, white, [0.3, 0.62], Color(1.0, 0.3, 0.2))
 	# Fahrwassertonnen
-	var buoy := Geo.flat(Color(0.8, 0.15, 0.1), 0.6, 0.0, Color(0.8, 0.15, 0.1), 1.5)
+	# Fahrwassertonnen: rot lackierter Schwimmkoerper (nicht selbstleuchtend) mit Toppzeichen und kleinem
+	# Feuer obenauf - vorher leuchtete der ganze Zylinder und wirkte in der Ferne als rotes Quadrat
+	var buoy := Geo.mat("rusty_metal_02", Color(0.72, 0.2, 0.15), 0.5, 1.0, 0.3)
+	var lamp_m := Geo.flat(Color(1, 0.12, 0.08), 0.4, 0.0, Color(1, 0.12, 0.08), 3.0)
 	for p: Vector3 in [Vector3(110.0, -1.4, -880.0), Vector3(170.0, -1.4, -950.0), Vector3(260.0, -1.4, -1000.0), Vector3(370.0, -1.4, -1020.0)]:
 		world.add_child(Geo.cylinder_node(0.6, 1.6, buoy, p))
+		world.add_child(Geo.cylinder_node(0.2, 1.1, buoy, p + Vector3(0, 1.35, 0)))
+		var lp := p + Vector3(0, 2.0, 0)
+		world.add_child(Geo.mesh_node(_nav_sphere(0.12), lamp_m, lp, false))
+		Night.glow_light(world, lp, Color(1.0, 0.12, 0.08), 3.5, 0.4)
+
+## Molenfeuer: Betonsockel, verjuengter Turm (Putz, mit Farbbaendern an den Hoehenanteilen bands), Tuer und
+## Fenster, Galerie mit Gelaender, verglaste Laterne mit leuchtendem Feuer, Kupferhaube mit Lueftungskugel.
+## Gleiche Hoehe/Grundflaeche wie die frueheren Zylinder; das Licht sitzt 1 m ueber dem Turmschaft.
+static func _lighthouse(world: Node3D, base: Vector3, h: float, r: float, body: Material, band: Material,
+		bands: Array, light_col: Color) -> void:
+	var conc := _tmat("river/textures/rough_concrete", Color(0.6, 0.6, 0.58), 0.3)
+	var metal := _tmat("rail/textures/rusty_painted_metal", Color(0.2, 0.22, 0.22), 0.8, 0.9, 0.5)
+	var roof := _tmat("rail/textures/rusty_painted_metal", Color(0.42, 0.14, 0.1), 0.8, 0.8, 0.5)
+	var dark := Geo.flat(Color(0.05, 0.05, 0.06), 0.6)
+	var r_top := r * 0.74
+	# Sockel
+	var plinth := MeshInstance3D.new()
+	plinth.mesh = _cyl_mesh(r + 0.5, r + 0.7, 1.2, 20)
+	plinth.material_override = conc
+	plinth.position = base + Vector3(0, 0.6, 0)
+	world.add_child(plinth)
+	# Schaft in Abschnitten (Baender als eigene Ringe, Radius entlang der Hoehe interpoliert)
+	var y0 := base.y + 1.2
+	var hs := h - 1.2
+	var cuts: Array[float] = [0.0]
+	for b: float in bands:
+		cuts.append(b)
+		cuts.append(b + 0.12)
+	cuts.append(1.0)
+	for i in cuts.size() - 1:
+		var f0: float = cuts[i]
+		var f1: float = cuts[i + 1]
+		var seg := MeshInstance3D.new()
+		seg.mesh = _cyl_mesh(lerpf(r, r_top, f1), lerpf(r, r_top, f0), hs * (f1 - f0), 20)
+		seg.material_override = band if i % 2 == 1 else body
+		seg.position = Vector3(base.x, y0 + hs * (f0 + f1) * 0.5, base.z)
+		world.add_child(seg)
+	# Tuer (Seeseite +z) und kleine Fenster im Schaft
+	world.add_child(Geo.box_mesh_node(Vector3(0.9, 2.0, 0.3), dark, Vector3(base.x, y0 + 1.0, base.z + r - 0.08)))
+	world.add_child(Geo.box_mesh_node(Vector3(1.2, 0.12, 0.5), conc, Vector3(base.x, y0 + 2.1, base.z + r + 0.05)))
+	for k in 3:
+		var f := 0.3 + k * 0.22
+		var rr := lerpf(r, r_top, f)
+		var ang := PI * 0.5 + (k - 1) * 0.6
+		var wpos := Vector3(base.x + cos(ang) * rr, y0 + hs * f, base.z + sin(ang) * rr)
+		var wn := Geo.box_mesh_node(Vector3(0.45, 0.7, 0.2), dark, wpos)
+		wn.rotation.y = -ang + PI * 0.5
+		world.add_child(wn)
+	# Galerie: Kragplatte, Konsolen, Gelaender (Pfosten + Handlauf)
+	var gy := base.y + h
+	var gal := MeshInstance3D.new()
+	gal.mesh = _cyl_mesh(r_top + 0.85, r_top + 0.85, 0.22, 24)
+	gal.material_override = metal
+	gal.position = Vector3(base.x, gy, base.z)
+	world.add_child(gal)
+	var pb := Geo.batch()
+	for k in 16:
+		var a := TAU * k / 16.0
+		var d := Vector3(cos(a), 0, sin(a))
+		pb.add(Vector3(base.x, gy + 0.55, base.z) + d * (r_top + 0.78), Vector3(0.05, 1.0, 0.05))
+		_strut(pb, Vector3(base.x, gy - 0.1, base.z) + d * (r_top + 0.75), Vector3(base.x, gy - 0.8, base.z) + d * (r_top - 0.02), 0.12, 0.08)
+	world.add_child(Geo.mesh_node(pb.build(), metal, Vector3.ZERO, false))
+	var rail := MeshInstance3D.new()
+	var tor := TorusMesh.new()
+	tor.inner_radius = r_top + 0.75
+	tor.outer_radius = r_top + 0.81
+	tor.rings = 32
+	tor.ring_segments = 6
+	rail.mesh = tor
+	rail.material_override = metal
+	rail.position = Vector3(base.x, gy + 1.05, base.z)
+	world.add_child(rail)
+	# Laterne: Brustwand, Sprossen, Verglasung, Feuer, Haube, Lueftungskugel
+	var lr := r_top * 0.72
+	var wall := MeshInstance3D.new()
+	wall.mesh = _cyl_mesh(lr, lr, 0.6, 16)
+	wall.material_override = metal
+	wall.position = Vector3(base.x, gy + 0.41, base.z)
+	world.add_child(wall)
+	var glass := MeshInstance3D.new()
+	glass.mesh = _cyl_mesh(lr - 0.04, lr - 0.04, 1.5, 16)
+	glass.material_override = VF.glass_mat(Color(0.5, 0.55, 0.5, 0.25))
+	glass.position = Vector3(base.x, gy + 1.46, base.z)
+	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	world.add_child(glass)
+	var mb := Geo.batch()
+	for k in 8:
+		var a2 := TAU * k / 8.0
+		mb.add(Vector3(base.x + cos(a2) * lr, gy + 1.46, base.z + sin(a2) * lr), Vector3(0.07, 1.5, 0.07))
+	world.add_child(Geo.mesh_node(mb.build(), metal, Vector3.ZERO, false))
+	var lamp := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.38
+	sm.height = 0.9
+	lamp.mesh = sm
+	lamp.material_override = Geo.flat(light_col, 0.3, 0.0, light_col, 7.0)
+	lamp.position = Vector3(base.x, gy + 1.4, base.z)
+	lamp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	world.add_child(lamp)
+	var cap := MeshInstance3D.new()
+	cap.mesh = _cyl_mesh(0.12, lr + 0.18, 0.9, 16)
+	cap.material_override = roof
+	cap.position = Vector3(base.x, gy + 2.66, base.z)
+	world.add_child(cap)
+	var ball := MeshInstance3D.new()
+	var bs := SphereMesh.new()
+	bs.radius = 0.2
+	bs.height = 0.4
+	ball.mesh = bs
+	ball.material_override = roof
+	ball.position = Vector3(base.x, gy + 3.2, base.z)
+	world.add_child(ball)
+	var l := OmniLight3D.new()
+	l.light_color = light_col
+	l.light_energy = 6.0
+	l.omni_range = 40.0
+	l.position = Vector3(base.x, gy + 1.4, base.z)
+	world.add_child(l)
+	# schwaches Anstrahllicht von der Galerie auf den Schaft (sonst nachts nur Silhouette)
+	var fl := SpotLight3D.new()
+	fl.light_color = Color(1.0, 0.9, 0.75)
+	fl.light_energy = 3.0
+	fl.spot_range = h + 2.0
+	fl.spot_angle = 20.0
+	fl.shadow_enabled = false
+	fl.position = Vector3(base.x, gy - 0.3, base.z + r_top + 1.6)
+	fl.rotation_degrees = Vector3(-84, 0, 0)
+	world.add_child(fl)
 
 static func _build_freighter(lv: Node3D) -> Node3D:
 	var root := Node3D.new()
@@ -1128,6 +1652,7 @@ static func _build_port_cranes(world: Node3D) -> void:
 		top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		h.add_child(top)
 		top.position = Vector3(0, 32.7, 0)
+		Night.glow_light(h, Vector3(0, 32.7, 0), Color(1.0, 0.1, 0.05), 3.5, 0.6)
 	for lx: float in [-6.5, 6.5]:
 		rb.add(Vector3(32.0 + lx, 0.04, -590.0), Vector3(0.14, 0.08, 440.0))
 	world.add_child(Geo.mesh_node(rb.build(), rail, Vector3.ZERO, false))
@@ -1180,3 +1705,12 @@ static func _build_skyline(lv: Node3D, rng: RandomNumberGenerator) -> void:
 			wb.add(c + Vector3(rng.randf_range(-w, w) * 0.4, rng.randf_range(4.0, h - 2.0), w * 0.51), Vector3(2.0, 1.4, 0.2))
 	lv.add_child(Geo.mesh_node(bb.build(), m, Vector3.ZERO, false))
 	lv.add_child(Geo.mesh_node(wb.build(), wm, Vector3.ZERO, false))
+
+## Kleine Kugel fuer Positions-/Hindernisfeuer (der Lichthof kommt aus Night.glow_light).
+static func _nav_sphere(r: float) -> SphereMesh:
+	var sm := SphereMesh.new()
+	sm.radius = r
+	sm.height = r * 2.0
+	sm.radial_segments = 10
+	sm.rings = 5
+	return sm

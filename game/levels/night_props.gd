@@ -15,6 +15,7 @@ const SPRUCE_SHADER: Shader = preload("res://assets/environment/trees/spruce.gds
 const TREE_TEX := "res://assets/environment/trees/"
 const TREE_H := 12.0        # Bezugshoehe der Fichten-Meshes (Instanz-Skalierung ~0.8..1.35)
 const CELL := 24.0          # Zellgroesse fuer Wald-MultiMeshes (Culling/LOD)
+const TRUNK_MIN_S := 0.45   # ab dieser Instanz-Skala bekommt eine Fichte Stammkollision
 const LOD_DIST := 70.0      # ab hier Fernstufe
 const IMP_SIZE := 15.0       # Impostor-Rahmen (m, quadratisch)
 const IMP_Y0 := -0.5
@@ -298,10 +299,11 @@ static func forest(parent: Node3D, trees: Array, rng: RandomNumberGenerator, sha
 		var s: float = t[1]
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s * rng.randf_range(0.88, 1.12), s * rng.randf_range(0.95, 1.08), s * rng.randf_range(0.88, 1.12)))
 		b = Basis(Vector3(1, 0, 0), rng.randf_range(-0.025, 0.025)) * Basis(Vector3(0, 0, 1), rng.randf_range(-0.025, 0.025)) * b
-		cells[key].append([Transform3D(b, p + Vector3(0, -0.2, 0)), rng.randi() % 2])
+		cells[key].append([Transform3D(b, p + Vector3(0, -0.2, 0)), rng.randi() % 2, p, s])
 	for key: Vector2i in cells:
 		var list: Array = cells[key]
 		var cv := absi(key.x * 7 + key.y * 13)
+		_cell_trunks(parent, list)
 		# Nahstufe: zwei Varianten je Zelle
 		var parts: Array = [[], []]
 		for e in list:
@@ -339,7 +341,33 @@ static func _mm_node(mesh: Mesh, xforms: Array, shadows: bool) -> MultiMeshInsta
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mmi
 
-## Kollision fuer Baumstaemme (ein Body, viele Zylinder).
+## Stammkollision je Zelle (ein StaticBody3D, ein Zylinder je Baum): ohne sie laeuft der Spieler
+## durch Staemme und die Kamera steckt im Holz. Jungbaeume/Krueppelkiefern (Skala < TRUNK_MIN_S)
+## bleiben begehbar - duenne Staemmchen, an denen man sonst haengen bliebe.
+static func _cell_trunks(parent: Node3D, list: Array) -> void:
+	var b: StaticBody3D = null
+	for e in list:
+		var s: float = e[3]
+		if s < TRUNK_MIN_S:
+			continue
+		if b == null:
+			b = Geo.static_body()
+			b.name = "Trunks"
+			b.set_meta("surface", "wood")
+		var hh := minf(6.0, TREE_H * s * 0.85)
+		var cs := CollisionShape3D.new()
+		var sh := CylinderShape3D.new()
+		sh.radius = 0.28 * s + 0.05
+		sh.height = hh
+		cs.shape = sh
+		cs.position = (e[2] as Vector3) + Vector3(0, hh * 0.5, 0)
+		b.add_child(cs)
+	if b != null:
+		parent.add_child(b)
+
+## Kollision fuer Baumstaemme (ein Body, viele Zylinder), im Navmesh-Quellknoten des Levels.
+## forest() legt ohnehin Stammkollision an (_cell_trunks); dieser zweite Satz unter `world`
+## sorgt dafuer, dass die Staemme beim Navmesh-Backen ausgespart werden.
 static func trunk_colliders(parent: Node3D, trees: Array) -> void:
 	var b := Geo.static_body()
 	for t in trees:
@@ -676,8 +704,11 @@ static func ifv(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Array) -> 
 	# Turm leicht verdreht, Kanone gesenkt
 	(parts["turret"] as Node3D).rotation_degrees.y = 14.0
 	(parts["mantlet"] as Node3D).rotation_degrees.x = -4.0
-	# Heckklappe (Modell: z = +3.45) an der Unterkante abklappen
-	for c in hull.get_children():
+	# Heckklappe an der Unterkante abklappen (Marder: eigener Scharnier-Knoten; prozedural: z = +3.45)
+	var ramp: Node3D = parts.get("ramp")
+	if ramp != null:
+		ramp.rotation.x = deg_to_rad(68.0)
+	for c in ([] if ramp != null else hull.get_children()):
 		if c is MeshInstance3D and (c as Node3D).position.distance_to(Vector3(0, 1.15, 3.45)) < 0.05:
 			var door := c as MeshInstance3D
 			var hinge := Vector3(0, 0.63, 3.47)

@@ -44,6 +44,7 @@ void fragment() {
 """
 
 var player: Player = null
+var _root: Control
 var _overlay: Control
 var _vignette: ColorRect
 var _vig_mat: ShaderMaterial
@@ -121,6 +122,9 @@ func _make_label(size: int, align: HorizontalAlignment, color: Color = Color(1, 
 	return l
 
 func _build() -> void:
+	# Alle HUD-Elemente in 1080p-Pixeln unter einer skalierten Wurzel (sauber in jedem Fenster, z. B. 960x540)
+	_root = UIStyle.HudRoot.new()
+	add_child(_root)
 	# ADS-Rand (unter allem anderen HUD)
 	_ads_rect = ColorRect.new()
 	_ads_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -131,7 +135,7 @@ func _build() -> void:
 	_ads_mat.shader = ash
 	_ads_rect.material = _ads_mat
 	_ads_rect.visible = false
-	add_child(_ads_rect)
+	_root.add_child(_ads_rect)
 	# Vignette
 	_vignette = ColorRect.new()
 	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -141,13 +145,13 @@ func _build() -> void:
 	_vig_mat = ShaderMaterial.new()
 	_vig_mat.shader = sh
 	_vignette.material = _vig_mat
-	add_child(_vignette)
+	_root.add_child(_vignette)
 	# Zeichenfläche (Fadenkreuz, Hitmarker, Richtungsanzeige, Balken)
 	_overlay = Control.new()
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.draw.connect(_on_draw)
-	add_child(_overlay)
+	_root.add_child(_overlay)
 	# Munition unten rechts
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -158,7 +162,7 @@ func _build() -> void:
 	box.alignment = BoxContainer.ALIGNMENT_END
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", -4)
-	add_child(box)
+	_root.add_child(box)
 	_weapon_label = _make_label(16, HORIZONTAL_ALIGNMENT_RIGHT, Color(1, 1, 1, 0.55))
 	_ammo_label = _make_label(54, HORIZONTAL_ALIGNMENT_RIGHT)
 	_reserve_label = _make_label(22, HORIZONTAL_ALIGNMENT_RIGHT, Color(1, 1, 1, 0.65))
@@ -179,7 +183,7 @@ func _build() -> void:
 	_reload_label.offset_right = 200
 	_reload_label.offset_top = 70
 	_reload_label.offset_bottom = 100
-	add_child(_reload_label)
+	_root.add_child(_reload_label)
 	# Interaktions-Hinweis ("[E] AK-74M aufnehmen"), unter dem Nachladen-Hinweis
 	_interact_label = _make_label(20, HORIZONTAL_ALIGNMENT_CENTER, Color(1.0, 0.92, 0.7, 0.95))
 	_interact_label.set_anchors_preset(Control.PRESET_CENTER)
@@ -188,7 +192,7 @@ func _build() -> void:
 	_interact_label.offset_right = 260
 	_interact_label.offset_top = 108
 	_interact_label.offset_bottom = 136
-	add_child(_interact_label)
+	_root.add_child(_interact_label)
 	# Hinweis oben Mitte
 	_toast_label = _make_label(24, HORIZONTAL_ALIGNMENT_CENTER)
 	_toast_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -198,14 +202,14 @@ func _build() -> void:
 	_toast_label.offset_top = 80
 	_toast_label.offset_bottom = 120
 	_toast_label.modulate.a = 0.0
-	add_child(_toast_label)
+	_root.add_child(_toast_label)
 	# Tod
 	_death_rect = ColorRect.new()
 	_death_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_death_rect.color = Color(0.02, 0.0, 0.0, 1.0)
 	_death_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_death_rect.modulate.a = 0.0
-	add_child(_death_rect)
+	_root.add_child(_death_rect)
 	_death_label = _make_label(40, HORIZONTAL_ALIGNMENT_CENTER, Color(0.85, 0.15, 0.12, 1.0))
 	_death_label.text = "GEFALLEN"
 	_death_label.set_anchors_preset(Control.PRESET_CENTER)
@@ -216,7 +220,7 @@ func _build() -> void:
 	_death_label.offset_top = -30
 	_death_label.offset_bottom = 30
 	_death_label.modulate.a = 0.0
-	add_child(_death_label)
+	_root.add_child(_death_label)
 
 # ---------------------------------------------------------------- Öffentliche API
 
@@ -242,6 +246,12 @@ func hide_death() -> void:
 	_dead = false
 	_indicators.clear()
 	_flash = 0.0
+
+## Level-HUDs mit eigenen Zeilen oben in der Mitte (curfew_hud.gd: Status + Alarm-/Bilanzzeilen) schieben
+## das Toast-Banner ("CHECKPOINT") darunter. y in 1080p-Pixeln (UIStyle.HudRoot skaliert).
+func set_toast_top(y: float) -> void:
+	_toast_label.offset_top = y
+	_toast_label.offset_bottom = y + 40.0
 
 func toast(text: String, seconds: float = 2.0) -> void:
 	_toast_label.text = text
@@ -334,9 +344,16 @@ func _update_slots(delta: float) -> void:
 	if size.y > 0.0:
 		var px_per_rad: float = (size.y * 0.5) / tan(deg_to_rad(float(_info.fov) * 0.5))
 		var target: float = maxf(crosshair_min_gap, tan(deg_to_rad(float(_info.spread_deg))) * px_per_rad)
-		_gap_s = target if _gap_s < 0.0 else lerpf(_gap_s, target, 1.0 - exp(-18.0 * delta))
+		if not is_finite(target):
+			target = crosshair_min_gap
+		# NaN bliebe in der Glaettung sonst fuer immer haengen
+		_gap_s = target if (_gap_s < 0.0 or not is_finite(_gap_s)) else lerpf(_gap_s, target, 1.0 - exp(-18.0 * delta))
 
 func _line(a: Vector2, b: Vector2, color: Color, w: float = 1.6) -> void:
+	if not (a.is_finite() and b.is_finite()):
+		return
+	if a.distance_squared_to(b) < 0.0001:  # Null-Laenge: antialiased draw_line kann nicht normalisieren
+		return
 	_overlay.draw_line(a + Vector2(1, 1), b + Vector2(1, 1), shadow_color, w + 1.0, true)
 	_overlay.draw_line(a, b, color, w, true)
 
@@ -359,6 +376,8 @@ func _draw_crosshair(c: Vector2, size: Vector2) -> void:
 	var gap: float = maxf(crosshair_min_gap, tan(deg_to_rad(spread)) * px_per_rad)
 	if _gap_s > 0.0:
 		gap = _gap_s
+	if not is_finite(gap):
+		gap = crosshair_min_gap
 	var ads: float = float(_info.ads)
 	var sprint: float = float(_info.sprint)
 	# Beim Zielen ausblenden (Red Dot / Kimme übernimmt)

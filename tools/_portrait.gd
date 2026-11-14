@@ -45,12 +45,15 @@ func _initialize() -> void:
 	var hand: Node3D = (fig["hands"] as Array)[1]
 	var arm_r: Node3D = (fig["arms"] as Array)[1]
 	if props == "nade":
-		arm_r.rotation.x = PI * 0.42
+		# wie bunker.gd (_riedhammer_finale): Oberarm halb vor, Ellbogen gebeugt
+		arm_r.rotation.x = PI * 0.3
+		var drv := (fig["root"] as Node).get_node_or_null("VipRig")
+		if drv != null:
+			drv.call("_pose_extra", "lowerarm_r", 1.15)
 		var nade := Node3D.new()
 		hand.add_child(nade)
-		nade.position = Vector3(0.0, 0.0, -0.015)
-		nade.add_child(_box(Vector3(0.09, 0.12, 0.09), Color(0.2, 0.24, 0.16), Vector3.ZERO))
-		nade.add_child(_box(Vector3(0.04, 0.05, 0.04), Color(0.5, 0.5, 0.48), Vector3(0, 0.08, 0)))
+		nade.position = Vector3(0.0, 0.01, -0.01)
+		load("res://game/levels/bunker.gd")._nade_model(nade)   # dasselbe Modell wie im Finale
 	elif props == "pistol":
 		arm_r.rotation_degrees.x = 88.0
 		var gp := _box(Vector3(0.028, 0.04, 0.11), Color(0.05, 0.05, 0.05), Vector3(0, 0.005, 0.03))

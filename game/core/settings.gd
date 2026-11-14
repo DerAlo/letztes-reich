@@ -33,7 +33,7 @@ func _ready() -> void:
 
 func _is_tool_run() -> bool:
 	for a in OS.get_cmdline_user_args():
-		for flag in ["--autopilot", "--debug-server", "--capture", "--no-settings"]:
+		for flag in ["--autopilot", "--debug-server", "--capture", "--no-settings", "--bg"]:
 			if a.begins_with(flag):
 				return true
 	return false

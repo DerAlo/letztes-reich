@@ -41,6 +41,13 @@ static var _last_sit: Dictionary = {}
 static var _rr: Dictionary = {}          # Fraktion -> naechster Stimmen-Index (Rundlauf -> Vielfalt in einer Welle)
 static var _rng := RandomNumberGenerator.new()
 static var _seeded := false
+static var _review: Node = null        # nur mit --review (game/debug/review.gd): Rufe gegen Funkzeilen loggen
+static var _review_checked := false
+## Laeuft gerade eine Funkzeile (StoryUI setzt das)? Dann schweigen Gegner bis auf Granaten-Warnungen,
+## und die werden leiser – der Funk soll verstaendlich bleiben.
+static var radio_active := false
+const RADIO_KEEP := ["grenade"]
+const RADIO_DUCK_DB := -7.0
 
 static func _now() -> float:
 	return Time.get_ticks_msec() / 1000.0
@@ -115,6 +122,8 @@ static func bark(e: Node3D, situation: String, chance_mul: float = 1.0, force: b
 	var rule: Array = RULES.get(situation, [0.3, 5.0, false])
 	var now := _now()
 	var urgent: bool = rule[2]
+	if radio_active and not force and not RADIO_KEEP.has(situation):
+		return false
 	if not force:
 		if _rng.randf() > float(rule[0]) * chance_mul:
 			return false
@@ -161,13 +170,18 @@ static func bark(e: Node3D, situation: String, chance_mul: float = 1.0, force: b
 	p.unit_size = 9.0
 	p.max_distance = MAX_HEAR_DIST
 	p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
-	p.volume_db = -3.0 if legacy else 1.5
+	p.volume_db = (-3.0 if legacy else 1.5) + (RADIO_DUCK_DB if radio_active else 0.0)
 	p.pitch_scale = float(e.get_meta("voice_pitch", 1.0)) * _rng.randf_range(0.985, 1.015)
 	p.position = Vector3.UP * 1.6
 	e.add_child(p)
 	p.finished.connect(p.queue_free)
 	p.play()
 	_active.append(p)
+	if not _review_checked:
+		_review_checked = true
+		_review = e.get_node_or_null("/root/DebugServer/Review")
+	if _review != null and is_instance_valid(_review):
+		_review.call("bark", situation)
 	_last_any = now
 	_last_sit[situation] = now
 	e.set_meta("voice_last", now)

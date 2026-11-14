@@ -402,6 +402,8 @@ func _run_shot(s: Dictionary) -> void:
 		_shake = float(o["shake"])
 	if o.has("dof"):
 		_set_dof(o["dof"])
+	if o.has("dof_amount") and _attrs != null:
+		_attrs.dof_blur_amount = float(o["dof_amount"])   # Staerke der Unschaerfe (Standard 0.07)
 	# Blickziel: weich vom bisherigen Ziel zum neuen schwenken (bei Schnitt sofort)
 	if o.has("look"):
 		var nl := {"t": o["look"], "off": o.get("look_offset", Vector3.ZERO)}

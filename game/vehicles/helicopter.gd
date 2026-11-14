@@ -198,6 +198,29 @@ func rocket_hit(source: Node, hit_position: Vector3, hit_normal: Vector3) -> voi
 ## Schaden zaehlt nur von der Panzerfaust (rocket_hit), von Bordwaffen (Schuetzenpanzer, Tuer-/Boots-MG)
 ## und von Skript-Ereignissen (>= 500). Handwaffen, Granaten und Faesser richten nichts aus.
 var _in_rocket: bool = false
+## Teiler fuer MG-Schaden (Tuer-/Boots-/Pintle-MG, Schuetzenpanzer); Panzerfaust bleibt bei 3 Treffern.
+const MG_TOUGHNESS: float = 1.0   # 13.11.: Default neutral; Levels setzen mg_toughness selbst (nachtzug 5, hafen 4)
+## Pro Level einstellbar (Default = MG_TOUGHNESS, d. h. unveraendert fuer alle bisherigen Level).
+var mg_toughness: float = MG_TOUGHNESS
+## Schwachstellen (Cockpit-Verglasung vorn, Rotorkopf oben): MG-Treffer dort x weak_spot_mult (1.0 = aus).
+var weak_spot_mult: float = 1.0
+## Sichtbare Schadensstufen (Funken + Rauch bei 75/50/25 %), sonst nur Rauch ab 50 % wie bisher.
+var damage_stages: bool = false
+var damage_stage: int = 0                           ## 0 heil .. 3 schwer beschaedigt
+var last_weak_hit_ms: int = -100000                 ## Zeitpunkt des letzten Schwachstellen-Treffers (Ticks ms)
+var last_weak_part: String = ""                     ## "cockpit" oder "rotor"
+var _stage_fx: Node3D = null
+var hits_body: int = 0                              ## MG-Treffer am Rumpf (Statistik/Log)
+var hits_weak: int = 0                              ## MG-Treffer an Schwachstellen
+
+## Lokale Trefferzone: "cockpit", "rotor" oder "" (Rumpf). Nase zeigt nach -z.
+func weak_part_at(hit_position: Vector3) -> String:
+	var lp := to_local(hit_position)
+	if lp.y > 1.1 and lp.z > -2.6 and lp.z < 0.6 and absf(lp.x) < 1.0:
+		return "rotor"
+	if lp.z < -3.0 and lp.y > 0.1 and absf(lp.x) < 0.9:
+		return "cockpit"   # Kanzel (oben vorn), nicht die ganze Rumpfnase
+	return ""
 
 static func _heavy_source(src: Node) -> bool:
 	return src != null and is_instance_valid(src) and (src.is_in_group("rail_ride") or src.has_method("rocket_hit_ifv"))
@@ -211,15 +234,58 @@ func take_damage(amount: float, source: Node, hit_position: Vector3, hit_normal:
 		if randf() < 0.35 and not bool(Combat.get("explosion_active")):
 			VFX.spawn_impact(hit_position, hit_normal, "metal")   # Kugel prallt ab
 		return
+	var weak := false
+	if not _in_rocket and amount < 500.0:
+		amount /= maxf(mg_toughness, 0.01)   # Bordwaffen-MG: Hubschrauber halten mg_toughness-fach so viel aus
+		if weak_spot_mult > 1.0:
+			var part := weak_part_at(hit_position)
+			if part != "":
+				weak = true
+				amount *= weak_spot_mult
+				last_weak_hit_ms = Time.get_ticks_msec()
+				last_weak_part = part
+		if weak:
+			hits_weak += 1
+		else:
+			hits_body += 1
 	health -= amount
 	_hit_flash = 1.0
 	Events.enemy_damaged.emit(self, amount)
-	if randf() < 0.35:
+	if weak or randf() < (0.6 if damage_stages else 0.35):
 		VFX.spawn_impact(hit_position, hit_normal, "metal")
 	if health <= 0.0:
 		_die(source)
+	elif damage_stages:
+		_update_damage_stage()
 	elif health < max_health * 0.5 and _smoke_trail == null:
 		_start_smoke(false)
+
+## Schadensstufen: 1 (<75 %) Funkenschlag + duenner Rauch, 2 (<50 %) dichter Rauch, 3 (<25 %) Triebwerk brennt.
+## Jeder Stufenwechsel knallt kurz (kleine Explosion am Triebwerk), damit der Fortschritt spuerbar ist.
+func _update_damage_stage() -> void:
+	var frac := health / maxf(max_health, 1.0)
+	var st := 3 if frac < 0.25 else (2 if frac < 0.5 else (1 if frac < 0.75 else 0))
+	if st <= damage_stage:
+		return
+	damage_stage = st
+	var eng := global_transform * Vector3(0.9 if st != 2 else -0.9, 0.7, 3.0)
+	VFX.spawn_explosion(eng, 0.3 + 0.12 * st)
+	for i in 3 + st * 2:
+		VFX.spawn_impact(eng + Vector3(randf_range(-0.8, 0.8), randf_range(-0.4, 0.6), randf_range(-0.8, 0.8)), Vector3.UP, "metal")
+	if _stage_fx != null and is_instance_valid(_stage_fx):
+		_stage_fx.queue_free()
+	if not ResourceLoader.exists(FIRE_SCENE):
+		return
+	var f := (load(FIRE_SCENE) as PackedScene).instantiate() as Node3D
+	f.set("size", [0.0, 0.35, 0.6, 0.85][st])
+	f.set("smoke_height", 1.6)
+	f.set("smoke_density", [0.0, 0.9, 1.6, 2.2][st])
+	f.set("flame_amount", [0, 0, 3, 12][st])
+	f.set("light_enabled", st >= 3)
+	f.set("embers_enabled", st >= 2)
+	_pivot.add_child(f)
+	f.position = Vector3(0, 1.0, 3.2)
+	_stage_fx = f
 
 func is_alive() -> bool:
 	return _alive_mode()
@@ -434,6 +500,9 @@ func _die(_source: Node) -> void:
 	remove_from_group("damageable")
 	Events.enemy_killed.emit(self)
 	destroyed.emit()
+	if _stage_fx != null and is_instance_valid(_stage_fx):
+		_stage_fx.queue_free()
+		_stage_fx = null
 	VFX.spawn_explosion(global_position + global_transform.basis * Vector3(0, 1.2, 1.5), 1.3)
 	_start_smoke(true)
 	_spin_rate = 0.0

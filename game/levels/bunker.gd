@@ -15,11 +15,20 @@ extends "res://game/levels/level.gd"
 ## deterministisch: --bunker-choice hat Vorrang, sonst novice -> release, alle anderen -> arrest.
 
 const BP = preload("res://game/levels/berlin_props.gd")
+const FK = preload("res://game/levels/furniture_kit.gd")
 const VF = preload("res://game/vehicles/vehicle_fx.gd")
 const AHUD = preload("res://game/enemies/armor_hud.gd")
 const VIP = preload("res://game/characters/vip_models.gd")
 
 const YL := -3.0         ## Fussboden der unteren Ebene
+const WK = preload("res://game/levels/overwatch_world_kit.gd")   ## pbr(): Poly-Haven-Texturordner
+const BK_TEX := "res://assets/environment/bunker/textures/"     ## Bunker-Texturen (Poly Haven, CC0)
+const SCREEN_SHADER = preload("res://game/levels/bunker_screen.gdshader")
+enum Scr { MAP, TEXT, RADAR, ALARM, PAPER }   ## Bildinhalt der Monitore (bunker_screen.gdshader, uniform mode)
+const PHOSPHOR := Color(0.35, 1.0, 0.55)   ## gruener Monitorphosphor
+const AMBER_P := Color(1.0, 0.6, 0.18)     ## Bernstein-Phosphor
+const RED_P := Color(1.0, 0.16, 0.1)       ## Alarm
+const RED_DIM := 0.3     ## Faktor fuer rote Notleuchten (siehe _omni)
 const CHOICE_KEY := "game/weber_choice"
 
 var mats: Dictionary = {}
@@ -31,6 +40,7 @@ var _t: float = 0.0
 var _flicker: Array = []                 ## [OmniLight3D, MeshInstance3D, phase]
 var _rot_lights: Array = []              ## [Node3D-Pivot, Geschwindigkeit]
 var _alarm_mat: StandardMaterial3D
+var _armed_lamp: StandardMaterial3D   ## blinkende Kontrollleuchte "Zuendkreis scharf" am Zuendpult
 var _inner_door: StaticBody3D
 var _blast: StaticBody3D
 var _hatch: StaticBody3D
@@ -49,6 +59,7 @@ var _choice: String = ""
 var _ui: CanvasLayer
 var _scene_started: bool = false
 var _start: String = ""
+var _at_lock: bool = false
 
 func _init() -> void:
 	level_name = "bunker"
@@ -65,6 +76,8 @@ func _ready() -> void:
 	await super()
 	if not is_inside_tree():
 		return
+	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
+		add_child(load("res://game/levels/tools/villa_shots.gd").new())
 	_build_doors()
 	_build_figures()
 	Events.enemy_killed.connect(_on_enemy_killed)
@@ -109,12 +122,32 @@ func _later(t: float, f: Callable) -> void:
 func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	Events.story_radio.emit(speaker, text, dur)
 
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key/drop_live, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _say_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+## Restdauer laufender + wartender Funkzeilen.
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f ausfuehren, sobald der Funk frei ist (hoechstens max_wait s warten).
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_busy() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
+
 ## Falk ueber die Bunkerlautsprecher (Rueckkopplung an der naechsten Decke).
-func _pa(text: String) -> void:
+## Sticheleien verfallen, wenn sie nicht gleich drankommen.
+func _pa(text: String, opts: Dictionary = {"priority": 1, "max_age": 3.0}) -> void:
 	var pl := _player()
 	if pl != null:
 		VF.play_at(self, "berlin_pa_feedback", pl.global_position + Vector3(0, 2.6, -3.0), -8.0, 6.0, 40.0)
-	_say(StoryData.FALK, text)
+	_say_opt(StoryData.FALK, text, 0.0, opts)
 
 func _obj(text: String) -> void:
 	Events.story_objective.emit(text)
@@ -180,6 +213,17 @@ func _wait_radio(max_t: float) -> void:
 
 func _omni(pos: Vector3, c: Color, energy: float, rng_: float, fog: float = 0.6, shadows: bool = false) -> OmniLight3D:
 	var l := OmniLight3D.new()
+	# Rotes Notlicht: entsaettigt und gedimmt (echte Sicherheitsleuchten tauchen nicht den ganzen Raum in Rot)
+	if c.r > 0.9 and c.g < 0.3 and c.b < 0.3:
+		c = Color(1.0, maxf(c.g, 0.24), maxf(c.b, 0.16))
+		energy *= RED_DIM
+		rng_ *= 0.6
+		fog *= 0.5
+	# Gruene Fluchtwegleuchte: nur ein Schild, kein Raumlicht
+	elif c.g > 0.95 and c.r < 0.4 and c.b < 0.6:
+		energy *= 0.35
+		rng_ = minf(rng_, 3.5)
+		fog *= 0.4
 	l.light_color = c
 	l.light_energy = energy
 	l.omni_range = rng_
@@ -203,6 +247,61 @@ func _label(text: String, pos: Vector3, yaw: float, size: int, c: Color, px: flo
 	add_child(l)
 	return l
 
+## Monitor: Blechgehaeuse mit Rahmen und einer Glasfront mit Shader-Inhalt (bunker_screen.gdshader) statt
+## eines flachen Leuchtquaders. c = Mitte der Bildflaeche, n = Blickrichtung (waagrecht), w/h = Bildgroesse,
+## kind = Scr.*, depth = Gehaeusetiefe hinter der Bildflaeche. Gedaempfte Emission, wirft keinen Schatten.
+func _screen(c: Vector3, n: Vector3, w: float, h: float, kind: int, tint: Color, depth: float = 0.1) -> MeshInstance3D:
+	var b := Basis(Vector3.UP, atan2(n.x, n.z))
+	var fr := 0.03 + minf(w, h) * 0.025   # Rahmenbreite
+	_bd.box("screen_case", c - n * (depth * 0.5), Vector3(w + fr * 2.0, h + fr * 2.0, depth), b)
+	# Rahmen 1.2 cm vor der Bildflaeche, ueberdeckt deren Rand um 4 mm
+	for sy: float in [-1.0, 1.0]:
+		_bd.box("screen_case", c + b * Vector3(0.0, sy * (h * 0.5 + fr * 0.5 - 0.004), 0.006), Vector3(w + fr * 2.0, fr + 0.008, 0.012), b)
+	for sx: float in [-1.0, 1.0]:
+		_bd.box("screen_case", c + b * Vector3(sx * (w * 0.5 + fr * 0.5 - 0.004), 0.0, 0.006), Vector3(fr + 0.008, h, 0.012), b)
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(w, h)
+	mi.mesh = q
+	mi.material_override = _screen_mat(kind, tint)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.transform = Transform3D(b, c + n * 0.003)
+	add_child(mi)
+	mi.set_instance_shader_parameter("seed", fmod(absf(c.x * 1.37 + c.z * 0.71 + c.y * 2.3), 9.0))
+	mi.set_instance_shader_parameter("aspect", w / h)
+	return mi
+
+var _scr_mats: Dictionary = {}
+func _screen_mat(kind: int, tint: Color) -> ShaderMaterial:
+	var key := "%d|%s" % [kind, tint.to_html()]
+	if not _scr_mats.has(key):
+		var m := ShaderMaterial.new()
+		m.shader = SCREEN_SHADER
+		m.set_shader_parameter("mode", kind)
+		m.set_shader_parameter("tint", tint)
+		m.set_shader_parameter("energy", 1.0 if kind != Scr.ALARM else 0.8)
+		if kind == Scr.PAPER:   # Papierstruktur (ambientCG Paper003): Knitter, Rauheit
+			m.set_shader_parameter("paper_textured", true)
+			m.set_shader_parameter("paper_albedo", load(BK_TEX + "paper_creased/diffuse.jpg"))
+			m.set_shader_parameter("paper_normal", load(BK_TEX + "paper_creased/normal.jpg"))
+			m.set_shader_parameter("paper_rough", load(BK_TEX + "paper_creased/rough.jpg"))
+			m.set_shader_parameter("paper_tiles", 1.6)
+		_scr_mats[key] = m
+	return _scr_mats[key]
+
+## Papier-Lagekarte auf einer waagrechten Flaeche (Kartentisch), lit, nicht leuchtend.
+func _paper_map(c: Vector3, w: float, d: float) -> void:
+	var mi := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(w, d)
+	mi.mesh = q
+	mi.material_override = _screen_mat(Scr.PAPER, Color.WHITE)
+	mi.rotation_degrees.x = -90.0
+	mi.position = c
+	add_child(mi)
+	mi.set_instance_shader_parameter("seed", 2.0)
+	mi.set_instance_shader_parameter("aspect", w / d)
+
 ## Box aus zwei Ecken (Optik + Kollision im gemeinsamen Koerper).
 func _bx(key: String, a: Vector3, b: Vector3, collide: bool = true) -> void:
 	var lo := Vector3(minf(a.x, b.x), minf(a.y, b.y), minf(a.z, b.z))
@@ -212,6 +311,14 @@ func _bx(key: String, a: Vector3, b: Vector3, collide: bool = true) -> void:
 	_bd.box(key, c, s)
 	if collide:
 		Geo.add_box_shape(_body, c, s)
+
+## Moebel als Poly-Haven-Modell (furniture_kit.gd) in der alten Box a..b. Kollision wie bisher (collide),
+## fehlt das Modell, wird der alte Quader gezeichnet.
+func _fx(key: String, model: String, a: Vector3, b: Vector3, yaw: float = 0.0, opts: Dictionary = {}, collide: bool = true) -> void:
+	if not FK.place_ab(_body, model, a, b, yaw, opts):
+		_bx(key, a, b, collide)
+	elif collide:
+		_col(a, b)
 
 ## Nur Kollision (unsichtbar).
 func _col(a: Vector3, b: Vector3) -> void:
@@ -285,8 +392,9 @@ func _setup_environment() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.0, 0.0, 0.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.3, 0.22, 0.24)
-	env.ambient_light_energy = 0.22
+	# Etwas neutraleres, helleres Grundlicht: ohne Nebelschleier sonst zu dunkel
+	env.ambient_light_color = Color(0.27, 0.27, 0.28)   # neutral (vorher leicht violett)
+	env.ambient_light_energy = 0.3
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_exposure = 1.3
 	env.ssr_enabled = true
@@ -294,20 +402,21 @@ func _setup_environment() -> void:
 	env.sdfgi_enabled = true
 	env.sdfgi_energy = 0.6
 	env.ssil_intensity = 1.0
+	# Innenraum: leichter Dunst. Dampf/Rauch nur lokal (FogVolumes in _build_atmosphere).
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.05, 0.04, 0.045)
+	env.fog_light_color = Color(0.04, 0.035, 0.04)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.006
+	env.fog_density = 0.0012
 	env.fog_sky_affect = 0.0
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.022
-	env.volumetric_fog_albedo = Color(0.82, 0.82, 0.85)
-	env.volumetric_fog_emission = Color(0.004, 0.003, 0.004)
+	env.volumetric_fog_density = 0.004
+	env.volumetric_fog_albedo = Color(0.62, 0.62, 0.64)
+	env.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
 	env.volumetric_fog_emission_energy = 1.0
-	env.volumetric_fog_anisotropy = 0.45
-	env.volumetric_fog_length = 60.0
-	env.volumetric_fog_gi_inject = 0.5
-	env.volumetric_fog_ambient_inject = 0.1
+	env.volumetric_fog_anisotropy = 0.55
+	env.volumetric_fog_length = 48.0
+	env.volumetric_fog_gi_inject = 0.12
+	env.volumetric_fog_ambient_inject = 0.0
 	env.volumetric_fog_sky_affect = 0.0
 	env.glow_enabled = true
 	env.glow_hdr_threshold = 0.8
@@ -324,52 +433,116 @@ func _setup_environment() -> void:
 	add_child(we)
 	VfxEnv.apply_render_quality(get_viewport())
 	PostFx.apply(self, "night_city")
+	_tune_interior_glow(env)
+
+## Innenraum-Glow: nur echte Lichtquellen bluehen leicht, Deckenlampen ueberstrahlen nicht.
+## Laeuft nach PostFx.apply (das Profil "night_city" setzt sonst Schwelle 1.0 / Intensitaet 0.8).
+func _tune_interior_glow(env: Environment) -> void:
+	env.glow_hdr_threshold = 1.8
+	env.glow_intensity = 0.35
+	env.glow_bloom = 0.0
 
 func _make_mats() -> void:
 	mats = BP.materials()
 	mats["concrete"] = Geo.mat("concrete_wall_008", Color(0.42, 0.43, 0.44), 0.25, 1.0)
-	mats["concrete_dark"] = Geo.mat("concrete_wall_008", Color(0.24, 0.25, 0.26), 0.25, 0.8)
-	mats["concrete_wet"] = Geo.mat("concrete_wall_008", Color(0.2, 0.22, 0.22), 0.3, 0.35)
+	mats["concrete_dark"] = Geo.mat("concrete_wall_008", Color(0.32, 0.33, 0.34), 0.25, 0.8)
+	mats["concrete_wet"] = Geo.mat("concrete_wall_008", Color(0.28, 0.3, 0.3), 0.3, 0.35)
 	mats["rust"] = Geo.mat("rusty_metal_02", Color(0.55, 0.5, 0.46), 0.5, 1.0, 0.4)
-	mats["steel_dark"] = Geo.flat(Color(0.16, 0.17, 0.18), 0.45, 0.7)
-	mats["paint_green"] = Geo.flat(Color(0.17, 0.22, 0.18), 0.6, 0.3)
-	mats["floor"] = Geo.flat(Color(0.28, 0.28, 0.27), 0.5)
-	mats["linoleum"] = Geo.flat(Color(0.22, 0.24, 0.2), 0.4)
-	mats["blanket"] = Geo.flat(Color(0.2, 0.22, 0.17), 0.97)
-	mats["mattress"] = Geo.flat(Color(0.45, 0.43, 0.38), 0.95)
-	mats["paper"] = Geo.flat(Color(0.8, 0.79, 0.74), 0.9)
-	mats["map"] = Geo.flat(Color(0.32, 0.38, 0.33), 0.8)
+	# Lackiertes Stahlblech (Poly Haven blue_metal_plate, entsaettigt): Konsolen, Schraenke, Rohre, Pulte
+	mats["steel_dark"] = WK.pbr(BK_TEX + "painted_steel", Color(0.36, 0.38, 0.39), 0.45, 0.9)
+	mats["screen_case"] = WK.pbr(BK_TEX + "painted_steel", Color(0.17, 0.18, 0.18), 0.9, 0.75)
+	mats["desk_top"] = WK.matte(WK.pbr(BK_TEX + "painted_steel", Color(0.22, 0.23, 0.22), 0.7, 1.35, 0.2))   # stumpfe Pultplatte (keine Lampenspiegelung)
+	# Gruen lackiertes, angerostetes Blech (Poly Haven green_metal_rust): Generatoren, Spinde
+	mats["paint_green"] = WK.pbr("res://assets/environment/river/textures/green_metal_rust", Color(0.72, 0.76, 0.9), 0.4, 0.9)
+	mats["floor"] = WK.pbr("res://assets/environment/river/textures/rough_concrete", Color(0.42, 0.42, 0.41), 0.35, 0.8)
+	# Linoleum (Poly Haven linoleum_brown), Richtung Grauoliv getoent
+	mats["linoleum"] = (WK.matte(WK.pbr(BK_TEX + "linoleum_brown", Color(0.45, 0.52, 0.55), 0.45, 0.85)) as StandardMaterial3D)
+	(mats["linoleum"] as StandardMaterial3D).metallic_specular = 0.3
+	# Holzkisten: verwitterte Bretter statt einfarbigem Quader
+	mats["wood"] = WK.pbr("res://assets/environment/textures/weathered_planks", Color(0.75, 0.62, 0.48), 0.6, 1.0)
+	# Stoffe (Leinen-Struktur): Decken, Matratzen, Sandsaecke
+	mats["blanket"] = WK.pbr("res://assets/characters/textures/rough_linen", Color(0.38, 0.35, 0.22), 1.2, 1.0)
+	mats["mattress"] = WK.pbr("res://assets/characters/textures/rough_linen", Color(0.8, 0.65, 0.49), 1.0, 1.0)
+	mats["canvas_white"] = WK.pbr("res://assets/characters/textures/rough_linen", Color(0.97, 0.75, 0.5), 0.8, 1.0)
+	# Papier (ambientCG Paper003, CC0): Knitterstruktur statt glatter Farbflaeche
+	var pm := StandardMaterial3D.new()
+	pm.albedo_texture = load(BK_TEX + "paper_creased/diffuse.jpg")
+	pm.albedo_color = Color(0.86, 0.84, 0.78)
+	pm.normal_enabled = true
+	pm.normal_texture = load(BK_TEX + "paper_creased/normal.jpg")
+	pm.roughness_texture = load(BK_TEX + "paper_creased/rough.jpg")
+	pm.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	pm.metallic_specular = 0.3
+	pm.uv1_triplanar = true
+	pm.uv1_world_triplanar = true
+	pm.uv1_scale = Vector3.ONE * 1.8
+	mats["paper"] = pm
+	# Schreibunterlage des Kartentischs: dunkelgruenes Leder (Poly Haven brown_leather, umgetoent)
+	mats["map"] = WK.pbr(BK_TEX + "brown_leather", Color(0.3, 0.38, 0.32), 0.9, 1.05)
+	# Kartennadeln: lackierte Stecknadelkoepfe (lit, nicht leuchtend)
+	mats["pin_red"] = Geo.flat(Color(0.62, 0.06, 0.04), 0.35)
 	mats["hazard"] = Geo.flat(Color(0.75, 0.6, 0.08), 0.6)
-	mats["leather"] = Geo.flat(Color(0.08, 0.07, 0.07), 0.45)
+	# Leder (Poly Haven brown_leather, CC0): Aktenkoffer, dunkel getoent
+	mats["leather"] = WK.pbr(BK_TEX + "brown_leather", Color(0.42, 0.33, 0.28), 1.6, 0.9)
 	mats["water"] = Geo.flat(Color(0.05, 0.07, 0.07), 0.02, 0.2)
 	(mats["water"] as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	(mats["water"] as StandardMaterial3D).albedo_color = Color(0.06, 0.08, 0.08, 0.72)
 	mats["exit_green"] = BP.unshaded(Color(0.15, 2.4, 0.6))
-	mats["emerg_red"] = BP.unshaded(Color(2.8, 0.12, 0.08))
+	mats["emerg_red"] = BP.unshaded(Color(1.5, 0.12, 0.08))
 	mats["amber"] = BP.unshaded(Color(2.6, 1.2, 0.2))
 	mats["screen"] = BP.unshaded(Color(0.25, 0.9, 0.55))
-	mats["screen_red"] = BP.unshaded(Color(1.6, 0.15, 0.1))
+	mats["screen_red"] = BP.unshaded(Color(1.1, 0.15, 0.1))
 	mats["lamp_dead"] = Geo.flat(Color(0.25, 0.25, 0.26), 0.4)
+	mats["lamp_on"] = BP.unshaded(Color(1.6, 1.52, 1.4))
 	_alarm_mat = StandardMaterial3D.new()
 	_alarm_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_alarm_mat.albedo_color = Color(3.0, 0.15, 0.05)
+	_alarm_mat.albedo_color = Color(1.8, 0.15, 0.05)
 	mats["alarm"] = _alarm_mat
+	# Stahltueren: Poly Haven metal_plate (Rob Tuytel, CC0), dunkel lackiertes Stahlblech
+	mats["door_steel"] = WK.pbr(BK_TEX + "metal_plate", Color(0.4, 0.42, 0.42), 0.5, 1.0, 0.6)
+	# Kontrollraum-Ausstattung: verzinkte Kabeltrassen, hellgraue Schaltschraenke, Kabel, Loeschwasserrohr, Schilder
+	mats["galv"] = WK.pbr(BK_TEX + "metal_plate", Color(0.62, 0.64, 0.63), 0.8, 1.0, 0.7)
+	mats["cab_grey"] = WK.pbr(BK_TEX + "painted_steel", Color(0.62, 0.64, 0.6), 0.45, 0.9)
+	mats["cable"] = Geo.flat(Color(0.05, 0.05, 0.05), 0.7)
+	mats["pipe_red"] = Geo.flat(Color(0.48, 0.07, 0.05), 0.5)
+	mats["sign_white"] = Geo.flat(Color(0.86, 0.86, 0.82), 0.6)
+	# Realismus-Durchgang Lagezentrum/Technik (Poly Haven, CC0): Schalungsbeton mit Ankerloechern,
+	# gruen gestrichener Sockelanstrich, Estrich mit abgetretener Bodenfarbe
+	# Optik 14.11.: Beton neutral grau statt gelbstichig (Textur ist warm -> Blauanteil im Tint gleicht aus)
+	mats["bk_wall"] = WK.pbr(BK_TEX + "concrete_wall_004", Color(0.72, 0.73, 0.82), 0.45, 1.0)
+	mats["bk_wall_dark"] = WK.pbr(BK_TEX + "concrete_wall_004", Color(0.52, 0.53, 0.59), 0.45, 1.0)
+	# Sockelanstrich an den Waenden: gedecktes Graugruen (vorher sattes Gruen, faerbte per GI die Raeume ein)
+	mats["bk_dado"] = WK.pbr(BK_TEX + "painted_concrete", Color(0.86, 0.68, 0.8), 0.5, 0.9)
+	# Saeulen: neutral grauer Anstrich (Textur gruen -> Tint gleicht auf Grau ab), dunkle Abschlusslinie
+	mats["bk_dado_col"] = WK.pbr(BK_TEX + "painted_concrete", Color(1.0, 0.68, 0.9), 0.5, 0.9)
+	mats["dado_line_col"] = Geo.flat(Color(0.13, 0.13, 0.13), 0.6)
+	# Estrich: Poly Haven concrete_floor_worn_001 (CC0) - neutral grauer, abgetretener Zementestrich mit
+	# Kratzern statt der fast schwarz-braunen concrete_floor_painted (Boden war kaum lesbar); leichter
+	# Glanz (metallic_specular), damit die Deckenroehren sich matt im Boden abzeichnen
+	mats["bk_floor"] = WK.matte(WK.pbr("res://assets/environment/curfew/textures/concrete_floor_worn_001", Color(1.2, 1.2, 1.18), 0.25, 0.9))
+	(mats["bk_floor"] as StandardMaterial3D).metallic_specular = 0.3
+	mats["bk_ceiling"] = WK.pbr(BK_TEX + "concrete_wall_004", Color(0.44, 0.45, 0.5), 0.35, 1.0)
+	mats["dado_line"] = Geo.flat(Color(0.14, 0.18, 0.15), 0.6)
+	mats["duct"] = WK.pbr(BK_TEX + "metal_plate", Color(0.55, 0.57, 0.56), 0.6, 0.8, 0.75)
+	mats["pipe_blue"] = Geo.flat(Color(0.1, 0.2, 0.36), 0.5)
+	mats["pipe_yellow"] = Geo.flat(Color(0.62, 0.5, 0.08), 0.55)
+	mats["emerg_white"] = BP.unshaded(Color(1.7, 1.75, 1.6))
 
 func _build_ground() -> void:
 	_make_mats()
 	_bd = BP.Builder.new(mats)
-	_bd.no_shadow.append_array(["water", "exit_green", "emerg_red", "amber", "screen", "screen_red", "alarm"])
+	_bd.no_shadow.append_array(["water", "exit_green", "emerg_red", "amber", "screen", "screen_red", "alarm", "lamp_on", "emerg_white"])
 	_body = Geo.static_body()
 	_body.name = "Bunker"
 	_body.set_meta("no_fit", true)
 	world.add_child(_body)
 	_bx("concrete_wet", Vector3(-2.2, -0.3, 4.0), Vector3(2.2, 0.0, 36.8))          # Roehre
 	_bx("floor", Vector3(-3.15, -0.3, -4.0), Vector3(3.15, 0.0, 4.0))               # Schleuse
-	_bx("concrete_dark", Vector3(-13.15, -0.3, -34.0), Vector3(13.15, 0.0, -4.0))   # Technik
+	_bx("bk_floor", Vector3(-13.15, -0.3, -34.0), Vector3(13.15, 0.0, -4.0))        # Technik
 	_bx("concrete_dark", Vector3(-2.0, -0.3, -40.0), Vector3(2.0, 0.0, -34.0))      # Gang
 	_bx("linoleum", Vector3(-11.15, YL - 0.3, -72.0), Vector3(11.15, YL, -50.0))    # Schlafsaele
 	_bx("floor", Vector3(-2.5, YL - 0.3, -80.0), Vector3(2.5, YL, -72.0))           # Korridor
-	_bx("floor", Vector3(-14.15, YL - 0.3, -104.0), Vector3(14.15, YL, -80.0))      # Lagezentrum
+	_bx("bk_floor", Vector3(-14.15, YL - 0.3, -104.0), Vector3(14.15, YL, -80.0))   # Lagezentrum
 	_bx("linoleum", Vector3(-8.15, YL - 0.3, -116.0), Vector3(8.15, YL, -104.0))    # Kontrollraum
 	_bx("floor", Vector3(8.0, YL - 0.3, -111.5), Vector3(12.0, YL, -108.5))         # Notausgang
 	# stehendes Wasser in der Roehre (nur Optik)
@@ -428,25 +601,26 @@ func _build_lock() -> void:
 	for z: float in [3.9, -3.9]:
 		_bx("hazard", Vector3(-1.2, 2.4, z - 0.12), Vector3(1.2, 2.55, z + 0.12), false)
 	_bx("steel_dark", Vector3(-2.85, 0.9, 0.5), Vector3(-2.6, 1.9, 1.6), false)               # Drucktafel
-	_bd.box("screen_red", Vector3(-2.58, 1.6, 1.05), Vector3(0.02, 0.18, 0.5))
+	_screen(Vector3(-2.585, 1.6, 1.05), Vector3.RIGHT, 0.46, 0.17, Scr.TEXT, RED_P, 0.02)
 	_bd.box("alarm", Vector3(0.0, 3.1, -3.7), Vector3(0.25, 0.15, 0.25))
 	_label("SCHLEUSE 2", Vector3(0, 2.85, 3.84), 180.0, 52, Color(0.85, 0.8, 0.6), 0.006)
 	_label("DRUCKAUSGLEICH", Vector3(-2.57, 1.35, 1.05), 90.0, 26, Color(1.0, 0.3, 0.2), 0.004)
 
 func _build_tech() -> void:
 	# Technikebene x -13..13, z -4..-34, Hoehe 7
-	_wall_x(-4.0, -13.15, 13.15, 0.0, 7.0, [[0.0, 6.3, 3.5]])
-	_wall_z(-13.0, -4.0, -34.0, 0.0, 7.0)
-	_wall_z(13.0, -4.0, -34.0, 0.0, 7.0)
-	_wall_x(-34.0, -13.15, 13.15, 0.0, 7.0, [[0.0, 4.0, 3.2]])
-	_bx("concrete_dark", Vector3(-13.15, 7.0, -34.15), Vector3(13.15, 7.3, -3.85))
+	_wall_x(-4.0, -13.15, 13.15, 0.0, 7.0, [[0.0, 6.3, 3.5]], "bk_wall")
+	_wall_z(-13.0, -4.0, -34.0, 0.0, 7.0, [], "bk_wall")
+	_wall_z(13.0, -4.0, -34.0, 0.0, 7.0, [], "bk_wall")
+	_wall_x(-34.0, -13.15, 13.15, 0.0, 7.0, [[0.0, 4.0, 3.2]], "bk_wall")
+	_bx("bk_ceiling", Vector3(-13.15, 7.0, -34.15), Vector3(13.15, 7.3, -3.85))
+	_build_tech_dressing()
 	# Generatoren (Deckung) mit Auspuffrohren zur Decke
 	for p: Vector3 in [Vector3(-7.5, 0, -13.0), Vector3(7.5, 0, -13.0), Vector3(-7.5, 0, -25.0), Vector3(7.5, 0, -25.0)]:
 		_bx("paint_green", p + Vector3(-1.5, 0, -2.6), p + Vector3(1.5, 2.4, 2.6))
 		_bx("steel_dark", p + Vector3(-1.6, 0, -2.7), p + Vector3(1.6, 0.25, 2.7), false)
 		_bx("rust", p + Vector3(-1.2, 2.4, -2.0), p + Vector3(1.2, 2.9, 0.5), false)
 		_bx("rust", p + Vector3(-0.25, 2.9, 1.2), p + Vector3(0.25, 7.0, 1.7), false)
-		_bd.box("screen", p + Vector3(signf(-p.x) * 1.52, 1.6, -1.6), Vector3(0.02, 0.3, 0.5))
+		_screen(p + Vector3(signf(-p.x) * 1.505, 1.6, -1.6), Vector3(signf(-p.x), 0, 0), 0.46, 0.28, Scr.TEXT, AMBER_P, 0.03)
 		_label("NOTSTROM %s" % ("A" if p.z > -20.0 else "B"), p + Vector3(signf(-p.x) * 1.53, 2.0, 0.6), 90.0 * signf(-p.x), 34, Color(0.85, 0.8, 0.55), 0.005)
 	# Rohrtrassen unter der Decke (Optik)
 	for x: float in [-10.5, -4.0, 4.0, 10.5]:
@@ -464,7 +638,7 @@ func _build_tech() -> void:
 	_bx("steel_dark", Vector3(2.4, 0, -30.2), Vector3(4.0, 1.2, -29.4))
 	for z: float in [-8.0, -19.0, -30.0]:
 		_bx("steel_dark", Vector3(-12.85, 0, z - 1.2), Vector3(-12.2, 2.2, z + 1.2))
-		_bd.box("screen", Vector3(-12.18, 1.5, z), Vector3(0.02, 0.25, 0.8))
+		_screen(Vector3(-12.185, 1.5, z), Vector3.RIGHT, 0.74, 0.3, Scr.TEXT if z != -19.0 else Scr.RADAR, PHOSPHOR, 0.02)
 	_bx("hazard", Vector3(-1.8, 0.0, -33.8), Vector3(1.8, 0.01, -33.0), false)
 	_label("TECHNIK  /  EBENE -1", Vector3(0, 4.2, -3.84), 180.0, 64, Color(0.85, 0.82, 0.7), 0.007)
 	_label("ZU DEN UNTERKUENFTEN", Vector3(0, 3.6, -33.84), 0.0, 40, Color(0.85, 0.82, 0.7), 0.006)
@@ -505,10 +679,11 @@ func _build_dorms() -> void:
 		for z: float in [-52.5, -61.5, -62.7]:
 			_bx("paint_green", Vector3(sx * 10.85 - 0.3, YL, z - 0.55), Vector3(sx * 10.85 + 0.3, YL + 1.9, z + 0.55))
 	# Tische in der Gasse zwischen den Reihen
-	_bx("wood", Vector3(-2.9, YL + 0.72, -62.9), Vector3(-1.5, YL + 0.78, -61.1))
+	if not FK.place_ab(_body, "wooden_table_02", Vector3(-2.9, YL, -62.9), Vector3(-1.5, YL + 0.78, -61.1), 90.0, {"scale": 1.0, "stretch": 1.25}):
+		_bx("wood", Vector3(-2.9, YL + 0.72, -62.9), Vector3(-1.5, YL + 0.78, -61.1))
 	_col(Vector3(-2.9, YL, -62.9), Vector3(-1.5, YL + 0.78, -61.1))
 	_bx("paper", Vector3(-2.6, YL + 0.78, -62.4), Vector3(-2.1, YL + 0.8, -61.9), false)
-	_bx("wood", Vector3(1.6, YL, -64.0), Vector3(2.8, YL + 0.9, -63.0))     # umgekippter Tisch (Deckung)
+	_fx("wood", "wooden_table_02", Vector3(1.6, YL, -64.0), Vector3(2.8, YL + 0.9, -63.0), 0.0, {"tilt": Vector3(90.0, 0.0, 0.0)})     # umgekippter Tisch (Deckung)
 	# Kabelkanaele unter der Decke
 	for x: float in [-6.9, 6.9]:
 		_bx("steel_dark", Vector3(x - 0.15, 0.2, -71.8), Vector3(x + 0.15, 0.4, -50.2), false)
@@ -520,38 +695,57 @@ func _build_corridor() -> void:
 	_bx("concrete", Vector3(2.35, YL, -80.0), Vector3(2.65, 0.3, -72.0))
 	_bx("concrete", Vector3(-2.65, 0.0, -80.0), Vector3(2.65, 0.3, -72.0))
 	for z: float in [-74.5, -77.5]:
-		_bx("steel_dark", Vector3(-2.36, YL, z - 0.7), Vector3(-2.3, YL + 2.2, z + 0.7), false)   # verriegelte Seitentueren
-		_bx("steel_dark", Vector3(2.3, YL, z - 0.7), Vector3(2.36, YL + 2.2, z + 0.7), false)
+		_bx("door_steel", Vector3(-2.36, YL, z - 0.7), Vector3(-2.3, YL + 2.2, z + 0.7), false)   # verriegelte Seitentueren
+		_bx("door_steel", Vector3(2.3, YL, z - 0.7), Vector3(2.36, YL + 2.2, z + 0.7), false)
 	_bx("hazard", Vector3(-1.5, YL, -79.9), Vector3(1.5, YL + 0.01, -79.4), false)
 	_label("LAGEZENTRUM", Vector3(0, YL + 2.75, -72.3), 0.0, 44, Color(0.85, 0.8, 0.6), 0.006)
 
 func _build_situation_room() -> void:
 	# Lagezentrum x -14..14, z -80..-104, Decke 2.0
-	_wall_x(-80.0, -14.15, 14.15, YL, 2.0, [[0.0, 3.0, 2.6]])
-	_wall_z(-14.0, -80.0, -104.0, YL, 2.0)
-	_wall_z(14.0, -80.0, -104.0, YL, 2.0)
-	_wall_x(-104.0, -14.15, 14.15, YL, 2.0, [[0.0, 3.0, 2.8]])
-	_bx("concrete_dark", Vector3(-14.15, 2.0, -104.15), Vector3(14.15, 2.3, -79.85))
-	# Kartentisch (grosse Lagekarte)
-	_bx("steel_dark", Vector3(-3.0, YL, -95.0), Vector3(3.0, YL + 0.95, -89.0))
+	_wall_x(-80.0, -14.15, 14.15, YL, 2.0, [[0.0, 3.0, 2.6]], "bk_wall")
+	_wall_z(-14.0, -80.0, -104.0, YL, 2.0, [], "bk_wall")
+	_wall_z(14.0, -80.0, -104.0, YL, 2.0, [], "bk_wall")
+	_wall_x(-104.0, -14.15, 14.15, YL, 2.0, [[0.0, 3.0, 2.8]], "bk_wall")
+	_bx("bk_ceiling", Vector3(-14.15, 2.0, -104.15), Vector3(14.15, 2.3, -79.85))
+	# Kartentisch (grosse Lagekarte): Kollision wie bisher, Optik als Stahlkorpus mit Sockel,
+	# Schubladenfronten, umlaufender Kante und Griffleiste
+	_col(Vector3(-3.0, YL, -95.0), Vector3(3.0, YL + 0.95, -89.0))
+	_bd.box("black", Vector3(0.0, YL + 0.06, -92.0), Vector3(5.6, 0.12, 5.6))                      # zurueckgesetzter Sockel
+	_bd.box("steel_dark", Vector3(0.0, YL + 0.5, -92.0), Vector3(5.86, 0.76, 5.86))               # Korpus
+	_bd.box("desk_top", Vector3(0.0, YL + 0.915, -92.0), Vector3(6.0, 0.07, 6.0))                 # Tischkante
+	for s: float in [-1.0, 1.0]:
+		for i in 4:
+			var off := -2.1 + float(i) * 1.4
+			_bd.box("screen_case", Vector3(off, YL + 0.55, -92.0 + s * 2.935), Vector3(1.28, 0.5, 0.02))   # Schubladenfronten N/S
+			_bd.box("galv", Vector3(off, YL + 0.74, -92.0 + s * 2.955), Vector3(0.36, 0.03, 0.03))       # Griffe
+			_bd.box("screen_case", Vector3(s * 2.935, YL + 0.55, -92.0 + off), Vector3(0.02, 0.5, 1.28))   # Schubladenfronten O/W
+			_bd.box("galv", Vector3(s * 2.955, YL + 0.74, -92.0 + off), Vector3(0.03, 0.03, 0.36))
 	_bx("map", Vector3(-2.9, YL + 0.95, -94.9), Vector3(2.9, YL + 0.98, -89.1), false)
+	_paper_map(Vector3(0.0, YL + 0.982, -92.0), 5.7, 5.7)
 	for i in 6:
-		_bx("emerg_red", Vector3(-2.0 + float(i) * 0.8, YL + 0.98, -92.6 + float(i % 3) * 0.7), Vector3(-1.85 + float(i) * 0.8, YL + 1.0, -92.45 + float(i % 3) * 0.7), false)
+		_bd.box("pin_red", Vector3(-1.95 + float(i) * 0.8, YL + 0.995, -92.55 + float(i % 3) * 0.7), Vector3(0.035, 0.025, 0.035))   # Kartennadel
 	# Saeulen
+	var col_i := 0
 	for p: Vector3 in [Vector3(-7, 0, -86), Vector3(7, 0, -86), Vector3(-7, 0, -98), Vector3(7, 0, -98)]:
-		_bx("concrete", Vector3(p.x - 0.5, YL, p.z - 0.5), Vector3(p.x + 0.5, 2.0, p.z + 0.5))
-		_bx("hazard", Vector3(p.x - 0.52, YL, p.z - 0.52), Vector3(p.x + 0.52, YL + 0.3, p.z + 0.52), false)
+		col_i += 1
+		_col(Vector3(p.x - 0.5, YL, p.z - 0.5), Vector3(p.x + 0.5, 2.0, p.z + 0.5))
+		_column_dressing(p, col_i)
 	# Sandsack-Riegel und Konsolen an den Seitenwaenden
 	for sx: float in [-1.0, 1.0]:
-		_bx("canvas_white", Vector3(sx * 10.5 - 0.5, YL, -94.5), Vector3(sx * 10.5 + 0.5, YL + 1.0, -89.5))
+		# 3 m statt 5 m: der lange Riegel wirkte wie ein Tisch und verstellte den Seitengang zur Panzertuer
+		_bx("canvas_white", Vector3(sx * 10.5 - 0.5, YL, -93.5), Vector3(sx * 10.5 + 0.5, YL + 1.0, -90.5))
 		for z: float in [-84.0, -88.0, -96.0, -100.0]:
 			_bx("steel_dark", Vector3(sx * 13.85 - 0.45, YL, z - 1.0), Vector3(sx * 13.85 + 0.45, YL + 1.1, z + 1.0))
-			_bd.box("screen" if int(z) % 8 == 0 else "screen_red", Vector3(sx * 13.4, YL + 1.5, z), Vector3(0.02, 0.5, 1.6))
+			var k: int = [Scr.TEXT, Scr.RADAR, Scr.MAP, Scr.TEXT][[-84.0, -88.0, -96.0, -100.0].find(z)]
+			var tn: Color = RED_P if int(z) % 8 != 0 and sx > 0.0 else (AMBER_P if k == Scr.TEXT else PHOSPHOR)
+			_screen(Vector3(sx * 13.4, YL + 1.55, z), Vector3(-sx, 0, 0), 1.5, 0.62, k, tn, 0.14)
 	# Lagewand (grosse Bildschirme ueber der Panzertuer)
-	for i in 3:
-		_bd.box("screen" if i != 1 else "screen_red", Vector3(-6.0 + float(i) * 6.0 if i != 1 else 6.5, 0.9, -103.82), Vector3(3.6, 1.6, 0.04))
-	_label("LAGEZENTRUM", Vector3(-6.0, 0.9, -103.78), 0.0, 48, Color(0.05, 0.15, 0.08), 0.006)
+	_screen(Vector3(-6.0, 0.9, -103.84), Vector3.BACK, 3.4, 1.5, Scr.MAP, PHOSPHOR, 0.12)
+	_screen(Vector3(6.0, 0.9, -103.84), Vector3.BACK, 2.6, 1.5, Scr.RADAR, PHOSPHOR, 0.12)
+	_screen(Vector3(0.0, 1.3, -103.84), Vector3.BACK, 1.9, 0.7, Scr.TEXT, AMBER_P, 0.1)
+	_label("LAGE BERLIN-MITTE  04:38", Vector3(-6.0, 1.54, -103.83), 0.0, 32, Color(0.3, 0.75, 0.42), 0.005)
 	_label("KONTROLLRAUM", Vector3(0, YL + 3.1, -103.82), 0.0, 40, Color(0.9, 0.85, 0.7), 0.006)
+	_build_situation_dressing()
 
 func _build_control_room() -> void:
 	# Kontrollraum x -8..8, z -104..-116, Decke 0.5; Notausgang Ost bei z -110
@@ -561,24 +755,54 @@ func _build_control_room() -> void:
 	_bx("concrete", Vector3(-8.15, 0.5, -116.15), Vector3(8.15, 0.8, -103.85))
 	# Konsolenreihe und Schaltpult
 	_bx("steel_dark", Vector3(-7.0, YL, -115.85), Vector3(7.0, YL + 1.0, -114.6))
+	var kinds: Array = [Scr.MAP, Scr.ALARM, Scr.TEXT, Scr.RADAR, Scr.ALARM, Scr.TEXT, Scr.MAP]
+	var tints: Array = [PHOSPHOR, RED_P, AMBER_P, PHOSPHOR, RED_P, PHOSPHOR, AMBER_P]
 	for i in 7:
-		_bd.box("screen" if i % 3 != 1 else "screen_red", Vector3(-6.0 + float(i) * 2.0, YL + 1.6, -115.8), Vector3(1.6, 0.9, 0.04))
+		var sc := Vector3(-6.0 + float(i) * 2.0, YL + 1.6, -115.8)
+		_screen(sc, Vector3.BACK, 1.6, 0.9, kinds[i], tints[i], 0.14)
+		if kinds[i] == Scr.ALARM:
+			_label("WARNUNG  -  ZUENDKREIS", sc + Vector3(0, 0.36, 0.012), 0.0, 22, Color(0.85, 0.22, 0.14), 0.004)
 	_bx("steel_dark", Vector3(-1.5, YL, -112.2), Vector3(1.5, YL + 0.95, -111.4))         # Zuendpult
-	_bx("hazard", Vector3(-1.45, YL + 0.95, -112.15), Vector3(1.45, YL + 0.97, -111.45), false)
-	_bd.box("alarm", Vector3(0.0, YL + 1.02, -111.8), Vector3(0.18, 0.08, 0.18))
-	_bx("steel_dark", Vector3(4.2, YL + 0.75, -108.8), Vector3(6.2, YL + 0.8, -107.6))   # Tisch (Akte)
-	for lx in [4.28, 6.07]:
-		for lz in [-108.72, -107.73]:
-			_bx("steel_dark", Vector3(lx, YL, lz), Vector3(lx + 0.05, YL + 0.75, lz + 0.05), false)   # Tischbeine
+	# Pultplatte lackierter Stahl, nur ein gelber Warnrahmen statt vollflaechigem Gelb
+	_bx("desk_top", Vector3(-1.45, YL + 0.95, -112.15), Vector3(1.45, YL + 0.965, -111.45), false)
+	for zz: float in [-112.15, -111.5]:
+		_bx("hazard", Vector3(-1.45, YL + 0.965, zz), Vector3(1.45, YL + 0.97, zz + 0.05), false)
+	for xx: float in [-1.45, 1.4]:
+		_bx("hazard", Vector3(xx, YL + 0.965, -112.1), Vector3(xx + 0.05, YL + 0.97, -111.5), false)
+	for i in 5:   # Kippschalter mit Schutzkappen links und rechts des Zuendknopfs
+		for sx: float in [-1.0, 0.55]:
+			var px := sx + float(i) * 0.11
+			_bd.box("steel_dark", Vector3(px, YL + 0.985, -111.95), Vector3(0.06, 0.03, 0.08))
+			_bd.box("lamp_dead", Vector3(px, YL + 1.01, -111.95), Vector3(0.012, 0.03, 0.012))
+			# Kontrollleuchte hinter jedem Schalter: links Kreise klar (gruen), rechts Sprengladungen (bernstein)
+			var lc := Color(0.35, 1.0, 0.45) if sx < 0.0 else Color(1.0, 0.62, 0.18)
+			_pilot_lamp(Vector3(px, YL + 0.968, -112.06), lc, not (sx > 0.0 and i == 4))
+	_build_firing_button(Vector3(0.0, YL + 0.965, -111.85))
+	if not FK.place_ab(_body, "metal_office_desk", Vector3(4.2, YL, -108.8), Vector3(6.2, YL + 0.8, -107.6), 0.0, {"scale": 1.0}):
+		_bx("steel_dark", Vector3(4.2, YL + 0.75, -108.8), Vector3(6.2, YL + 0.8, -107.6))   # Tisch (Akte)
+		for lx in [4.28, 6.07]:
+			for lz in [-108.72, -107.73]:
+				_bx("steel_dark", Vector3(lx, YL, lz), Vector3(lx + 0.05, YL + 0.75, lz + 0.05), false)   # Tischbeine
 	_col(Vector3(4.2, YL, -108.8), Vector3(6.2, YL + 0.8, -107.6))
 	_bx("steel_dark", Vector3(-7.85, YL, -110.0), Vector3(-7.2, YL + 2.2, -106.0))       # Aktenschrank
 	_label("ZUENDUNG", Vector3(0, YL + 0.6, -111.38), 0.0, 26, Color(1.0, 0.75, 0.2), 0.004)
 	# Notausgang (dunkler Gang nach Osten)
-	_bx("concrete", Vector3(8.0, YL, -108.5), Vector3(12.0, YL + 2.4, -108.2))
-	_bx("concrete", Vector3(8.0, YL, -111.8), Vector3(12.0, YL + 2.4, -111.5))
-	_bx("concrete", Vector3(8.0, YL + 2.3, -111.8), Vector3(12.0, YL + 2.6, -108.2))
-	_bx("black", Vector3(12.0, YL, -111.8), Vector3(12.3, YL + 2.6, -108.2))
+	_bx("bk_wall", Vector3(8.0, YL, -108.5), Vector3(12.0, YL + 2.4, -108.2))
+	_bx("bk_wall", Vector3(8.0, YL, -111.8), Vector3(12.0, YL + 2.4, -111.5))
+	_bx("bk_ceiling", Vector3(8.0, YL + 2.3, -111.8), Vector3(12.0, YL + 2.6, -108.2))
+	# Gangende: Kollision wie bisher, Optik als Stahl-Fluchttuer mit Zarge und Panikstange
+	_col(Vector3(12.0, YL, -111.8), Vector3(12.3, YL + 2.6, -108.2))
+	_bx("bk_wall", Vector3(12.0, YL, -111.8), Vector3(12.3, YL + 2.6, -108.2), false)
+	_bd.box("steel_dark", Vector3(11.97, YL + 1.1, -110.0), Vector3(0.06, 2.2, 1.36))            # Zarge
+	_bd.box("door_steel", Vector3(11.94, YL + 1.06, -110.0), Vector3(0.05, 2.08, 1.2))           # Tuerblatt
+	_bd.box("galv", Vector3(11.86, YL + 1.0, -110.0), Vector3(0.05, 0.06, 1.0))                  # Panikstange
+	for zz: float in [-110.48, -109.52]:
+		_bd.box("galv", Vector3(11.89, YL + 1.0, zz), Vector3(0.06, 0.1, 0.05))
+	_bd.box("hazard", Vector3(11.98, YL + 2.27, -110.0), Vector3(0.02, 0.06, 2.0))
+	_bd.box("bk_dado", Vector3(10.0, YL + 0.7, -108.52), Vector3(4.0, 1.4, 0.03))               # Sockelanstrich Nord
+	_bd.box("bk_dado", Vector3(10.0, YL + 0.7, -111.48), Vector3(4.0, 1.4, 0.03))               # Sockelanstrich Sued
 	_label("NOTAUSGANG SPREE", Vector3(7.84, YL + 2.45, -110.0), -90.0, 26, Color(0.3, 1.0, 0.45), 0.004)
+	_build_control_dressing()
 
 func _build_lights() -> void:
 	var red := Color(1.0, 0.1, 0.06)
@@ -619,7 +843,7 @@ func _build_lights() -> void:
 	# Lagezentrum: rotes Notlicht, kaltes Licht ueber dem Kartentisch, Rundumleuchten
 	_omni(Vector3(0.0, 1.4, -92.0), cold, 1.2, 10.0, 0.8)
 	for p: Vector3 in [Vector3(-12.0, 1.5, -82.0), Vector3(12.0, 1.5, -82.0), Vector3(-12.0, 1.5, -102.0), Vector3(12.0, 1.5, -102.0)]:
-		_omni(p, red, 1.5, 13.0, 1.0)
+		_omni(p, red, 1.5, 13.0, 0.3)   # wenig Nebelanteil: keine roten Lichtkugeln im Dunst
 	_rot_light(Vector3(-7.0, 1.85, -92.0))
 	_rot_light(Vector3(7.0, 1.85, -92.0))
 	_flicker_lamp(Vector3(-4.0, 1.95, -84.0))
@@ -627,10 +851,52 @@ func _build_lights() -> void:
 	_exit_sign(Vector3(-12.0, YL + 2.6, -80.17), 180.0)
 	# Kontrollraum: kaltes Bildschirmlicht, Riedhammer gut sichtbar
 	_omni(Vector3(0.0, 0.1, -112.0), cold, 1.3, 9.0, 0.6)
-	_omni(Vector3(0.0, YL + 1.6, -114.0), Color(0.3, 0.9, 0.55), 0.7, 6.0, 0.4)
+	_omni(Vector3(0.0, YL + 1.6, -114.0), Color(0.6, 0.78, 0.72), 0.45, 6.0, 0.4)   # Bildschirmlicht, gemischt gruen/bernstein
 	_omni(Vector3(5.0, 0.1, -108.0), amber, 0.6, 6.0, 0.4)
+	# Schwaches Fuelllicht von vorn-unten (Pultleuchten): Deckenlicht wirft sonst einen harten
+	# Kinnschatten auf den Hals, der in der Nahaufnahme wie ein dunkler Fleck wirkt
+	_omni(Vector3(0.0, YL + 1.3, -110.9), Color(0.95, 0.88, 0.8), 0.3, 2.8, 0.0)
 	_omni(Vector3(10.0, YL + 2.0, -110.0), Color(0.25, 1.0, 0.45), 0.4, 4.0, 0.5)
+	_build_ceiling_lights()
+	_build_emergency_lights()
 	_bd.build(world)
+
+## Neutrale Deckenleuchten (Leuchtstoffroehren ~4000 K auf Notstrom): tragen das Grundlicht je
+## Raum, damit Beton, Moebel und Gegner lesbar sind. Rot (Notlicht, Rundumleuchten) bleibt Akzent.
+## Schatten nur bei je einem Hauptlicht in Technik und Lagezentrum.
+func _build_ceiling_lights() -> void:
+	# Roehre und Schleuse
+	for z: float in [12.0, 26.0]:
+		_ceil_lamp(Vector3(0.0, 2.95, z), 0.8, 7.0)
+	_ceil_lamp(Vector3(0.0, 3.15, 1.5), 0.9, 6.0)
+	# Technikebene: Roehren unter den Kabeltrassen
+	for x: float in [-4.0, 4.0]:
+		for z: float in [-9.0, -19.0, -29.0]:
+			_ceil_lamp(Vector3(x, 4.85, z), 1.4, 11.0, x < 0.0 and z == -19.0)
+	# Gang mit Treppe
+	for z: float in [-38.0, -46.0]:
+		_ceil_lamp(Vector3(0.0, 3.15, z), 0.9, 7.0)
+	# Schlafsaele
+	for x: float in [-5.5, 5.5]:
+		for z: float in [-55.0, -67.0]:
+			_ceil_lamp(Vector3(x, 0.45, z), 1.0, 8.0)
+	# Kommandokorridor
+	_ceil_lamp(Vector3(0.0, -0.05, -74.0), 0.8, 6.0)
+	# Lagezentrum (Falk): Grundlicht neutral, Rundumleuchten bleiben
+	for x: float in [-10.0, 10.0]:
+		for z: float in [-86.0, -98.0]:
+			_ceil_lamp(Vector3(x, 1.95, z), 1.2, 9.5)
+	_ceil_lamp(Vector3(0.0, 1.95, -84.0), 1.2, 9.5, true)
+	_ceil_lamp(Vector3(0.0, 1.95, -100.0), 1.1, 9.5)
+	# Kontrollraum
+	for x: float in [-4.0, 4.0]:
+		for z: float in [-107.5, -113.0]:
+			_ceil_lamp(Vector3(x, 0.45, z), 0.9, 7.0)
+
+func _ceil_lamp(pos: Vector3, energy: float, rng_: float, shadows: bool = false) -> void:
+	_bd.box("lamp_on", pos, Vector3(0.3, 0.05, 1.25))
+	var l := _omni(pos + Vector3(0, -0.35, 0), Color(1.0, 0.94, 0.86), energy * 1.4, rng_ * 1.1, 0.25, shadows)
+	l.omni_attenuation = 1.3
 
 func _exit_sign(pos: Vector3, yaw: float) -> void:
 	var mi := Geo.box_mesh_node(Vector3(0.62, 0.22, 0.05), mats["exit_green"], pos, Vector3(0, yaw, 0))
@@ -648,6 +914,82 @@ func _flicker_lamp(pos: Vector3) -> void:
 	var l := _omni(pos + Vector3(0, -0.4, 0), Color(0.85, 0.92, 1.0), 1.3, 8.0, 0.7, false)
 	_flicker.append([l, m, randf() * 10.0])
 
+## Kleine Kontrollleuchte im Pult: Chromfassung + Glaskalotte (lit, schwach selbstleuchtend, kein Bloom-Block).
+func _pilot_lamp(pos: Vector3, col: Color, on: bool, mat: StandardMaterial3D = null) -> void:
+	var ring := MeshInstance3D.new()
+	var rm := CylinderMesh.new()
+	rm.top_radius = 0.016
+	rm.bottom_radius = 0.016
+	rm.height = 0.008
+	rm.radial_segments = 16
+	ring.mesh = rm
+	ring.material_override = Geo.flat(Color(0.62, 0.62, 0.6), 0.3, 0.9)
+	ring.position = pos + Vector3(0, 0.004, 0)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
+	var cap := MeshInstance3D.new()
+	var cm := SphereMesh.new()
+	cm.radius = 0.011
+	cm.height = 0.014
+	cm.radial_segments = 12
+	cm.rings = 6
+	cap.mesh = cm
+	var m := mat
+	if m == null:
+		m = StandardMaterial3D.new()
+		m.albedo_color = col.darkened(0.55)
+		m.roughness = 0.15
+		m.emission_enabled = on
+		m.emission = col
+		m.emission_energy_multiplier = 1.4
+	cap.material_override = m
+	cap.position = pos + Vector3(0, 0.009, 0)
+	cap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(cap)
+
+## Zuendtaster mit hochgeklappter Schutzkappe, Schluesselschalter und blinkender Leuchte (Zuendkreis scharf).
+func _build_firing_button(c: Vector3) -> void:
+	var plate := Geo.flat(Color(0.12, 0.12, 0.12), 0.55, 0.6)
+	add_child(Geo.box_mesh_node(Vector3(0.2, 0.012, 0.16), plate, c + Vector3(0, 0.006, 0)))
+	# Taster: roter Pilzknopf (lackiert, nicht leuchtend)
+	var btn := MeshInstance3D.new()
+	var bm := CylinderMesh.new()
+	bm.top_radius = 0.028
+	bm.bottom_radius = 0.03
+	bm.height = 0.022
+	bm.radial_segments = 20
+	btn.mesh = bm
+	btn.material_override = Geo.flat(Color(0.55, 0.05, 0.03), 0.3)
+	btn.position = c + Vector3(0, 0.023, 0.02)
+	add_child(btn)
+	# Schutzkappe aufgeklappt (Scharnier hinten), Warnfarbe
+	var cover := Geo.box_mesh_node(Vector3(0.09, 0.004, 0.08), mats["hazard"], Vector3.ZERO)
+	var hinge := Node3D.new()
+	hinge.position = c + Vector3(0, 0.016, -0.025)
+	hinge.rotation_degrees.x = 70.0
+	add_child(hinge)
+	hinge.add_child(cover)
+	cover.position = Vector3(0, 0, -0.04)
+	# Schluesselschalter rechts daneben
+	var key := MeshInstance3D.new()
+	var km := CylinderMesh.new()
+	km.top_radius = 0.014
+	km.bottom_radius = 0.016
+	km.height = 0.012
+	key.mesh = km
+	key.material_override = Geo.flat(Color(0.7, 0.68, 0.62), 0.25, 1.0)
+	key.position = c + Vector3(0.075, 0.018, 0.03)
+	add_child(key)
+	add_child(Geo.box_mesh_node(Vector3(0.004, 0.03, 0.012), Geo.flat(Color(0.6, 0.58, 0.5), 0.3, 1.0), c + Vector3(0.075, 0.036, 0.03), Vector3(0, 35.0, 0)))
+	# Blinkende Kontrollleuchte links vom Taster
+	_armed_lamp = StandardMaterial3D.new()
+	_armed_lamp.albedo_color = Color(0.35, 0.03, 0.02)
+	_armed_lamp.roughness = 0.15
+	_armed_lamp.emission_enabled = true
+	_armed_lamp.emission = Color(1.0, 0.12, 0.05)
+	_armed_lamp.emission_energy_multiplier = 1.8
+	_pilot_lamp(c + Vector3(-0.075, 0.012, 0.03), Color.RED, true, _armed_lamp)
+
 ## Rote Rundumleuchte: drehender Spot + Gehaeuse.
 func _rot_light(pos: Vector3) -> void:
 	add_child(Geo.box_mesh_node(Vector3(0.2, 0.18, 0.2), _alarm_mat, pos))
@@ -655,11 +997,11 @@ func _rot_light(pos: Vector3) -> void:
 	pivot.position = pos + Vector3(0, -0.05, 0)
 	add_child(pivot)
 	var l := SpotLight3D.new()
-	l.light_color = Color(1.0, 0.12, 0.05)
-	l.light_energy = 3.0
+	l.light_color = Color(1.0, 0.2, 0.1)
+	l.light_energy = 1.8
 	l.spot_range = 12.0
 	l.spot_angle = 28.0
-	l.light_volumetric_fog_energy = 2.0
+	l.light_volumetric_fog_energy = 0.45
 	l.shadow_enabled = false
 	l.rotation_degrees = Vector3(-25.0, 0.0, 0.0)
 	pivot.add_child(l)
@@ -670,12 +1012,15 @@ func _build_skyline() -> void:
 
 func _build_atmosphere() -> void:
 	# Dampf in der Technik, Dunst ueber dem Wasser, Rauch im Lagezentrum
-	Props.fog_volume(self, Vector3(0, 1.0, 20.0), Vector3(4, 2, 32), 0.04, Color(0.55, 0.6, 0.62))
-	Props.fog_volume(self, Vector3(-7.5, 3.5, -13.0), Vector3(6, 7, 8), 0.06, Color(0.8, 0.8, 0.82))
-	Props.fog_volume(self, Vector3(7.5, 3.5, -25.0), Vector3(6, 7, 8), 0.06, Color(0.8, 0.8, 0.82))
-	Props.fog_volume(self, Vector3(0, 3.5, -19.0), Vector3(26, 7, 30), 0.02, Color(0.6, 0.6, 0.62))
-	Props.fog_volume(self, Vector3(0, YL + 1.6, -61.0), Vector3(22, 3.5, 22), 0.02, Color(0.5, 0.48, 0.48))
-	Props.fog_volume(self, Vector3(0, YL + 2.5, -92.0), Vector3(28, 5, 24), 0.025, Color(0.5, 0.47, 0.47))
+	# Lokal und duenn: Dampf an den Generatoren, Dunst ueber dem Wasser, Gefechtsrauch im Lagezentrum.
+	# Raumfuellender Nebel macht Gegner unsichtbar und ist in geschlossenen Raeumen unrealistisch.
+	Props.fog_volume(self, Vector3(0, 1.0, 20.0), Vector3(4, 2, 32), 0.025, Color(0.5, 0.54, 0.56))
+	Props.fog_volume(self, Vector3(-7.5, 3.5, -13.0), Vector3(5, 7, 6), 0.035, Color(0.72, 0.72, 0.74))
+	Props.fog_volume(self, Vector3(7.5, 3.5, -25.0), Vector3(5, 7, 6), 0.035, Color(0.72, 0.72, 0.74))
+	Props.fog_volume(self, Vector3(0, 3.5, -19.0), Vector3(26, 7, 30), 0.005, Color(0.55, 0.55, 0.57))
+	# Lagezentrum: nur duenner Raumdunst. Die fruehere dichte Rauchschicht unter der Decke war unmotiviert
+	# (kein Brand) und fing das rote Notlicht als farbige Nebelkugeln ein.
+	Props.fog_volume(self, Vector3(0, YL + 2.5, -92.0), Vector3(28, 5, 24), 0.0035, Color(0.5, 0.49, 0.48))
 
 func _build_set_piece_geometry() -> void:
 	pass
@@ -697,9 +1042,11 @@ func _build_markers() -> void:
 		Vector3(0, 0, -36.0), Vector3(0, 0, -39.5), Vector3(0, YL, -51.5),                                 # 8-10 Treppe
 		Vector3(0, YL, -57.0), Vector3(2.0, YL, -62.0), Vector3(0, YL, -68.5), Vector3(0, YL, -74.0),       # 11-14 Schlafsaele
 		Vector3(0, YL, -79.0), Vector3(0, YL, -83.0),                                                      # 15-16 Korridor
-		Vector3(-9.5, YL, -84.5), Vector3(-10.8, YL, -92.0), Vector3(-9.5, YL, -100.5), Vector3(0, YL, -101.5),
-		Vector3(9.5, YL, -100.5), Vector3(10.8, YL, -92.0), Vector3(9.5, YL, -84.5), Vector3(0, YL, -86.5),
-		Vector3(-5.0, YL, -97.0), Vector3(0, YL, -102.0),                                                  # 17-26 Lagezentrum
+		# Seitengaenge bei x=+-12.2 (zwischen Sandsackriegel x+-10..11 und Konsolen x+-13.4), Rueckweg
+		# nordlich an den Saeulen (+-7,-86) vorbei und links am Kartentisch (x -3..3, z -95..-89) entlang
+		Vector3(-9.5, YL, -84.5), Vector3(-12.2, YL, -92.0), Vector3(-9.5, YL, -100.5), Vector3(0, YL, -101.5),
+		Vector3(9.5, YL, -100.5), Vector3(12.2, YL, -92.0), Vector3(9.5, YL, -84.0), Vector3(0, YL, -85.0),
+		Vector3(-4.6, YL, -88.5), Vector3(-4.6, YL, -98.0), Vector3(0, YL, -102.0),                        # 17-27 Lagezentrum
 	]
 	for i in route.size():
 		var w := Geo.marker(m, (route[i] as Vector3) + Vector3(0, 0.05, 0), "bot_waypoint")
@@ -759,10 +1106,15 @@ func _door_body(size: Vector3, pos: Vector3, mat: Material) -> StaticBody3D:
 	return b
 
 func _build_doors() -> void:
-	var steel := Geo.flat(Color(0.2, 0.21, 0.22), 0.45, 0.7)
+	# Stahlblech (Poly Haven metal_plate) als Kopie mit objektbezogener Projektion: die Tueren gleiten,
+	# Welt-Triplanar wuerde die Textur dabei stehen lassen. Gemeinsamer WK-Cache bleibt unveraendert.
+	var steel := (WK.pbr(BK_TEX + "metal_plate", Color(0.36, 0.38, 0.38), 0.6, 1.0, 0.6) as StandardMaterial3D).duplicate() as StandardMaterial3D
+	steel.uv1_world_triplanar = false
+	var hatch_m := steel.duplicate() as StandardMaterial3D
+	hatch_m.albedo_color = Color(0.4, 0.44, 0.41)
 	_inner_door = _door_body(Vector3(2.1, 2.45, 0.3), Vector3(0, 0, -4.0), steel)
 	_blast = _door_body(Vector3(3.1, 2.85, 0.5), Vector3(0, YL, -104.0), steel)
-	_hatch = _door_body(Vector3(0.12, 2.3, 1.5), Vector3(8.0, YL, -110.0), Geo.flat(Color(0.25, 0.27, 0.26), 0.5, 0.5))
+	_hatch = _door_body(Vector3(0.12, 2.3, 1.5), Vector3(8.0, YL, -110.0), hatch_m)
 
 func _open_inner_door() -> void:
 	var tw := create_tween()
@@ -775,6 +1127,27 @@ func _open_blast() -> void:
 	tw.tween_property(_blast, "position:x", -3.1, 2.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_callback(func() -> void: _end_area.set_deferred("monitoring", true))
 	VF.play_at(self, "rail_metal_creak", Vector3(0, YL + 1.5, -104.0), 0.0, 10.0, 60.0, 0.6)
+	_door_beacon()
+
+## Offene Panzertuer hervorheben: warmes Licht im Tuerrahmen + Lichtkegel auf den Boden davor,
+## damit der Weg zum Kontrollraum aus dem ganzen Lagezentrum lesbar ist.
+func _door_beacon() -> void:
+	if has_node("DoorBeacon"):
+		return
+	var root := Node3D.new()
+	root.name = "DoorBeacon"
+	add_child(root)
+	var l := _omni(Vector3(0.0, YL + 2.3, -104.6), Color(1.0, 0.72, 0.38), 2.2, 7.5, 0.5)
+	l.reparent(root)
+	var sp := SpotLight3D.new()
+	sp.light_color = Color(1.0, 0.82, 0.55)
+	sp.light_energy = 3.0
+	sp.spot_range = 7.0
+	sp.spot_angle = 32.0
+	sp.light_volumetric_fog_energy = 0.8
+	sp.position = Vector3(0.0, YL + 2.7, -103.6)
+	sp.rotation_degrees = Vector3(-62.0, 180.0, 0.0)   # schraeg nach unten, Richtung +Z ins Lagezentrum
+	root.add_child(sp)
 
 ## Box-Figur (Mantel/Uniform, Muetze). Arme/Beine als Pivots fuer einfache Posen.
 func _build_figures() -> void:
@@ -821,6 +1194,8 @@ func _spawn_wave(index: int) -> void:
 			_spawn("rifleman", Vector3(10.5, 0, -18.0), 160.0)
 			_spawn("assault", Vector3(-10.5, 0, -30.0), 200.0)
 			_spawn("armored", Vector3(0.5, 0, -31.5), 180.0, 0.5)
+			_spawn("rifleman", Vector3(-8.0, 0, -18.0), 170.0)
+			_spawn("rifleman", Vector3(6.0, 0, -20.0), 190.0)
 		1:
 			# Schlafsaele: zwischen den Etagenbetten
 			_spawn("rifleman", Vector3(-7.0, YL, -62.0))
@@ -829,17 +1204,25 @@ func _spawn_wave(index: int) -> void:
 			_spawn("assault", Vector3(-3.5, YL, -59.5), 170.0)
 			_spawn("assault", Vector3(6.9, YL, -56.0), 190.0)
 			_spawn("officer", Vector3(-1.0, YL, -66.5), 180.0, 0.5)
+			_spawn("rifleman", Vector3(-10.0, YL, -68.0), 160.0)
+			_spawn("rifleman", Vector3(10.0, YL, -62.0), 200.0)
+			_spawn("assault", Vector3(-10.0, YL, -56.0), 170.0)
 		2:
 			# Kommandokorridor: Gepanzerter haelt den Durchgang
 			_spawn("armored", Vector3(0.0, YL, -77.5), 180.0, 0.5)
 			_spawn("rifleman", Vector3(1.4, YL, -79.0), 180.0)
+			# Rueckendeckung am Hallenende des Korridors
+			_spawn("rifleman", Vector3(-4.0, YL, -84.0), 170.0)
+			_spawn("rifleman", Vector3(4.0, YL, -84.0), 190.0)
 		3:
 			# Lagezentrum: Oberst Falk im schweren Anzug + letzte Garde
 			_spawn_falk()
 			_spawn("armored", Vector3(-9.0, YL, -97.0), 160.0, 0.5)
-			_spawn("armored", Vector3(9.0, YL, -97.0), 200.0, 0.5)
+			_spawn("rifleman", Vector3(9.0, YL, -97.0), 200.0)   # vorher zweiter Gepanzerter (Bosskampf zog sich)
 			_spawn("rifleman", Vector3(-12.0, YL, -88.0), 150.0)
 			_spawn("rifleman", Vector3(12.0, YL, -88.0), 210.0)
+			_spawn("rifleman", Vector3(-8.0, YL, -92.0), 165.0)
+			_spawn("rifleman", Vector3(8.0, YL, -92.0), 195.0)
 		4:
 			# Falk ruft Verstaerkung (durch die Seitentueren des Korridors)
 			_spawn("assault", Vector3(-1.2, YL, -76.0), 180.0)
@@ -879,24 +1262,49 @@ func _on_enemy_killed(enemy: Node) -> void:
 	if enemy != _falk or _falk_dead:
 		return
 	_falk_dead = true
-	_say(StoryData.FALK, "Der General … wird Sie … enttäuschen …", 3.4)
-	_say(StoryData.LENA, "Falk ist erledigt. Ich hab die Panzertür zum Kontrollraum – sie geht auf.")
+	_say_opt(StoryData.FALK, "Der General … wird Sie … enttäuschen …", 3.4, {"priority": 2, "cut": true})
+	_say_opt(StoryData.LENA, "Falk ist erledigt. Ich hab die Panzertür zum Kontrollraum – sie geht auf.", 0.0, {"priority": 2})
 	_obj("Stelle Riedhammer im Kontrollraum")
 	_later(2.5, func() -> void:
 		_checkpoint("cp_kontroll")
 		_open_blast())
+	_later(18.0, _control_nudge)
+
+## Nachfass-Hinweis, wenn der Spieler nach Falks Tod im Lagezentrum zoegert (vorhandene Lena-Zeile).
+func _control_nudge() -> void:
+	if _scene_started or _cine:
+		return
+	_when_radio_free(_control_nudge_say, 6.0)
+
+func _control_nudge_say() -> void:
+	if _scene_started or _cine:
+		return
+	# Steht der Spieler schon an der Panzertuer, braucht er den Hinweis nicht (blockiert sonst nur
+	# den Funk fuer Kerners erste Zeile im Kontrollraum)
+	var pl := _player()
+	if pl != null and pl.global_position.distance_to(Vector3(0.0, YL, -104.0)) < 9.0:
+		return
+	_say_opt(StoryData.LENA, "Der Kontrollraum liegt ganz am Ende, hinter dem Lagezentrum. Die Lüftung zeigt zwei Wärmequellen da drin.", 0.0,
+		{"priority": 1, "valid": func() -> bool: return not _scene_started})
 
 # ------------------------------------------------------------------ Story
 
 func _intro() -> void:
 	_obj("Folge der Röhre unter der Spree zur Bunkerschleuse")
-	_say(StoryData.VOSS, "Kerner, Voss hier. Das ist die alte Versorgungsröhre unter der Spree. Sie endet an der Bunkerschleuse – ab da sind Sie allein.")
-	_say(StoryData.LENA, "Ich bin in der Haustechnik. Die Schleusen hängen am Notstromnetz. Ich krieg sie auf, aber nicht leise.")
+	_say_opt(StoryData.VOSS, "Kerner, Voss hier. Das ist die alte Versorgungsröhre unter der Spree. Sie endet an der Bunkerschleuse – ab da sind Sie allein.", 0.0, {"priority": 1})
+	_say_opt(StoryData.LENA, "Ich bin in der Haustechnik. Die Schleusen hängen am Notstromnetz. Ich krieg sie auf, aber nicht leise.", 0.0,
+		{"priority": 1, "valid": func() -> bool: return not _at_lock})
 
 func _on_lock() -> void:
 	_checkpoint("cp_schleuse")
-	_say(StoryData.KERNER, "Bin an der Schleuse.")
-	_say(StoryData.LENA, "Druckausgleich läuft … drei Sekunden. Dahinter liegt die Technikebene.")
+	if _at_lock:
+		return
+	_at_lock = true
+	_when_radio_free(_lock_talk, 8.0)
+
+func _lock_talk() -> void:
+	_say_opt(StoryData.KERNER, "Bin an der Schleuse.", 0.0, {"priority": 1})
+	_say_opt(StoryData.LENA, "Druckausgleich läuft … drei Sekunden. Dahinter liegt die Technikebene.", 0.0, {"priority": 1})
 	_later(3.0, func() -> void:
 		_open_inner_door()
 		_obj("Kämpf dich durch die Technikebene"))
@@ -905,7 +1313,7 @@ func _on_enter_tech() -> void:
 	_pa("Kerner. Durch die Röhre, wie eine Ratte. Riedhammer hat gewettet, dass Sie das nicht wagen. Ich nicht.")
 
 func _on_tech_mid() -> void:
-	_say(StoryData.LENA, "Gepanzerter hinten bei den Generatoren. Kopf und Gelenke, Jonas.")
+	_say_opt(StoryData.LENA, "Gepanzerter hinten bei den Generatoren. Kopf und Gelenke, Jonas.", 0.0, {"priority": 2})
 
 func _on_enter_gang() -> void:
 	_spawn_wave(1)
@@ -917,20 +1325,20 @@ func _on_enter_dorms() -> void:
 
 func _on_dorms_mid() -> void:
 	_spawn_wave(2)
-	_say(StoryData.LENA, "Der Kontrollraum liegt ganz am Ende, hinter dem Lagezentrum. Die Lüftung zeigt zwei Wärmequellen da drin.")
+	_say_opt(StoryData.LENA, "Der Kontrollraum liegt ganz am Ende, hinter dem Lagezentrum. Die Lüftung zeigt zwei Wärmequellen da drin.", 0.0, {"priority": 1})
 
 func _on_enter_corridor() -> void:
 	_checkpoint("cp_kommando")
 	_obj("Dring ins Lagezentrum vor")
-	_say(StoryData.VOSS, "Kerner, oben kommen wir nicht durch die Panzertür. Was jetzt passiert, liegt bei Ihnen.")
+	_say_opt(StoryData.VOSS, "Kerner, oben kommen wir nicht durch die Panzertür. Was jetzt passiert, liegt bei Ihnen.", 0.0, {"max_age": 4.0})
 
 func _on_enter_hall() -> void:
 	if _waves_spawned.has(3):
 		return
 	_spawn_wave(3)
 	_obj("Besiege Oberst Falk")
-	_pa("Sie wollten mich sehen, Kerner. Hier bin ich.")
-	_say(StoryData.LENA, "Das ist Falk – im schweren Anzug! Erst das Visier, dann der Tornister auf dem Rücken.")
+	_pa("Sie wollten mich sehen, Kerner. Hier bin ich.", {"priority": 2, "cut": true})
+	_say_opt(StoryData.LENA, "Das ist Falk – im schweren Anzug! Erst das Visier, dann der Tornister auf dem Rücken.", 0.0, {"priority": 2})
 
 # ------------------------------------------------------------------ Kontrollraum
 
@@ -1133,16 +1541,43 @@ func _riedhammer_finale() -> void:
 	cs._say(StoryData.RIEDHAMMER, "Nein. Ich bleibe auf meinem Posten.")
 	# 2) Die Granate: Nahaufnahme der Hand
 	cs.call_step(func() -> void:
+		# Hand-Node sitzt beim geriggten Modell an einem BoneAttachment3D des Handknochens (vip_models.gd)
 		((_ried["hands"] as Array)[1] as Node3D).add_child(nade)
-		nade.position = Vector3(0.0, 0.0, -0.015)
-		nade.add_child(Geo.box_mesh_node(Vector3(0.09, 0.12, 0.09), Geo.flat(Color(0.2, 0.24, 0.16), 0.6), Vector3.ZERO))
-		nade.add_child(Geo.box_mesh_node(Vector3(0.04, 0.05, 0.04), Geo.flat(Color(0.5, 0.5, 0.48), 0.4, 0.8), Vector3(0, 0.08, 0))))
-	cs.pose(arm_r, "rotation:x", PI * 0.42, 0.35, {"async": false})
-	cs.cut(Vector3(0.75, YL + 1.35, -111.3), {"look": nade, "fov": 30.0, "shake": 0.5, "dof": true})
+		nade.position = Vector3(0.0, 0.01, -0.01)
+		_nade_model(nade))
+	# Granate vor die Brust: Oberarm halb nach vorn, Ellbogen angewinkelt (Unterarmknochen ueber den VipRig)
+	cs.call_step(func() -> void: _ried_elbow(1.15, 0.35))
+	cs.pose(arm_r, "rotation:x", PI * 0.3, 0.35, {"async": false})
+	# Nahaufnahme: Kamera erst jetzt relativ zur Granate in der Hand setzen (Handknochen steht erst nach der
+	# Pose fest), leicht seitlich vor Riedhammer auf Handhoehe; Granate im oberen Bilddrittel, Gesicht
+	# unscharf dahinter. Danach langsamer Push-in. DOF moderat (dof_amount), Untertitel stehen im Kinobalken.
+	var nade_cam_a := Node3D.new()
+	var nade_cam_b := Node3D.new()
+	cs.call_step(func() -> void:
+		var fwd := -ried.global_transform.basis.z
+		fwd.y = 0.0
+		fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.BACK
+		var side := fwd.cross(Vector3.UP).normalized()
+		var np := nade.global_position
+		for pair: Array in [[nade_cam_a, 1.05], [nade_cam_b, 0.72]]:
+			var c := pair[0] as Node3D
+			if c.get_parent() == null:
+				add_child(c)
+			var d: float = pair[1]
+			c.global_position = np + fwd * d - side * (d * 0.5) + Vector3(0, -0.12, 0)   # von seiner linken Seite: Granate frei vor dem Hintergrund, nicht vor dem Gesicht
+			c.look_at(np + Vector3(0, -0.05, 0), Vector3.UP))
+	cs.cut(nade_cam_a, {"look": nade, "look_offset": Vector3(0, -0.05, 0), "fov": 34.0, "shake": 0.25,
+		"dof": true, "dof_amount": 0.03})
 	cs._say(StoryData.KERNER, "Granate! Raus, raus!", {"async": true, "dur": 1.5})
 	cs.call_step(func() -> void:
 		VF.play_at(self, "rail_metal_creak", ried.global_position + Vector3(0, 1.4, 0), -6.0, 6.0, 30.0, 1.8))
-	cs.wait(1.0)
+	cs.shot(null, nade_cam_b, 1.6, {"fov": 30.0, "trans": Tween.TRANS_SINE, "ease": Tween.EASE_OUT})
+	cs.call_step(func() -> void:
+		for c: Node3D in [nade_cam_a, nade_cam_b]:
+			if c.get_parent() != null:
+				c.queue_free()
+			else:
+				c.free(), true)
 	cs._say(StoryData.LENA, "Jonas, lauf!", {"async": true, "dur": 1.4})
 	# 3) Flucht: Handkamera aus Kerners Kopf durch die Panzertür ins Lagezentrum
 	if pl != null:
@@ -1154,12 +1589,53 @@ func _riedhammer_finale() -> void:
 		"shake": 3.0, "trans": Tween.TRANS_EXPO, "ease": Tween.EASE_OUT, "async": true})
 	cs.wait(0.35)
 	cs.fade(1.0, 0.4)
-	cs.wait(2.2)
+	# Schwarzbild unter die Untertitel (StoryUi, Ebene 20) legen: die Zeilen im Dunkeln bleiben lesbar,
+	# statt ~18 s stummes Schwarz (nur hier, andere Cutscenes blenden weiter alles ab)
+	cs.call_step(func() -> void:
+		var fl := cs.get_node_or_null("CutsceneFade") as CanvasLayer
+		if fl != null:
+			fl.layer = 19, true)
+	cs.wait(1.2)
 	# 5) Im Dunkeln
 	cs._say(StoryData.LENA, "Jonas? Jonas, hörst du mich? Sag was!")
 	cs._say(StoryData.KERNER, "… Ich bin da. Riedhammer ist tot. Der Kontrollraum ist weg.")
 	cs._say(StoryData.LENA, "Komm nach oben, Jonas. Die Sonne geht auf.", {"hold": 0.8})
 	await cs.play(self)
+
+## Rechten Unterarm von Riedhammer beugen (rad, nur geriggtes Modell; die prozedurale Figur hat keinen Ellbogen).
+func _ried_elbow(a: float, t: float) -> void:
+	var root := _ried.get("root") as Node3D
+	var drv := root.get_node_or_null("VipRig") if root != null else null
+	if drv == null or not drv.has_method("_pose_extra"):
+		return
+	var tw := create_tween()
+	tw.tween_method(func(v: float) -> void: drv.call("_pose_extra", "lowerarm_r", v), 0.0, a, t)
+
+## Splittergranate (DM51-artig): ovaler Oliv-Koerper mit Rillen, Zuender, Sicherungsbuegel und Ring.
+## Lokal: +y = Zuender (zur Schulter), Mitte im Griffpunkt der Faust.
+static func _nade_model(nade: Node3D) -> void:
+	var olive := Geo.flat(Color(0.19, 0.23, 0.15), 0.55, 0.2)
+	var metal := Geo.flat(Color(0.52, 0.52, 0.5), 0.35, 0.85)
+	var body := MeshInstance3D.new()
+	body.mesh = VF.sphere(0.03, 0.075, 16)
+	body.material_override = olive
+	nade.add_child(body)
+	for y: float in [-0.018, 0.0, 0.018]:
+		var rib := Geo.cylinder_node(0.03 * sqrt(1.0 - pow(y / 0.0375, 2.0)) + 0.0012, 0.005, olive, Vector3(0, y, 0), Vector3.ZERO, 16)
+		nade.add_child(rib)
+	nade.add_child(Geo.cylinder_node(0.011, 0.024, metal, Vector3(0, 0.045, 0), Vector3.ZERO, 10))
+	nade.add_child(Geo.box_mesh_node(Vector3(0.012, 0.07, 0.004), metal, Vector3(0, 0.024, 0.031), Vector3(-6, 0, 0)))
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.009
+	tm.outer_radius = 0.012
+	ring.mesh = tm
+	ring.material_override = metal
+	ring.position = Vector3(0.016, 0.05, 0)
+	ring.rotation_degrees = Vector3(0, 0, 90)
+	nade.add_child(ring)
+	for c: Node in nade.get_children():
+		(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 ## Explosion im Kontrollraum (auch beim Überspringen ausgeführt).
 func _ried_detonate(ried: Node3D, nade: Node3D) -> void:
@@ -1235,6 +1711,7 @@ func _debug_start(phase: String) -> void:
 			_waves_spawned[4] = true
 			_falk_dead = true
 			_blast.position.x = -3.1
+			_door_beacon()
 			if pl != null:
 				pl.global_position = Vector3(0.0, YL + 0.1, -102.5 if phase == "control" else -106.0)
 				pl.set_view(0.0, 0.0)
@@ -1266,13 +1743,10 @@ func _process(delta: float) -> void:
 	for r: Array in _rot_lights:
 		(r[0] as Node3D).rotation.y = _t * float(r[1])
 	if _alarm_mat != null:
-		_alarm_mat.albedo_color = Color(3.0, 0.15, 0.05) if fmod(_t, 0.9) < 0.45 else Color(0.4, 0.03, 0.01)
-	if not _weber.is_empty():
-		var w := _weber["root"] as Node3D
-		if bool(w.get_meta("walk", false)):
-			var legs: Array = _weber["legs"]
-			for i in legs.size():
-				(legs[i] as Node3D).rotation.x = sin(_t * 11.0 + float(i) * PI) * 0.55
+		_alarm_mat.albedo_color = Color(1.8, 0.15, 0.05) if fmod(_t, 0.9) < 0.45 else Color(0.4, 0.03, 0.01)
+	if _armed_lamp != null:
+		_armed_lamp.emission_energy_multiplier = 1.8 if fmod(_t, 0.9) < 0.45 else 0.08
+	# Webers Beine: Geh-Zyklus kommt aus dem VIP-Treiber (game/characters/vip_rig.gd, folgt dem Tween-Tempo)
 	if _deciding:
 		_decide_t += delta
 		var auto: bool = _bot or str(Game.arg("bk-autochoose", "")) not in ["", "false", "0"]
@@ -1304,3 +1778,316 @@ func _physics_process(_delta: float) -> void:
 	ext["grenade"] = false
 	ext["interact"] = false
 	pl.look_at_point(_cine_look)
+
+## Ausstattung Kontrollraum (Zuendraum): Kabeltrassen, Schaltschraenke, Spinde, Rohre, Schilder.
+## Freizuhalten: Eingang x +-2 / z > -106, Notausgang Ost x > 7 / z -108.5..-111.5, Kamerazone Mitte.
+func _build_control_dressing() -> void:
+	var IM := "res://assets/environment/interior/models/"
+	var wx := 7.85   # Innenflaeche der Seitenwaende
+	# --- Deckentrassen (verzinktes Blech, Kabelbuendel), an Gewindestangen abgehaengt
+	for x: float in [-2.4, 2.4]:
+		_bx("galv", Vector3(x - 0.2, 0.3, -115.7), Vector3(x + 0.2, 0.32, -104.4), false)
+		for s: float in [-1.0, 1.0]:
+			_bx("galv", Vector3(x + s * 0.2 - 0.01, 0.32, -115.7), Vector3(x + s * 0.2 + 0.01, 0.39, -104.4), false)
+		for k in 4:
+			_bx("cable", Vector3(x - 0.16 + float(k) * 0.085, 0.32, -115.7), Vector3(x - 0.1 + float(k) * 0.085, 0.37 - float(k % 2) * 0.015, -104.4), false)
+		for z: float in [-105.0, -108.0, -111.0, -114.0, -115.5]:
+			_bx("steel_dark", Vector3(x - 0.24, 0.29, z - 0.02), Vector3(x + 0.24, 0.3, z + 0.02), false)
+			_bx("steel_dark", Vector3(x - 0.012, 0.3, z - 0.012), Vector3(x + 0.012, 0.5, z + 0.012), false)
+	# Wandtrassen oben an beiden Seitenwaenden und an der Rueckwand
+	for s: float in [-1.0, 1.0]:
+		var xi := s * wx
+		_bx("galv", Vector3(xi, 0.08, -115.85), Vector3(xi - s * 0.35, 0.1, -104.15), false)
+		_bx("galv", Vector3(xi - s * 0.34, 0.1, -115.85), Vector3(xi - s * 0.36, 0.17, -104.15), false)
+		for k in 3:
+			_bx("cable", Vector3(xi - s * (0.05 + float(k) * 0.1), 0.1, -115.85), Vector3(xi - s * (0.12 + float(k) * 0.1), 0.16, -104.15), false)
+	_bx("galv", Vector3(-7.85, 0.2, -115.85), Vector3(7.85, 0.22, -115.5), false)
+	for k in 3:
+		_bx("cable", Vector3(-7.85, 0.22, -115.82 + float(k) * 0.1), Vector3(7.85, 0.27, -115.76 + float(k) * 0.1), false)
+	# --- Rohre an der Rueckwand ueber den Bildschirmen: Loeschwasser (rot) + Lueftung/Druckluft (grau)
+	_pipe("pipe_red", Vector3(-7.85, -0.42, -115.7), Vector3(7.85, -0.42, -115.7), 0.065)
+	_pipe("steel_dark", Vector3(-7.85, -0.18, -115.72), Vector3(7.85, -0.18, -115.72), 0.045)
+	for x: float in [-7.0, -5.0, -3.0, -1.0, 1.0, 3.0, 5.0, 7.0]:
+		_bx("steel_dark", Vector3(x - 0.03, -0.52, -115.85), Vector3(x + 0.03, -0.1, -115.6), false)   # Rohrschellen
+	for x: float in [-5.0, 1.0, 5.0]:   # Kabelschutzrohre von der Trasse in die Konsolen (zwischen den Monitoren)
+		_pipe("galv", Vector3(x, 0.2, -115.78), Vector3(x, YL + 1.0, -115.78), 0.025)
+	# Absperrschieber am Loeschwasserrohr
+	_pipe("pipe_red", Vector3(-6.0, -0.42, -115.5), Vector3(-6.0, -0.2, -115.5), 0.03)
+	_bd.cyl("pipe_red", Vector3(-6.0, -0.18, -115.5), 0.11, 0.11, 0.02, 14)
+	# --- Schaltschrankreihe an der Westwand (hellgrau lackiert), Front zeigt nach +x
+	var names := ["UV 1  NOTSTROM", "UV 2  LUEFTUNG", "ZUENDKREIS  A-C"]
+	for i in 3:
+		var z0 := -115.6 + float(i) * 1.08
+		var z1 := z0 + 1.0
+		var fx := -7.2
+		_bx("cab_grey", Vector3(-7.85, YL, z0), Vector3(fx, YL + 2.1, z1))
+		_bx("steel_dark", Vector3(-7.85, YL, z0), Vector3(fx + 0.01, YL + 0.1, z1), false)   # Sockel
+		_bx("steel_dark", Vector3(fx, YL + 0.12, (z0 + z1) * 0.5 - 0.004), Vector3(fx + 0.008, YL + 2.0, (z0 + z1) * 0.5 + 0.004), false)   # Tuerfuge
+		for zh: float in [z0 + 0.42, z1 - 0.42]:   # Schwenkgriffe
+			_bx("steel_dark", Vector3(fx, YL + 1.0, zh - 0.02), Vector3(fx + 0.04, YL + 1.22, zh + 0.02), false)
+		for k in 5:   # Lueftungsschlitze unten
+			_bx("black", Vector3(fx, YL + 0.25 + float(k) * 0.05, z0 + 0.15), Vector3(fx + 0.004, YL + 0.27 + float(k) * 0.05, z1 - 0.15), false)
+		_bx("sign_white", Vector3(fx, YL + 1.72, z0 + 0.12), Vector3(fx + 0.006, YL + 1.86, z1 - 0.12), false)
+		_label(names[i], Vector3(fx + 0.012, YL + 1.79, (z0 + z1) * 0.5), 90.0, 20, Color(0.08, 0.08, 0.08), 0.003)
+		_bx("hazard", Vector3(fx, YL + 1.42, (z0 + z1) * 0.5 - 0.09), Vector3(fx + 0.006, YL + 1.6, (z0 + z1) * 0.5 + 0.09), false)
+		_label("!", Vector3(fx + 0.012, YL + 1.5, (z0 + z1) * 0.5), 90.0, 40, Color(0.05, 0.05, 0.05), 0.003)
+		for k in 3:   # Meldeleuchten gruen / bernstein / rot
+			var lc: Color = [Color(0.35, 1.0, 0.45), Color(1.0, 0.62, 0.18), Color(1.0, 0.2, 0.12)][k]
+			var lp := Vector3(fx + 0.004, YL + 1.98, z0 + 0.3 + float(k) * 0.2)
+			_pilot_lamp_wall(lp, lc, k != 2 or i == 2)
+		_pipe("galv", Vector3(-7.6, YL + 2.1, (z0 + z1) * 0.5), Vector3(-7.6, 0.08, (z0 + z1) * 0.5), 0.04)   # Kabeleinfuehrung zur Trasse
+	_label("HOCHSPANNUNG  -  LEBENSGEFAHR", Vector3(-7.83, YL + 2.45, -114.0), 90.0, 24, Color(0.9, 0.2, 0.12), 0.004)
+	_bx("hazard", Vector3(-7.0, YL, -115.6), Vector3(-6.94, YL + 0.006, -112.4), false)   # Sicherheitsabstand am Boden
+	# Feuerloescher + Schild zwischen Schaltschraenken und Aktenschrank
+	FK.place(_body, IM + "fire_extinguisher_de", Vector3(-7.62, YL, -111.2), Vector3.ZERO, 90.0, {"scale": 1.0, "stretch": 1.0, "shadows": false})
+	_bx("pin_red", Vector3(-7.85, YL + 1.05, -111.38), Vector3(-7.84, YL + 1.33, -111.02), false)
+	_label("F", Vector3(-7.835, YL + 1.19, -111.2), 90.0, 36, Color(0.95, 0.95, 0.9), 0.004)
+	FK.place(_body, IM + "metal_toolbox", Vector3(-6.85, YL + 0.05, -112.05), Vector3.ZERO, 75.0, {"scale": 1.0, "stretch": 1.0, "shadows": false})
+	# --- Spinde an der Ostwand (gruen), suedlich vom Notausgang
+	for i in 4:
+		var z0 := -115.6 + float(i) * 0.8
+		var z1 := z0 + 0.78
+		var fx := wx - 0.55
+		_bx("paint_green", Vector3(fx, YL, z0), Vector3(wx, YL + 1.9, z1))
+		_bx("steel_dark", Vector3(fx - 0.04, YL + 1.0, z0 + 0.12), Vector3(fx, YL + 1.12, z0 + 0.15), false)   # Griff
+		for k in 4:
+			_bx("black", Vector3(fx - 0.004, YL + 1.5 + float(k) * 0.05, z0 + 0.22), Vector3(fx, YL + 1.52 + float(k) * 0.05, z1 - 0.22), false)
+			_bx("black", Vector3(fx - 0.004, YL + 0.2 + float(k) * 0.05, z0 + 0.22), Vector3(fx, YL + 0.22 + float(k) * 0.05, z1 - 0.22), false)
+		_bx("sign_white", Vector3(fx - 0.005, YL + 1.75, z1 - 0.32), Vector3(fx, YL + 1.83, z1 - 0.2), false)
+		_label(str(11 + i), Vector3(fx - 0.008, YL + 1.79, z1 - 0.26), -90.0, 18, Color(0.08, 0.08, 0.08), 0.003)
+	_bx("wood", Vector3(wx - 0.5, YL + 1.9, -115.5), Vector3(wx - 0.05, YL + 2.15, -114.9), false)   # Kiste auf dem Spind
+	# Stahlregal + Feuerloescher noerdlich vom Notausgang (nur flach an der Wand)
+	FK.place(_body, IM + "steel_frame_shelves_01", Vector3(wx - 0.26, YL, -105.2), Vector3.ZERO, -90.0, {"scale": 0.1, "stretch": 1.0, "shadows": false})
+	_col(Vector3(wx - 0.52, YL, -105.78), Vector3(wx, YL + 2.14, -104.62))
+	# Regalinhalt: Munitions-/Werkzeugkisten, Werkzeugkasten, Aktenstapel
+	_bx("wood", Vector3(wx - 0.48, YL + 0.29, -105.6), Vector3(wx - 0.06, YL + 0.6, -105.0), false)
+	FK.place(_body, IM + "metal_toolbox", Vector3(wx - 0.26, YL + 0.8, -105.35), Vector3.ZERO, -90.0, {"scale": 1.0, "stretch": 1.0, "shadows": false})
+	_bx("paint_green", Vector3(wx - 0.45, YL + 0.77, -104.95), Vector3(wx - 0.1, YL + 0.98, -104.7), false)
+	for k in 3:
+		_bx("paper", Vector3(wx - 0.4, YL + 1.17 + float(k) * 0.035, -105.6 + float(k) * 0.02), Vector3(wx - 0.12, YL + 1.2 + float(k) * 0.035, -105.25 + float(k) * 0.02), false)
+	_bx("steel_dark", Vector3(wx - 0.46, YL + 1.17, -105.1), Vector3(wx - 0.08, YL + 1.4, -104.75), false)
+	_bx("wood", Vector3(wx - 0.46, YL + 1.64, -105.55), Vector3(wx - 0.08, YL + 1.9, -104.95), false)
+	FK.place(_body, IM + "fire_extinguisher_de", Vector3(wx - 0.24, YL, -107.1), Vector3.ZERO, -90.0, {"scale": 1.0, "stretch": 1.0, "shadows": false})
+	_bx("pin_red", Vector3(wx - 0.01, YL + 1.05, -107.28), Vector3(wx, YL + 1.33, -106.92), false)
+	_label("F", Vector3(wx - 0.015, YL + 1.19, -107.1), -90.0, 36, Color(0.95, 0.95, 0.9), 0.004)
+	# Notbeleuchtung: Gitterleuchten an beiden Seitenwaenden, schwach bernstein
+	for sp: Array in [[Vector3(-7.85, -0.62, -108.0), 90.0, -1.0], [Vector3(wx, -0.75, -113.6), -90.0, 1.0]]:
+		FK.place(_body, IM + "industrial_caged_sconce", sp[0], Vector3.ZERO, sp[1], {"scale": 1.0, "stretch": 1.0, "shadows": false})
+		_omni((sp[0] as Vector3) + Vector3(-float(sp[2]) * 0.35, 0.05, 0), Color(1.0, 0.72, 0.4), 0.35, 3.5, 0.6)
+	# --- Schilder an der Nordwand (Raumseite) beiderseits der Panzertuer
+	_bx("pin_red", Vector3(-4.9, YL + 1.75, -104.16), Vector3(-3.1, YL + 2.15, -104.15), false)
+	_label("ZUTRITT NUR FUER BEFUGTE", Vector3(-4.0, YL + 1.95, -104.17), 180.0, 22, Color(0.95, 0.94, 0.9), 0.004)
+	_bx("sign_white", Vector3(3.2, YL + 1.75, -104.16), Vector3(4.8, YL + 2.15, -104.15), false)
+	_label("RAUCHEN UND OFFENES\nFEUER VERBOTEN", Vector3(4.0, YL + 1.95, -104.17), 180.0, 18, Color(0.7, 0.08, 0.05), 0.004)
+	FK.place(_body, IM + "fire_alarm", Vector3(-2.3, YL + 1.35, -104.15), Vector3.ZERO, 180.0, {"scale": 1.0, "stretch": 1.0, "shadows": false})
+
+## Gestrichener Sockelanstrich (1.5 m) mit dunkler Abschlusslinie vor einer Wandinnenflaeche (nur Optik).
+## along_x: Wand verlaeuft entlang x bei z = at; sonst entlang z bei x = at. skip: [[von, bis], ...] (Tueren).
+func _dado(along_x: bool, at: float, a0: float, a1: float, skip: Array = [], y0: float = YL, h: float = 1.5) -> void:
+	var segs: Array = []
+	var cur := a0
+	for s: Array in skip:
+		if float(s[0]) > cur:
+			segs.append([cur, float(s[0])])
+		cur = maxf(cur, float(s[1]))
+	if cur < a1:
+		segs.append([cur, a1])
+	for s: Array in segs:
+		var ln: float = float(s[1]) - float(s[0])
+		var mid: float = (float(s[0]) + float(s[1])) * 0.5
+		if along_x:
+			_bd.box("bk_dado", Vector3(mid, y0 + h * 0.5, at), Vector3(ln, h, 0.03))
+			_bd.box("dado_line", Vector3(mid, y0 + h + 0.025, at), Vector3(ln, 0.05, 0.045))
+		else:
+			_bd.box("bk_dado", Vector3(at, y0 + h * 0.5, mid), Vector3(0.03, h, ln))
+			_bd.box("dado_line", Vector3(at, y0 + h + 0.025, mid), Vector3(0.045, 0.05, ln))
+
+## Stahlbetonsaeule im Lagezentrum (Optik; Kollision setzt der Aufrufer): Schalungsbeton, Voute unter
+## der Decke, Sockelanstrich, gelb-schwarzer Anfahrschutz, verzinkte Kantenschutzwinkel, Nummernschild.
+func _column_dressing(p: Vector3, idx: int) -> void:
+	var h := 2.0 - YL
+	_bd.box("bk_wall", Vector3(p.x, YL + h * 0.5, p.z), Vector3(1.0, h, 1.0))
+	_bd.box("bk_wall", Vector3(p.x, 1.84, p.z), Vector3(1.24, 0.32, 1.24))        # Voute
+	_bd.box("bk_wall", Vector3(p.x, 1.62, p.z), Vector3(1.1, 0.12, 1.1))
+	_bd.box("bk_dado_col", Vector3(p.x, YL + 0.75, p.z), Vector3(1.03, 1.5, 1.03))
+	_bd.box("dado_line_col", Vector3(p.x, YL + 1.525, p.z), Vector3(1.045, 0.05, 1.045))
+	_bd.box("hazard", Vector3(p.x, YL + 0.15, p.z), Vector3(1.05, 0.3, 1.05))
+	for k in 4:   # schwarze Schraegstreifen auf dem Anfahrschutz
+		var bs := Basis(Vector3(0, 0, 1), deg_to_rad(45.0))
+		for sz: float in [-1.0, 1.0]:
+			_bd.box("black", Vector3(p.x - 0.36 + float(k) * 0.24, YL + 0.15, p.z + sz * 0.527), Vector3(0.07, 0.36, 0.004), bs)
+		var bx := Basis(Vector3(1, 0, 0), deg_to_rad(45.0))
+		for sx: float in [-1.0, 1.0]:
+			_bd.box("black", Vector3(p.x + sx * 0.527, YL + 0.15, p.z - 0.36 + float(k) * 0.24), Vector3(0.004, 0.36, 0.07), bx)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			_bd.box("galv", Vector3(p.x + sx * 0.52, YL + 1.2, p.z + sz * 0.47), Vector3(0.012, 1.8, 0.11))
+			_bd.box("galv", Vector3(p.x + sx * 0.47, YL + 1.2, p.z + sz * 0.52), Vector3(0.11, 1.8, 0.012))
+	# Nummernschild zur Raummitte, Schalterdose mit Leerrohr zur Decke an der Nordseite
+	var fs := -signf(p.x)
+	_bd.box("sign_white", Vector3(p.x + fs * 0.525, -0.55, p.z), Vector3(0.01, 0.34, 0.46))
+	_label("S %d" % idx, Vector3(p.x + fs * 0.535, -0.55, p.z), 90.0 * fs, 64, Color(0.08, 0.08, 0.08), 0.004)
+	_bd.box("cab_grey", Vector3(p.x + 0.2, YL + 1.75, p.z + 0.54), Vector3(0.12, 0.16, 0.07))
+	_bd.box("galv", Vector3(p.x + 0.2, 0.25, p.z + 0.535), Vector3(0.035, 3.3, 0.035))
+
+func _build_situation_dressing() -> void:
+	var IM := "res://assets/environment/interior/models/"
+	# Gruener Sockelanstrich an allen vier Waenden (Tueren ausgespart)
+	_dado(true, -80.165, -13.85, 13.85, [[-1.5, 1.5]])
+	_dado(true, -103.835, -13.85, 13.85, [[-1.5, 1.5]])
+	_dado(false, -13.835, -103.85, -80.15)
+	_dado(false, 13.835, -103.85, -80.15)
+	# Wandtrassen oben an beiden Seitenwaenden (verzinktes Blech, Kabelbuendel, Konsolen)
+	for s: float in [-1.0, 1.0]:
+		var xi := s * 13.85
+		_bd.box("galv", Vector3(xi - s * 0.2, 1.6, -92.0), Vector3(0.4, 0.02, 23.7))
+		_bd.box("galv", Vector3(xi - s * 0.4, 1.645, -92.0), Vector3(0.02, 0.09, 23.7))
+		for k in 3:
+			_bd.box("cable", Vector3(xi - s * (0.08 + float(k) * 0.1), 1.635 - float(k % 2) * 0.008, -92.0), Vector3(0.075, 0.05, 23.7))
+		for z: float in [-81.0, -84.5, -88.0, -91.5, -95.0, -98.5, -102.0, -103.5]:
+			_bd.box("steel_dark", Vector3(xi - s * 0.21, 1.58, z), Vector3(0.42, 0.03, 0.04))
+		# Kabelschutzrohre von der Trasse hinab in die Konsolen
+		for z: float in [-84.0, -88.0, -96.0, -100.0]:
+			_bd.box("galv", Vector3(xi - s * 0.08, (1.58 + YL + 1.1) * 0.5, z + 0.75), Vector3(0.04, 1.58 - YL - 1.1, 0.04))
+	# Deckentrassen ueber den Gaengen, an Gewindestangen abgehaengt
+	for x: float in [-2.6, 2.6]:
+		_bd.box("galv", Vector3(x, 1.7, -92.0), Vector3(0.45, 0.02, 23.6))
+		for sd: float in [-1.0, 1.0]:
+			_bd.box("galv", Vector3(x + sd * 0.225, 1.74, -92.0), Vector3(0.02, 0.08, 23.6))
+		for k in 4:
+			_bd.box("cable", Vector3(x - 0.15 + float(k) * 0.1, 1.735 - float(k % 2) * 0.008, -92.0), Vector3(0.075, 0.05, 23.6))
+		for z: float in [-81.0, -84.0, -87.0, -90.0, -93.0, -96.0, -99.0, -102.0]:
+			_bd.box("steel_dark", Vector3(x, 1.685, z), Vector3(0.5, 0.025, 0.04))
+			for sd: float in [-1.0, 1.0]:
+				_bd.box("steel_dark", Vector3(x + sd * 0.24, 1.84, z), Vector3(0.014, 0.32, 0.014))
+	# Lueftungskanal (verzinkt) entlang der Westwand mit Flanschen und Zuluftgittern
+	var dx := -12.75
+	_bd.box("duct", Vector3(dx, 1.72, -92.0), Vector3(0.7, 0.44, 23.6))
+	for i in 16:
+		_bd.box("galv", Vector3(dx, 1.72, -80.9 - float(i) * 1.5), Vector3(0.76, 0.5, 0.05))
+	for z: float in [-84.0, -90.0, -96.0, -102.0]:
+		_bd.box("black", Vector3(dx + 0.355, 1.7, z), Vector3(0.01, 0.26, 0.62))
+		for k in 6:
+			_bd.box("galv", Vector3(dx + 0.365, 1.6 + float(k) * 0.04, z), Vector3(0.01, 0.012, 0.6))
+	for z: float in [-82.0, -86.5, -91.0, -95.5, -100.0]:   # Abhaengung
+		_bd.box("steel_dark", Vector3(dx, 1.49, z), Vector3(0.8, 0.03, 0.05))
+		for sd: float in [-1.0, 1.0]:
+			_bd.box("steel_dark", Vector3(dx + sd * 0.39, 1.75, z), Vector3(0.014, 0.52, 0.014))
+	_label("ZULUFT  L 3", Vector3(dx + 0.37, 1.84, -93.0), 90.0, 26, Color(0.12, 0.12, 0.12), 0.004)
+	# Loeschwasser- und Kuehlwasserleitung an der Ostwand
+	_pipe("pipe_red", Vector3(13.68, 1.36, -80.2), Vector3(13.68, 1.36, -103.8), 0.065)
+	_pipe("pipe_blue", Vector3(13.7, 1.18, -80.2), Vector3(13.7, 1.18, -103.8), 0.045)
+	for z: float in [-82.0, -85.0, -88.0, -91.0, -94.0, -97.0, -100.0, -103.0]:
+		_bd.box("steel_dark", Vector3(13.73, 1.27, z), Vector3(0.24, 0.3, 0.05))
+	_bd.box("pipe_blue", Vector3(13.6, 1.18, -92.0), Vector3(0.08, 0.08, 0.06))
+	_label("KUEHLWASSER  >", Vector3(13.6, 1.05, -89.0), -90.0, 18, Color(0.85, 0.85, 0.82), 0.004)
+	_label("LOESCHWASSER  >", Vector3(13.6, 1.5, -89.0), -90.0, 18, Color(0.85, 0.85, 0.82), 0.004)
+	# Pendelleuchten ueber dem Kartentisch (Emailschirme an Kabeln)
+	for x: float in [-1.5, 1.5]:
+		_bd.cyl("steel_dark", Vector3(x, 1.08, -92.0), 0.08, 0.3, 0.22, 18)
+		_bd.cyl("lamp_on", Vector3(x, 0.965, -92.0), 0.27, 0.27, 0.01, 18)
+		_bd.box("cable", Vector3(x, 1.59, -92.0), Vector3(0.012, 0.8, 0.012))
+		_omni(Vector3(x, 0.55, -92.0), Color(1.0, 0.88, 0.72), 0.55, 5.0, 0.15)
+	# Beschilderung: Raumkennung und Belegung (Westwand), Ebene (Nordwand), Rauchverbot (Ostwand)
+	_bd.box("sign_white", Vector3(-13.83, 0.25, -92.0), Vector3(0.01, 0.5, 1.6))
+	_label("SCHUTZRAUM  LAGEZENTRUM\nBELEGUNG MAX. 40 PERSONEN", Vector3(-13.82, 0.25, -92.0), 90.0, 22, Color(0.08, 0.08, 0.08), 0.004)
+	_label("EBENE  -2", Vector3(-7.5, 0.6, -80.18), 180.0, 120, Color(0.78, 0.76, 0.68, 0.85), 0.006)
+	_label("EBENE  -2", Vector3(7.5, 0.6, -80.18), 180.0, 120, Color(0.78, 0.76, 0.68, 0.85), 0.006)
+	_bd.box("sign_white", Vector3(13.83, 0.3, -92.0), Vector3(0.01, 0.4, 1.3))
+	_label("RAUCHEN VERBOTEN", Vector3(13.82, 0.3, -92.0), -90.0, 24, Color(0.7, 0.08, 0.05), 0.004)
+	# Feuerloescher an der Suedwand neben der Panzertuer
+	FK.place(_body, IM + "fire_extinguisher_de", Vector3(-2.4, YL, -103.62), Vector3.ZERO, 0.0, {"scale": 1.0, "stretch": 1.0, "shadows": false})
+	_bx("pin_red", Vector3(-2.58, YL + 1.05, -103.85), Vector3(-2.22, YL + 1.33, -103.84), false)
+	_label("F", Vector3(-2.4, YL + 1.19, -103.83), 0.0, 36, Color(0.95, 0.95, 0.9), 0.004)
+
+func _build_tech_dressing() -> void:
+	# Sockelanstrich (Tueren ausgespart)
+	_dado(true, -4.165, -12.85, 12.85, [[-3.15, 3.15]], 0.0)
+	_dado(true, -33.835, -12.85, 12.85, [[-2.0, 2.0]], 0.0)
+	_dado(false, -12.835, -33.85, -4.15, [], 0.0)
+	_dado(false, 12.835, -33.85, -4.15, [], 0.0)
+	# Rechteckiger Zuluftkanal unter der Decke (liegt auf den Quertraegern) mit Flanschen
+	_bd.box("duct", Vector3(-1.0, 6.5, -19.0), Vector3(0.8, 0.6, 29.6))
+	for i in 20:
+		_bd.box("galv", Vector3(-1.0, 6.5, -4.9 - float(i) * 1.5), Vector3(0.86, 0.66, 0.05))
+	for z: float in [-10.0, -20.0, -30.0]:
+		_bd.box("black", Vector3(-1.0, 6.19, z), Vector3(0.5, 0.01, 0.7))
+		for k in 7:
+			_bd.box("galv", Vector3(-1.0, 6.18, z - 0.3 + float(k) * 0.1), Vector3(0.48, 0.012, 0.012))
+	_label("ZULUFT  TECHNIK", Vector3(-0.59, 6.55, -16.0), 90.0, 30, Color(0.12, 0.12, 0.12), 0.005)
+	# Wickelfalzrohr (Abluft) an der Ostwand ueber dem Laufsteg
+	_bd.cyl("duct", Vector3(12.35, 5.25, -19.0), 0.3, 0.3, 29.6, 18, Basis(Vector3(1, 0, 0), PI * 0.5))
+	for i in 10:
+		_bd.cyl("galv", Vector3(12.35, 5.25, -5.5 - float(i) * 3.0), 0.32, 0.32, 0.06, 18, Basis(Vector3(1, 0, 0), PI * 0.5))
+		_bd.box("steel_dark", Vector3(12.7, 5.25, -5.5 - float(i) * 3.0), Vector3(0.3, 0.05, 0.05))
+	# Kabeltrasse an der Westwand ueber den Schaltschraenken, Steigrohre aus den Schraenken
+	_bd.box("galv", Vector3(-12.65, 3.2, -19.0), Vector3(0.4, 0.02, 29.6))
+	_bd.box("galv", Vector3(-12.45, 3.245, -19.0), Vector3(0.02, 0.09, 29.6))
+	for k in 3:
+		_bd.box("cable", Vector3(-12.77 + float(k) * 0.1, 3.235, -19.0), Vector3(0.075, 0.05, 29.6))
+	for z: float in [-8.0, -19.0, -30.0]:
+		for dz: float in [-0.6, 0.0, 0.6]:
+			_bd.box("galv", Vector3(-12.55, 2.7, z + dz), Vector3(0.05, 1.0, 0.05))
+	# Leitungen an der Nordwand: Kraftstoff (gelb) und Kuehlwasser (blau) zu den Generatoren
+	_pipe("pipe_yellow", Vector3(-12.8, 4.05, -4.3), Vector3(12.8, 4.05, -4.3), 0.06)
+	_pipe("pipe_blue", Vector3(-12.8, 3.8, -4.3), Vector3(12.8, 3.8, -4.3), 0.06)
+	for x: float in [-11.0, -8.0, -5.0, -2.0, 2.0, 5.0, 8.0, 11.0]:
+		_bd.box("steel_dark", Vector3(x, 3.93, -4.25), Vector3(0.05, 0.36, 0.2))
+	_label("DIESEL  >", Vector3(-6.5, 4.2, -4.37), 180.0, 22, Color(0.85, 0.82, 0.7), 0.004)
+	# Warn- und Gebotsschilder
+	_bd.box("pipe_blue", Vector3(-7.0, 2.0, -4.17), Vector3(1.2, 0.5, 0.01))
+	_label("GEHOERSCHUTZ\nBENUTZEN", Vector3(-7.0, 2.0, -4.18), 180.0, 22, Color(0.95, 0.95, 0.95), 0.004)
+	_bd.box("hazard", Vector3(7.0, 2.0, -4.17), Vector3(1.3, 0.5, 0.01))
+	_label("VORSICHT\nHOCHSPANNUNG", Vector3(7.0, 2.0, -4.18), 180.0, 22, Color(0.05, 0.05, 0.05), 0.004)
+	_bd.box("sign_white", Vector3(-12.83, 2.6, -13.5), Vector3(0.01, 0.4, 1.4))
+	_label("NOTSTROMZENTRALE", Vector3(-12.82, 2.6, -13.5), 90.0, 24, Color(0.08, 0.08, 0.08), 0.004)
+	FK.place(_body, "res://assets/environment/interior/models/fire_extinguisher_de", Vector3(4.2, 0.0, -4.38), Vector3.ZERO, 180.0, {"scale": 1.0, "stretch": 1.0, "shadows": false})
+	_bx("pin_red", Vector3(4.02, 1.05, -4.16), Vector3(4.38, 1.33, -4.15), false)
+	_label("F", Vector3(4.2, 1.19, -4.17), 180.0, 36, Color(0.95, 0.95, 0.9), 0.004)
+
+## Notbeleuchtung in der Versorgungsroehre und im Notausgang: kleine Sicherheitsleuchten an der Wand.
+func _build_emergency_lights() -> void:
+	for z: float in [9.0, 15.0, 21.0, 27.0, 33.0]:
+		_bd.box("steel_dark", Vector3(1.86, 1.7, z), Vector3(0.08, 0.16, 0.38))
+		_bd.box("emerg_white", Vector3(1.815, 1.7, z), Vector3(0.015, 0.09, 0.3))
+		_omni(Vector3(1.3, 1.75, z), Color(1.0, 0.9, 0.74), 0.55, 6.5, 0.3)
+	# Notausgang Spree: Leuchte unter der Decke, Fluchtwegschild ueber der Tuer
+	_bd.box("steel_dark", Vector3(10.0, YL + 2.28, -110.0), Vector3(0.38, 0.05, 0.16))
+	_bd.box("emerg_white", Vector3(10.0, YL + 2.25, -110.0), Vector3(0.3, 0.012, 0.09))
+	_omni(Vector3(10.0, YL + 1.9, -110.0), Color(1.0, 0.92, 0.78), 0.7, 5.0, 0.3)
+	_exit_sign(Vector3(11.9, YL + 2.12, -110.0), -90.0)
+
+## Rohr als gedrehter Zylinder von a nach b (nur Optik).
+func _pipe(key: String, a: Vector3, b: Vector3, r: float) -> void:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = r
+	cm.bottom_radius = r
+	cm.height = a.distance_to(b)
+	cm.radial_segments = 12
+	cm.rings = 1
+	mi.mesh = cm
+	mi.material_override = mats[key]
+	var y := (b - a).normalized()
+	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
+	mi.transform = Transform3D(Basis(x, y, x.cross(y)), (a + b) * 0.5)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+## Meldeleuchte an senkrechter Schrankfront (+x).
+func _pilot_lamp_wall(pos: Vector3, col: Color, on: bool) -> void:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col.darkened(0.55)
+	m.roughness = 0.15
+	m.emission_enabled = on
+	m.emission = col
+	m.emission_energy_multiplier = 1.6
+	var cap := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.018
+	sm.height = 0.022
+	cap.mesh = sm
+	cap.material_override = m
+	cap.position = pos
+	cap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(cap)

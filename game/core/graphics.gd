@@ -117,6 +117,9 @@ func _ready() -> void:
 				push_warning("[graphics] unbekanntes Preset '%s'" % pre)
 		_apply_cli_overrides()
 		apply_all()
+	if Game.arg("bg", false) and not _headless():
+		_apply_bg_window.call_deferred()
+		get_tree().create_timer(1.0, true).timeout.connect(_apply_bg_window)
 	_bench_secs = float(Game.arg("gfx-bench", 0.0))
 	if _bench_secs > 0.0:
 		_bench_warmup = float(Game.arg("gfx-warmup", 6.0))
@@ -1017,6 +1020,10 @@ func _headless() -> bool:
 func _apply_window() -> void:
 	if _headless():
 		return
+	if Game.arg("bg", false):
+		_apply_bg_window()
+		_apply_viewport()
+		return
 	var cur := DisplayServer.window_get_mode()
 	match _vs("window_mode"):
 		"randlos":
@@ -1036,6 +1043,18 @@ func _apply_window() -> void:
 				DisplayServer.window_set_size(wh)
 				DisplayServer.window_set_position(usable.position + (usable.size - wh) / 2)
 	_apply_viewport()
+
+
+## --bg: Test-/Autopilot-Laeufe klein, ohne Fokus, unten rechts in der Ecke (Nutzer arbeitet nebenher).
+func _apply_bg_window() -> void:
+	var wh := Vector2i(480, 270)
+	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
+	DisplayServer.window_set_size(wh)
+	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
+	DisplayServer.window_set_position(usable.position + usable.size - wh - Vector2i(8, 40))
+	print("[graphics] --bg: Fenster %s @ %s" % [DisplayServer.window_get_size(), DisplayServer.window_get_position()])
 
 
 func _apply_vsync() -> void:

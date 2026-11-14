@@ -15,6 +15,7 @@ const VF := preload("res://game/vehicles/vehicle_fx.gd")
 const Model := preload("res://game/vehicles/ifv/ifv_model.gd")
 const HudScript := preload("res://game/vehicles/ifv/ifv_hud.gd")
 const BotScript := preload("res://game/vehicles/ifv/ifv_bot.gd")
+const VfxLib := preload("res://game/vfx/vfx_lib.gd")
 
 const ZOOMS: Array[float] = [60.0, 26.0, 10.0]
 const YAW_RATE := 1.9            ## rad/s Turmschwenk
@@ -134,8 +135,8 @@ func _ready() -> void:
 	_tracks = VF.loop_player(self, "veh_tank_tracks", 10.0, 200.0, -40.0)
 	_turret_snd = VF.loop_player(self, "veh_tank_turret", 6.0, 60.0, -60.0)
 	_build_exhaust()
-	bot_active = bool(Game.arg("autopilot", false))
-	if not bot_active and not bool(Game.arg("capture", false)):
+	bot_active = str(Game.arg("autopilot", "")) not in ["", "false", "0"]
+	if not bot_active and str(Game.arg("capture", "")) in ["", "false", "0"]:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud = HudScript.new()
 	hud.name = "IfvHud"
@@ -412,6 +413,8 @@ func _aim(delta: float) -> void:
 	(parts["turret"] as Node3D).rotation.y = wrapf(tur_yaw - hull_yaw, -PI, PI)
 	(parts["mantlet"] as Node3D).rotation.x = tur_pitch
 	(parts["cam_pivot"] as Node3D).rotation.x = tur_pitch
+	if parts.get("mg_mount") != null:
+		(parts["mg_mount"] as Node3D).rotation.x = tur_pitch
 	if _turret_snd:
 		var sw := absf(clampf(dy, -step, step)) / maxf(step, 0.0001)
 		_turret_snd.volume_db = lerpf(-60.0, -14.0, clampf(sw * 1.5, 0.0, 1.0))
@@ -547,7 +550,13 @@ func _fire_mg() -> void:
 		armor = target.call("get_enemy") as Node
 	if armor != null and armor.has_method("set_shot_dir"):
 		armor.call("set_shot_dir", r["dir"])
+	# Blut mit Schussrichtung (vor dem Schaden pruefen: Tote verlassen die Gruppe "enemy"; fasst sich mit
+	# der Meldung des Gegners zusammen; Panzerung blockt)
+	var blood_src: Node = armor if armor != null else target
+	var bleeds := (target.is_in_group("enemy") or blood_src.is_in_group("enemy")) and VFX.is_bleeder(blood_src)
 	target.call("take_damage", MG_DAMAGE, self, pos, nrm)
+	if bleeds and not (blood_src.has_method("armor_blocks_blood") and bool(blood_src.call("armor_blocks_blood"))):
+		VFX.spawn_blood(pos, nrm, r["dir"], 1.3)
 	if not target.is_in_group("enemy"):
 		VFX.spawn_impact(pos, nrm, "metal")
 
@@ -616,7 +625,7 @@ func _smoke_cloud(root: Node, pos: Vector3) -> void:
 	fv.size = Vector3(13.0, 7.0, 13.0)
 	var fm := FogMaterial.new()
 	fm.density = 0.0
-	fm.albedo = Color(0.82, 0.82, 0.8)
+	fm.albedo = Color(0.46, 0.46, 0.45)   # grauer Nebelwurfkoerper-Rauch statt leuchtend rosa im Gegenlicht
 	fm.height_falloff = 0.1
 	fm.edge_fade = 0.6
 	fv.material = fm
@@ -661,40 +670,25 @@ func _dir_at(s: float) -> Vector3:
 	return d.normalized()
 
 func _build_exhaust() -> void:
-	var pm := ParticleProcessMaterial.new()
-	pm.direction = Vector3(0.6, 1.0, 0.3)
-	pm.spread = 25.0
-	pm.initial_velocity_min = 0.8
-	pm.initial_velocity_max = 1.6
-	pm.gravity = Vector3(0, 0.4, 0)
-	pm.scale_min = 0.5
-	pm.scale_max = 1.0
-	var sc := Curve.new()
-	sc.add_point(Vector2(0, 0.4))
-	sc.add_point(Vector2(1, 2.2))
-	var sct := CurveTexture.new()
-	sct.curve = sc
-	pm.scale_curve = sct
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(0.15, 0.15, 0.15, 0.45))
-	ramp.set_color(ramp.get_point_count() - 1, Color(0.3, 0.3, 0.3, 0.0))
-	var rt := GradientTexture1D.new()
-	rt.gradient = ramp
-	pm.color_ramp = rt
-	var m := StandardMaterial3D.new()
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	m.vertex_color_use_as_albedo = true
-	m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	var q := QuadMesh.new()
-	q.size = Vector2(0.6, 0.6)
-	q.material = m
-	_exhaust = GPUParticles3D.new()
-	_exhaust.process_material = pm
-	_exhaust.draw_pass_1 = q
-	_exhaust.amount = 40
-	_exhaust.lifetime = 1.8
+	# Weicher Dieselrauch (Flipbook-Shader wie tank.gd) statt untexturierter Quads, die als graue Kaesten sichtbar waren
+	var pm := VfxLib.smoke_pm(ParticleProcessMaterial.new(), 20.0)
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.1
+	pm.direction = Vector3(1.0, 0.5, 0.2)
+	pm.spread = 18.0
+	pm.initial_velocity_min = 1.0
+	pm.initial_velocity_max = 2.2
+	pm.gravity = Vector3(0, 0.45, 0) + VfxLib.WIND * 0.5
+	pm.damping_min = 0.8
+	pm.damping_max = 1.4
+	pm.scale_min = 0.45
+	pm.scale_max = 0.85
+	pm.scale_curve = VfxLib.smooth_curve_tex([[0.0, 0.3], [0.3, 1.0], [1.0, 2.6]])
+	pm.color_ramp = VfxLib.smoke_alpha_ramp(0.42, 0.1, 0.3)
+	var mat := VfxLib.smoke_mat({"smoke_color": Color(0.09, 0.09, 0.085), "smoke_color_end": Color(0.24, 0.24, 0.23), "density": 0.85, "glow": 0.0, "soft_dist": 0.5}, true)
+	_exhaust = VfxLib.make_particles(28, 2.2, pm, VfxLib.quad(1.0), mat)
+	_exhaust.one_shot = false
+	_exhaust.explosiveness = 0.0
 	_exhaust.local_coords = false
 	_exhaust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_exhaust.visibility_aabb = AABB(Vector3(-20, -5, -20), Vector3(40, 20, 40))
@@ -723,5 +717,32 @@ func make_wreck(parent: Node3D) -> StaticBody3D:
 	_model.global_transform = gt
 	if _exhaust:
 		_exhaust.emitting = false
-	VF.char_all(_model)
+	_burn_out(_model)
 	return w
+
+## Ausgebranntes Material (wreck_model.gd / burnt_vehicle.gdshader: Rost, Asche, Lackreste unten) statt nur
+## dunkler Ueberlagerung; Scheiben werden zu Russ.
+func _burn_out(root: Node3D) -> void:
+	var WreckModel: GDScript = load("res://game/vehicles/models/wreck_model.gd")
+	var m: ShaderMaterial = WreckModel.call("material", false)
+	var soot := StandardMaterial3D.new()
+	soot.albedo_color = Color(0.025, 0.023, 0.021)
+	soot.roughness = 0.97
+	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		mi.material_overlay = null
+		mi.material_override = null
+		for i in mi.mesh.get_surface_count():
+			var sn: String = (mi.mesh as ArrayMesh).surface_get_name(i) if mi.mesh is ArrayMesh else ""
+			mi.set_surface_override_material(i, soot if sn.begins_with("glass") else m)
+		var y := 0.0
+		var p: Node = mi
+		while p != null and p != root:
+			y += (p as Node3D).position.y if p is Node3D else 0.0
+			p = p.get_parent()
+		mi.set_instance_shader_parameter("y_offset", y)
+		mi.set_instance_shader_parameter("body_h", 2.6)
+		mi.set_instance_shader_parameter("paint_color", Color(0.14, 0.17, 0.11))
+		mi.set_instance_shader_parameter("seed", 0.61)

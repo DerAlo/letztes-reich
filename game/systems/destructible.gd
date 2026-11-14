@@ -37,6 +37,7 @@ extends StaticBody3D
 signal damaged(block: int, stage: int)   ## stage: 1 = angeschlagen, 2 = weg
 signal destroyed                         ## alles weg (Einsturz oder letzter Block)
 
+const PH := preload("res://game/levels/ph_props.gd")
 const LAYER_WORLD := 1
 const HIT_MASK := 1 | 2 | 4               ## wie weapon.gd: world + player + enemy
 const DEBRIS_LAYER := 8
@@ -204,11 +205,15 @@ static func _mat(key: String) -> StandardMaterial3D:
 		"crate_dark":
 			m.albedo_color = Color(0.22, 0.2, 0.12)
 		"sand", "sand_dark":
-			m.albedo_texture = load("res://assets/textures/concrete_wall_008/diffuse.jpg")
-			m.albedo_color = Color(0.62, 0.53, 0.36) if key == "sand" else Color(0.42, 0.36, 0.25)
+			# Jute (Poly Haven hessian_230, CC0) wie die Sandsaecke aus ph_props.gd
+			m.albedo_texture = load(PH.HESSIAN + "diffuse.jpg")
+			m.normal_enabled = true
+			m.normal_texture = load(PH.HESSIAN + "normal.jpg")
+			m.normal_scale = 1.3
+			m.albedo_color = Color(0.86, 0.8, 0.68) if key == "sand" else Color(0.55, 0.5, 0.42)
 			m.uv1_triplanar = true
-			m.uv1_scale = Vector3.ONE * 1.6
-			m.roughness = 1.0
+			m.uv1_scale = Vector3.ONE * 3.0
+			m.roughness = 0.95
 		"brick", "brick_dark":
 			m.albedo_texture = load("res://assets/textures/brick_wall_02/diffuse.jpg")
 			m.normal_enabled = true
@@ -278,10 +283,14 @@ func _make_block_visual(i: int) -> Node3D:
 				var n := maxi(int(round(s.x / 0.45)), 1)
 				for k in n:
 					var bx := -s.x * 0.5 + s.x / n * (k + 0.5) + (0.11 if l % 2 == 1 else 0.0) * (1.0 if k < n - 1 else -1.0)
-					var mi := _box_into(root, Vector3(s.x / n * 1.02, bag_h * 0.92, s.z * 0.9),
-						Vector3(bx, -s.y * 0.5 + bag_h * (l + 0.5), (jitter - 0.5) * 0.06), m,
-						Vector3(0, (jitter - 0.5) * 10.0 + k * 3.0, (float(k % 2) - 0.5) * 3.0))
-					(mi.mesh as BoxMesh).size.x *= 0.96
+					# gefuellter Jutesack (Kissenform aus ph_props.gd) statt Quader: Laengsseite nach lokal z
+					var mi := MeshInstance3D.new()
+					mi.mesh = PH.sandbag_mesh()
+					mi.material_override = m
+					mi.position = Vector3(bx, -s.y * 0.5 + bag_h * (l + 0.5) - bag_h * 0.04, (jitter - 0.5) * 0.06)
+					mi.rotation_degrees = Vector3(0, (jitter - 0.5) * 10.0 + k * 3.0, (float(k % 2) - 0.5) * 3.0)
+					mi.scale = Vector3(s.x / n * 1.04 / PH.BAG.x, bag_h * 1.08 / PH.BAG.y, s.z * 0.95 / PH.BAG.z)
+					root.add_child(mi)
 		"brick":
 			_box_into(root, s, Vector3.ZERO, _mat("brick"))
 		"glass":
@@ -633,7 +642,7 @@ func _penetrate(hit: Vector3, dir: Vector3, dmg: float, source: Node) -> void:
 		target.call("take_damage", dmg, source, pos, nrm)
 		var is_enemy := target.is_in_group("enemy") or (target.has_method("get_enemy") and target.call("get_enemy") is Node and (target.call("get_enemy") as Node).is_in_group("enemy"))
 		if is_enemy:
-			VFX.spawn_blood(pos, nrm)
+			VFX.spawn_blood(pos, nrm, dir)
 			if was_alive and source != null and is_instance_valid(source) and source.has_method("_on_hit_confirmed"):
 				var killed: bool = target.has_method("is_alive") and not bool(target.call("is_alive"))
 				source.call("_on_hit_confirmed", killed, false)

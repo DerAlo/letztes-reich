@@ -45,4 +45,8 @@ func _fire(i: int) -> void:
 	if e.has("objective"):
 		Events.story_objective.emit(str(e["objective"]))
 	for l in e.get("lines", []):
-		Events.story_radio.emit(str(l[0]), str(l[1]), 0.0)
+		var o: Variant = StoryData.LINE_OPTS.get(str(l[1]))   # optionale StoryUI-Optionen (max_age/priority/cut ...)
+		if o is Dictionary:
+			get_tree().call_group(&"story_ui", &"say", str(l[0]), str(l[1]), 0.0, o)
+		else:
+			Events.story_radio.emit(str(l[0]), str(l[1]), 0.0)

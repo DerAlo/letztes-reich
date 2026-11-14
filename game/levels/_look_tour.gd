@@ -59,7 +59,7 @@ func _ready() -> void:
 	_level.set("ambient_artillery", false)
 	add_child(_level)
 	_cam = Camera3D.new()
-	_cam.fov = 75
+	_cam.fov = float(Game.arg("fov", 75))   # --fov=8 simuliert Zielfernrohr/Fernglas
 	_cam.far = 900
 	add_child(_cam)
 	_cam.make_current()
@@ -83,6 +83,39 @@ func _ready() -> void:
 	while _level.has_method("is_level_ready") and not _level.call("is_level_ready") and Time.get_ticks_msec() - t0 < 20000:
 		await get_tree().process_frame
 	print("LOOKTOUR level=%s build_ms=%d" % [lname, Time.get_ticks_msec() - t0])
+	# Diagnose: --env=volumetric_fog_enabled=false,sdfgi_enabled=false setzt Environment-Werte (bool/float)
+	var envs := str(Game.arg("env", ""))
+	var we := _level.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if envs != "" and we != null and we.environment != null:
+		for kv in envs.split(","):
+			var p := kv.split("=")
+			if p.size() == 2:
+				var v: Variant = (p[1] == "true") if p[1] in ["true", "false"] else float(p[1])
+				we.environment.set(p[0], v)
+	# Diagnose: --hide-lights=DirectionalLight3D,OmniLight3D blendet alle Lichter dieser Klassen aus
+	var hide := str(Game.arg("hide-lights", ""))
+	if hide != "":
+		for cls in hide.split(","):
+			for n in _level.find_children("*", cls, true, false):
+				(n as Node3D).visible = false
+	# Diagnose: --sun=shadow_normal_bias=0.4,light_angular_distance=0 setzt Werte am Sonnenlicht ("Sun")
+	var suns := str(Game.arg("sun", ""))
+	var sun := _level.find_child("Sun", true, false) as DirectionalLight3D
+	if suns != "" and sun != null:
+		for kv in suns.split(","):
+			var p := kv.split("=")
+			if p.size() == 2:
+				sun.set(p[0], (p[1] == "true") if p[1] in ["true", "false"] else float(p[1]))
+	# Diagnose: --ae=scale,min_iso,max_iso schaltet Auto-Exposure am WorldEnvironment ein
+	var ae := str(Game.arg("ae", "")).split(",")
+	if ae.size() == 3 and we != null:
+		var ca := CameraAttributesPractical.new()
+		ca.auto_exposure_enabled = true
+		ca.auto_exposure_scale = float(ae[0])
+		ca.auto_exposure_min_sensitivity = float(ae[1])
+		ca.auto_exposure_max_sensitivity = float(ae[2])
+		ca.auto_exposure_speed = 2.0
+		we.camera_attributes = ca
 	var all_fps: Array[float] = []
 	for k in pick:
 		if not views.has(k):

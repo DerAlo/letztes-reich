@@ -20,6 +20,8 @@ var alarm: bool = false
 var alarm_count: int = 0
 var heightened_t: float = 0.0      ## nach Alarm/Leichenfund: Wachen aufmerksamer
 var enabled: bool = true
+## Grundhelligkeit (Level kann anheben: Daemmerung draussen statt Nacht -> Wachen sehen weiter).
+var ambient: float = AMBIENT
 
 var _lights: Array[Light3D] = []
 var _gather_t: float = 0.0
@@ -90,7 +92,7 @@ func _gather_lights() -> void:
 
 ## Helligkeit an einem Punkt (0..1): Umgebungslicht plus Omni-/Spotlichter mit Verdeckungstest.
 func light_at(p: Vector3) -> float:
-	var sum := AMBIENT
+	var sum := ambient
 	var space := level.get_world_3d().direct_space_state
 	for l in _lights:
 		if not is_instance_valid(l) or not l.visible or l.light_energy < 0.05:

@@ -42,7 +42,10 @@ func _ready() -> void:
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.draw.connect(_draw_overlay)
-	add_child(_overlay)
+	# in 1080p-Pixeln unter skalierter Wurzel (kleine Fenster, z. B. 960x540)
+	var root := UIStyle.HudRoot.new()
+	add_child(root)
+	root.add_child(_overlay)
 	_label = Label.new()
 	_label.add_theme_font_size_override("font_size", 20)
 	_label.add_theme_color_override("font_color", AMBER)

@@ -120,6 +120,64 @@ func cyl(center: Vector3, r: float, h: float, heat: float, segs: int = 12, heat_
 func sphere(center: Vector3, size: Vector3, heat: float, heat_top: float = -1.0, var_amt: float = 0.03) -> void:
 	add_prim(_prim("sphere"), Transform3D(Basis.from_scale(size), center), heat, heat_top, var_amt)
 
+## Unregelmaessiger Klumpen (Baumkrone): Kugel mit rauschverschobener Oberflaeche, glatte Normalen.
+## seed variiert die Form, amp = relative Beulentiefe, segs/rings = Aufloesung.
+func lump(center: Vector3, size: Vector3, heat: float, heat_top: float = -1.0, var_amt: float = 0.05,
+		seed: int = 0, amp: float = 0.28, segs: int = 8, rings: int = 5) -> void:
+	if heat_top < 0.0:
+		heat_top = heat
+	var base := _v.size()
+	var ph := float(seed) * 1.731
+	for r in rings + 1:
+		var v := float(r) / float(rings)
+		var th := v * PI
+		for s in segs + 1:
+			var u := float(s % segs) / float(segs)
+			var fi := u * TAU
+			var dir := Vector3(sin(th) * cos(fi), cos(th), sin(th) * sin(fi))
+			# Beulen: Summe weniger Sinuswellen auf der Kugel (Pole stabil)
+			var b := sin(dir.x * 3.1 + ph) * sin(dir.z * 2.7 + ph * 1.3) + 0.6 * sin(dir.y * 4.3 + dir.x * 2.0 + ph * 0.7)
+			var k := 1.0 + amp * b * 0.6
+			if r == rings:
+				k *= 0.82   # Unterseite flacher (Krone haengt nicht als Kugel nach unten)
+			var p := Vector3(dir.x * size.x, dir.y * size.y, dir.z * size.z) * 0.5 * k
+			_v.append(center + p)
+			_n.append(Vector3(dir.x / size.x, dir.y / size.y, dir.z / size.z).normalized())
+			_c.append(Color(lerpf(heat, heat_top, 1.0 - v), var_amt, 1.0, 1.0))
+	for r in rings:
+		for s in segs:
+			var a := base + r * (segs + 1) + s
+			var c := a + segs + 1
+			_i.append_array([a, c, a + 1, a + 1, c, c + 1])
+
+## Fichten-Etage: sternfoermiger Kegel (2n Zacken), Unterkante leicht haengend.
+func star_cone(y0: float, h: float, r: float, heat: float, heat_top: float, var_amt: float = 0.05,
+		n: int = 7, seed: int = 0, off: Vector3 = Vector3.ZERO) -> void:
+	var base := _v.size()
+	var tip := off + Vector3(0, y0 + h, 0)
+	var rot := float(seed) * 0.9
+	for k in n * 2:
+		var a := rot + TAU * float(k) / float(n * 2)
+		var rr := r * (1.0 if k % 2 == 0 else 0.58) * (1.0 + 0.12 * sin(float(k * 7 + seed)))
+		var droop := -0.28 * h if k % 2 == 0 else 0.0
+		var p := off + Vector3(cos(a) * rr, y0 + droop, sin(a) * rr)
+		_v.append(p)
+		_n.append(Vector3(cos(a), 0.55, sin(a)).normalized())
+		_c.append(Color(heat, var_amt, 1.0, 1.0))
+	_v.append(tip)
+	_n.append(Vector3.UP)
+	_c.append(Color(heat_top, var_amt, 1.0, 1.0))
+	var ctr := off + Vector3(0, y0 + 0.1 * h, 0)
+	_v.append(ctr)
+	_n.append(Vector3.DOWN)
+	_c.append(Color(heat + 0.02, var_amt, 1.0, 1.0))
+	var ti := base + n * 2
+	var ci := ti + 1
+	for k in n * 2:
+		var a := base + k
+		var b := base + (k + 1) % (n * 2)
+		_i.append_array([a, b, ti, a, ci, b])
+
 ## Dreiecksprisma (Dachfirst laengs x). size: x Laenge, y Hoehe, z Breite.
 func prism(center: Vector3, size: Vector3, heat: float, yaw: float = 0.0, heat_top: float = -1.0) -> void:
 	var xf := Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.UP, PI * 0.5) * Basis.from_scale(Vector3(size.z, size.y, size.x)), center)

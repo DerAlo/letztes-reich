@@ -22,10 +22,19 @@ const SHADER := preload("res://game/systems/nightvision.gdshader")
 @export var battery_seconds: float = 150.0       ## volle Batterie in Sekunden Nachtsicht
 @export var recharge_seconds: float = 45.0       ## Leer -> voll im Aus-Zustand
 @export var allow_flashlight: bool = true
-@export var ambient_boost: float = 0.55          ## zusaetzliches Umgebungslicht bei Nachtsicht
+@export var ambient_boost: float = 0.16          ## zusaetzliches Umgebungslicht bei Nachtsicht (Rest regelt die Roehre)
 @export var ir_range: float = 16.0
-@export var ir_energy: float = 0.9
+@export var ir_energy: float = 0.6
 @export var fade_time: float = 0.45
+## Unter Nachtsicht: Szenen-Glow (Bloom) auf diesen Anteil daempfen, Glow-Schwelle anheben.
+## Die Roehre zeichnet Lichtquellen nur mit kleinem Halo (Bright Source Protection).
+@export var nv_glow_scale: float = 0.15
+@export var nv_glow_threshold: float = 1.6
+## Lichtkegel fremder Lampen im Nebel unter Nachtsicht abschwaechen (sonst fuellt der Streukegel das Bild).
+@export var nv_lamp_fog_scale: float = 0.3
+## Volumetrischen Nebel unter Nachtsicht ausduennen: die Roehre verstaerkt den Streuschleier sonst
+## zu einer flachen gruenen Wand, in der Gegner verschwinden.
+@export var nv_fog_scale: float = 0.5
 
 var nv_on: bool = false
 var flashlight_on: bool = false
@@ -211,6 +220,10 @@ func _capture_env() -> void:
 		"ambient_light_color": _env.ambient_light_color,
 		"ambient_light_source": _env.ambient_light_source,
 		"ambient_light_sky_contribution": _env.ambient_light_sky_contribution,
+		"glow_intensity": _env.glow_intensity,
+		"glow_bloom": _env.glow_bloom,
+		"glow_hdr_threshold": _env.glow_hdr_threshold,
+		"volumetric_fog_density": _env.volumetric_fog_density,
 	}
 
 func _apply_env() -> void:
@@ -226,6 +239,12 @@ func _apply_env() -> void:
 	_env.ambient_light_sky_contribution = 0.0
 	_env.ambient_light_color = base_c.lerp(Color(0.7, 0.72, 0.7), f)
 	_env.ambient_light_energy = base_e + ambient_boost * f
+	_env.glow_intensity = lerpf(float(_env_base["glow_intensity"]), float(_env_base["glow_intensity"]) * nv_glow_scale, f)
+	_env.glow_bloom = lerpf(float(_env_base["glow_bloom"]), 0.0, f)
+	var th0: float = _env_base["glow_hdr_threshold"]
+	_env.glow_hdr_threshold = lerpf(th0, maxf(th0, nv_glow_threshold), f)
+	var vd0: float = _env_base["volumetric_fog_density"]
+	_env.volumetric_fog_density = lerpf(vd0, vd0 * nv_fog_scale, f)
 
 func _restore_env() -> void:
 	if _env == null or _env_base.is_empty():
@@ -246,6 +265,13 @@ func _update_glare(delta: float) -> void:
 		for n in root.find_children("*", "SpotLight3D", true, false):
 			if n.has_meta("stealth_light") or n.has_meta("nv_glare"):
 				_lamps.append(n as SpotLight3D)
+	# Streukegel fremder Lampen im Nebel: unter Nachtsicht schwaecher (Roehre regelt helle Flaechen ab)
+	for l in _lamps:
+		if not is_instance_valid(l):
+			continue
+		if not l.has_meta("_nv_fog0"):
+			l.set_meta("_nv_fog0", l.light_volumetric_fog_energy)
+		l.light_volumetric_fog_energy = float(l.get_meta("_nv_fog0")) * lerpf(1.0, nv_lamp_fog_scale, _fade)
 	var target := 0.0
 	if _cam != null and _fade > 0.01:
 		var eye := _cam.global_position
@@ -307,8 +333,8 @@ func _build_hud() -> void:
 	box.anchor_bottom = 1.0
 	box.offset_left = -250.0
 	box.offset_right = -36.0
-	box.offset_top = -200.0
-	box.offset_bottom = -150.0
+	box.offset_top = -300.0   # ueber der Waffenanzeige des Spieler-HUDs (unten rechts)
+	box.offset_bottom = -250.0
 	box.add_theme_constant_override("separation", 3)
 	_hud_label = Label.new()
 	_hud_label.text = "NSG"
@@ -337,7 +363,12 @@ func _build_hud() -> void:
 	_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_hint.add_theme_constant_override("outline_size", 4)
 	box.add_child(_hint)
-	_hud.add_child(box)
+	# in 1080p-Pixeln unter skalierter Wurzel (ueber der Munitionsanzeige von hud.gd, kleine Fenster z. B. 960x540)
+	var root := UIStyle.HudRoot.new()
+	_hud.add_child(root)
+	root.add_child(box)
+	root.keep_min_font(_hud_label, 15)
+	root.keep_min_font(_hint, 13)
 	add_child(_hud)
 
 func _key_name(action: String) -> String:

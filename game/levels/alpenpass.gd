@@ -6,12 +6,14 @@ extends "res://game/levels/level.gd"
 ## Nachtzug Innsbruck–Wien.
 ##
 ## Overhaul (Hochgebirge): Hoehenmodell-Gelaende (alpenpass_terrain.gd) mit Kessel, Serpentine, Rinne,
-## Grat-Steig und Passstrasse; Sturm in Wellen mit Sichtfenstern (weather_system.gd, Sicht nie unter ~200 m);
-## Moerser mit Einschiessen/Korrektur/Wirkungsfeuer (artillery_spotter.gd, adjust_mode); Gegner-Auffindbarkeit
+## Grat-Steig und Passstrasse; Sturm in Wellen (weather_system.gd, nur Atmosphaere, Sicht nie unter ~200 m);
+## Moerser: Ziel markieren = sofort eine Salve (4-5 Granaten, wenige Meter Streuung) genau auf den markierten
+## Punkt, danach Nachladezeit – kein Einschiessen, keine Korrektur, keine Sichtfenster; Gegner-Auffindbarkeit
 ## ueber Muendungsblitze, Uhrzeit-Callouts und HUD-Marker; Hubschrauber als glTF-Slot (heli_gltf.gd).
 ##
-## Ablauf: 0 Absetzen am Joch -> 1 Beobachtungsposten (MG-Nester + Unterstand per Moerser, Gegenstoss die
-## Serpentine hoch) -> 2 Kessel (Nachhut) -> 3 Posten am Sattel (Schuetzenpanzer + Begleitinfanterie)
+## Ablauf: 0 Absetzen am Joch -> 1 Beobachtungsposten (MG-Nester, Schuetzengruppen + Unterstand per Moerser,
+## Gegenstoss die Serpentine hoch) -> 2 Kessel (Nachhut) -> 3 Posten am Sattel (Schuetzenpanzer, MG-Nester und
+## Schuetzengruppe an der Strasse + Begleitinfanterie)
 ## -> 4 Wechte/Lawine gegen Falks Garde in der Rinne -> 5 Grat-Steig unter Zeitdruck (Seilbahn-Countdown)
 ## -> 6 Bergstation sichern, Kabine nicht treffen -> Steuerraum.
 
@@ -53,12 +55,22 @@ const FALK_TIME := 75.0
 const GARDE_ALERT := 30.0
 const ENEMY_SIGHT := 80.0
 
-const SERP := [Vector3(8, 2, -62), Vector3(24, -6, -72), Vector3(30, -14, -90), Vector3(14, -22, -100), Vector3(0, -30, -115), Vector3(-10, -38, -130), Vector3(-4, -44, -150)]
-const KESSEL_UP := [Vector3(-4, -46, -330), Vector3(0, -34, -362), Vector3(0, -22, -395)]
+## Serpentine in den Kessel: vier Schlaege mit Kehren, ~12-14 Grad Gefaelle (vorher bis 24 Grad)
+const SERP := [Vector3(6, 2, -62), Vector3(36, -6, -74), Vector3(32, -8, -84), Vector3(-24, -21, -96), Vector3(-26, -23, -106),
+	Vector3(24, -36, -122), Vector3(20, -38, -132), Vector3(-4, -44, -150)]
+## Anstieg zum Sattel: laenger auslaufend (Talboden-Profil in alpenpass_terrain.gd angepasst), max. ~17 Grad
+const KESSEL_UP := [Vector3(-4, -47, -285), Vector3(-2, -42, -310), Vector3(1, -36, -335), Vector3(0, -29, -360), Vector3(0, -22, -386), Vector3(0, -22, -400)]
 const ROAD := [Vector3(0, -22, -400), Vector3(4, -23, -430), Vector3(7, -25, -480), Vector3(7, -26, -540), Vector3(6, -28, -600)]
-const STEIG := [Vector3(10, -22, -408), Vector3(30, -16, -425), Vector3(46, -11, -450), Vector3(50, -11, -500), Vector3(48, -15, -550), Vector3(34, -25, -585), Vector3(16, -27, -605)]
+const STEIG := [Vector3(10, -22, -408), Vector3(30, -16, -425), Vector3(46, -11, -450), Vector3(50, -11, -500), Vector3(48, -15, -550), Vector3(34, -26, -585), Vector3(23, -29.5, -597), Vector3(16, -30, -605)]
 const RINNE := [Vector3(-80, 12, -478), Vector3(-55, -8, -450), Vector3(-28, -21, -415)]
 const VEH_PATH := [Vector2(12, -622), Vector2(10, -600), Vector2(7, -560)]
+## Moerserziele (x, z): MG-Nester (M2 auf Dreibein) und Schuetzengruppen hinter Sandsaecken
+const NESTS_P1 := [["nest_a", Vector2(-42, -240)], ["nest_b", Vector2(40, -275)], ["nest_c", Vector2(24, -205)], ["nest_d", Vector2(-30, -288)]]
+const SQUADS_P1 := [["squad_a", Vector2(52, -224)], ["squad_b", Vector2(-50, -262)]]
+const NESTS_P3 := [["nest_e", Vector2(-14, -515)], ["nest_f", Vector2(20, -548)]]
+const SQUADS_P3 := [["squad_c", Vector2(-10, -575)]]
+## Physik-Ebene 10: unsichtbare Ziel-Kollider nur fuer den Entfernungsmesser (blocken weder Bewegung noch Schuesse)
+const LASE_LAYER := 512
 
 var mats: Dictionary = {}
 var ter: Terrain
@@ -76,7 +88,6 @@ var _gates: Dictionary = {}
 var _targets: Array[Dictionary] = []    ## {id, kind, name, pos, radius, hp, alive, phase, crew, node, fire_t, seen}
 var _spot_active: bool = false
 var _salvo_hit: bool = false
-var _eff_active: bool = false
 var _misses: int = 0
 var _refill_pending: bool = false
 var _veh: Node3D
@@ -92,6 +103,8 @@ var _falk_warned: bool = false
 var _avalanche: bool = false
 var _backdrop: MeshInstance3D
 var _env: Environment
+var _optic_fog: Vector2 = Vector2(-1.0, -1.0)    # zuletzt geschriebene Nebeldichte (tief, volumetrisch) bei gehobenem Fernglas
+var _optic_base: Vector2 = Vector2.ZERO          # Wetter-Nebeldichte ohne Optik-Faktor
 var _debug_god: bool = false
 var _wechte: Node3D
 var _wechte_body: StaticBody3D
@@ -119,24 +132,23 @@ var _counter: Array[Node3D] = []
 var _report_t: float = 14.0
 # HUD / Auffindbarkeit
 var _hud: CanvasLayer
-var _hud_ctrl: Control
+var _hud_ctrl: Control   ## Weltmarker (unproject_position -> echte Pixel)
+var _hud_root: UIStyle.HudRoot
+var _hud_ui: Control     ## Moerser-Tafel und Countdown (1080p-Flaeche unter HudRoot, skaliert mit dem Fenster)
 var _reveal: Dictionary = {}            ## instance_id -> {n: Node3D, until: float}
 var _shots: Dictionary = {}             ## instance_id -> int (stat_shots)
 var _flash_cd: Dictionary = {}          ## instance_id -> float
-var _tut: Dictionary = {}               ## raise | mark | impact | corr | effect
+var _tut: Dictionary = {}               ## raise | mark | impact
 var _tut_on: bool = false
-var _hint: String = ""
-var _hint_t: float = 0.0
-var _hint_n: int = 0
 var _callout_cd: float = 0.0
 # Level-Bot (Beobachter)
 var _bt_id: String = ""
-var _bt_next: String = "mark"           ## mark | corr | effect | wait
+var _bt_next: String = "mark"           ## mark | wait
 var _bt_wait: float = 0.0
 var _bt_idle: float = 0.0
 var _bt_aim := Vector3.ZERO
 var _bt_had: bool = false
-var _bt_unseen: bool = false
+var _wp_idx: Dictionary = {}            ## Wegpunkt-Indizes fuer --phase (kessel | sattel | steig | station)
 var _brng := RandomNumberGenerator.new()
 
 func _init() -> void:
@@ -155,6 +167,12 @@ func _ready() -> void:
 	if not is_inside_tree():
 		return
 	_build_runtime()
+	RenderingServer.frame_pre_draw.connect(_optic_env)
+	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
+		add_child(load("res://game/levels/tools/villa_shots.gd").new())
+	tree_exiting.connect(func() -> void:
+		if RenderingServer.frame_pre_draw.is_connected(_optic_env):
+			RenderingServer.frame_pre_draw.disconnect(_optic_env))
 	Events.player_respawned.connect(_on_player_respawned)
 	Events.player_damaged.connect(_on_player_damaged)
 	var n := int(Game.arg("phase", 0))
@@ -172,7 +190,7 @@ func get_level_info() -> Dictionary:
 	info["title"] = "Weißes Rauschen"
 	return info
 
-## Autopilot-Hook: waehrend der Beobachterteile steuert der Level-Bot (Fernglas, Markieren, Korrekturen).
+## Autopilot-Hook: waehrend der Beobachterteile steuert der Level-Bot (Fernglas, Markieren).
 func bot_drives_player() -> bool:
 	return _bot and _spot_active and spot != null and not _threat_near(40.0)
 
@@ -190,6 +208,25 @@ func _later(t: float, f: Callable) -> void:
 func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	Events.story_radio.emit(speaker, text, dur)
 
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key/drop_live, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _say_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+## Restdauer laufender + wartender Funkzeilen.
+func _radio_left() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f ausfuehren, sobald der Funk frei ist (hoechstens max_wait s warten).
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_left() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
+
 func _say_once(key: String, speaker: String, text: String, dur: float = 0.0) -> void:
 	if _said.has(key):
 		return
@@ -202,6 +239,12 @@ func _say_cd(key: String, cd: float, speaker: String, text: String) -> void:
 		return
 	_cd[key] = _t + cd
 	_say(speaker, text)
+
+func _say_cd_opt(key: String, cd: float, speaker: String, text: String, opts: Dictionary) -> void:
+	if _t < float(_cd.get(key, -1000.0)):
+		return
+	_cd[key] = _t + cd
+	_say_opt(speaker, text, 0.0, opts)
 
 ## Kurzlebige Rückmeldung: nur wenn der Funk frei ist – sonst staut sich die Warteschlange und
 ## die Zeile käme Sekunden zu spät (der HUD zeigt dieselbe Information ohnehin).
@@ -451,7 +494,18 @@ func _build_ground() -> void:
 	mats["warn"] = Geo.flat(Color(0.8, 0.6, 0.05), 0.6)
 	mats["red_white"] = Geo.flat(Color(0.75, 0.12, 0.1), 0.6)
 	mats["white"] = Geo.flat(Color(0.85, 0.85, 0.83), 0.7)
-	mats["lamp"] = BP.unshaded(Color(3.0, 2.4, 1.4))
+	# Pultanzeige statt ueberstrahlender Leuchtflaeche (war unshaded 3.0/2.4/1.4 -> greller Fleck im Steuerraum)
+	var pult := StandardMaterial3D.new()
+	pult.albedo_color = Color(0.05, 0.06, 0.06)
+	pult.roughness = 0.2
+	pult.emission_enabled = true
+	pult.emission = Color(0.3, 0.42, 0.34)
+	pult.emission_energy_multiplier = 0.45
+	mats["lamp"] = pult
+	# Innenputz der Station: feiner, heller Anstrich statt grobem Aussenputz (Nahsicht im Steuerraum)
+	mats["st_inner"] = preload("res://game/levels/overwatch_world_kit.gd").pbr("res://assets/environment/facade/textures/painted_plaster_wall", Color(0.74, 0.73, 0.7), 0.7, 1.0)
+	mats["st_wall"] = NP.snowy("res://assets/environment/facade/textures/rough_plaster_broken", Color(0.8, 0.82, 0.84), 0.45, 0.22)
+	mats["st_stone"] = NP.snowy("res://assets/environment/berlin/textures/large_sandstone_blocks", Color(0.62, 0.61, 0.6), 0.32, 0.3)
 	mats["wreck"] = Geo.flat(Color(0.05, 0.05, 0.05), 0.95)
 	var t0 := Time.get_ticks_msec()
 	ter = Terrain.new(build_seed)
@@ -469,14 +523,16 @@ func _stamp_terrain() -> void:
 	ter.pad(Vector2(0, 5), 6.0, 18.0, 14.0)                        # Absetzpunkt am Joch
 	ter.pad(OP1, 2.0, 6.0, 6.0)                                     # Beobachtungsposten 1
 	ter.path(SERP, 6.0, 8.0, true)                                  # Serpentine in den Kessel (Fahrweg)
-	for c: Vector2 in [Vector2(-42, -240), Vector2(40, -275), Vector2(6, -305), Vector2(18, -262)]:
-		ter.pad(c, NAN, 5.0, 12.0)                                  # Nester, Unterstand, Zollhuette
+	for c: Vector2 in [Vector2(6, -305), Vector2(18, -262)] + _target_spots(1):
+		ter.pad(c, NAN, 5.0, 12.0)                                  # Nester, Schuetzengruppen, Unterstand, Zollhuette
+	ter.pad(OP2, -22.0, 14.0, 14.0)                                 # Posten 2 am Sattel (vor dem Anstieg: Strasse hat Vorrang)
 	ter.path(KESSEL_UP, 8.0, 10.0, true)                            # Anstieg zum Sattel (Strasse)
-	ter.pad(OP2, -22.0, 14.0, 14.0)                                 # Posten 2 am Sattel
 	ter.path(ROAD, 7.0, 9.0, true)                                  # Passstrasse
 	ter.path(STEIG, 4.0, 11.0)                                       # Grat-Steig im Osten
 	ter.path(RINNE, 10.0, 14.0)                                     # Lawinenrinne im Westen
 	ter.rect(-22.0, 18.0, -672.0, -598.0, -30.0, 12.0)              # Bergstation
+	for c: Vector2 in _target_spots(3):
+		ter.pad(c, NAN, 4.5, 9.0)                                   # Nester/Schuetzengruppe an der Passstrasse
 
 func _build_street() -> void:
 	_build_boundaries()
@@ -522,7 +578,7 @@ func _near_route(x: float, z: float, r: float) -> bool:
 			return true
 	if _poly_dist(p, RINNE) < r + 8.0:
 		return true
-	for c: Vector2 in [Vector2(0, 5), OP1, OP2, Vector2(-42, -240), Vector2(40, -275), Vector2(6, -305), Vector2(18, -262)]:
+	for c: Vector2 in [Vector2(0, 5), OP1, OP2, Vector2(6, -305), Vector2(18, -262)] + _target_spots(1) + _target_spots(3):
 		if p.distance_to(c) < r + 10.0:
 			return true
 	if x > -30.0 and x < 26.0 and z < -590.0 and z > -680.0:
@@ -691,14 +747,52 @@ func _build_basin_works(bd: BP.Builder, body: StaticBody3D) -> void:
 func _build_station(bd: BP.Builder, body: StaticBody3D) -> void:
 	var y := -4.0
 	var top := 4.0
-	_mm(bd, body, "concrete", _so(Vector3(-12.5, y, -318)), _so(Vector3(-12, top, -345.5)))
-	_mm(bd, body, "concrete", _so(Vector3(8, y, -318)), _so(Vector3(8.5, top, -345.5)))
-	_mm(bd, body, "concrete", _so(Vector3(-12, y, -345)), _so(Vector3(-3, top, -345.5)))
-	_mm(bd, body, "concrete", _so(Vector3(3, y, -345)), _so(Vector3(8, top, -345.5)))
-	_mm(bd, body, "concrete", _so(Vector3(-12, y, -317.5)), _so(Vector3(-6, top, -318)))
-	_mm(bd, body, "concrete", _so(Vector3(4, y, -317.5)), _so(Vector3(8, top, -318)))
+	# Huelle: Kollision wie bisher (volle Waende), Optik aus Bruchsteinsockel, Putzflaechen mit echten
+	# Fensteroeffnungen (Rahmen, Steingewaende, Bank, Glas), Sturz ueber dem Tor, Dachplatte mit Blechkante.
+	var parts := BP.FK.Parts.new()
+	var wins := BP.FK.WindowBatch.new()
+	var wr := RandomNumberGenerator.new()
+	wr.seed = 4711
+	for ab: Array in [
+			[Vector3(-12.5, y, -318), Vector3(-12, top, -345.5)], [Vector3(8, y, -318), Vector3(8.5, top, -345.5)],
+			[Vector3(-12, y, -345), Vector3(-3, top, -345.5)], [Vector3(3, y, -345), Vector3(8, top, -345.5)],
+			[Vector3(-12, y, -317.5), Vector3(-6, top, -318)], [Vector3(4, y, -317.5), Vector3(8, top, -318)],
+			[Vector3(-6, y + 5.4, -317.5), Vector3(4, top, -318)]]:
+		var a := _so(ab[0])
+		var b := _so(ab[1])
+		Geo.add_box_shape(body, (a + b) * 0.5, (b - a).abs())
+	var wz: Array = [-321.6, -326.2, -330.8, -335.4, -340.0]
+	# Seitenwaende (Fensterband), Rueckwand (Seilausfahrt), Front (Tor mit Sturz)
+	_st_face(bd, parts, wins, wr, Vector3(-12.5, y, -331.75), Vector3.LEFT, 27.5, 8.0, wz.map(func(z): return [z + 331.75, 2.2, 3.3, 5.6]))
+	_st_face(bd, parts, wins, wr, Vector3(8.5, y, -331.75), Vector3.RIGHT, 27.5, 8.0, wz.map(func(z): return [-331.75 - z, 2.2, 3.3, 5.6]))
+	_st_face(bd, parts, wins, wr, Vector3(-2.0, y, -345.5), Vector3.FORWARD, 20.0, 8.0, [[5.5, 2.0, 3.3, 5.6], [-2.0, 6.0, 0.0, 8.0, true], [-7.5, 2.0, 3.3, 5.6]])
+	_st_face(bd, parts, wins, wr, Vector3(-2.0, y, -317.5), Vector3.BACK, 21.0, 8.0, [[-7.25, 2.2, 3.3, 5.6], [1.0, 10.0, 0.0, 5.4, true], [8.25, 1.6, 3.3, 5.6]])
+	# Torrahmen aus Stahl + Laibung
+	bd.box("steel_dark", _so(Vector3(-1.0, y + 5.3, -317.42)), Vector3(10.2, 0.25, 0.3))
+	for sx: float in [-6.0, 4.0]:
+		bd.box("st_stone", _so(Vector3(sx, y + 2.7, -317.5)), Vector3(0.36, 5.4, 0.62))
+	# Dachplatte mit Ueberstand, Blechkante, Schneeauflage, Fallrohre
 	_mm(bd, body, "concrete", _so(Vector3(-12.5, top, -317.5)), _so(Vector3(8.5, top + 0.5, -345.5)))
-	bd.box("snow", _so(Vector3(-2.0, top + 0.75, -331.5)), Vector3(21.0, 0.3, 28.0))
+	bd.box("st_wall", _so(Vector3(-2.0, top + 0.32, -331.5)), Vector3(22.8, 0.44, 29.8))
+	for e: Array in [[Vector3(-2.0, 0, -316.6), Vector3(22.9, 0.5, 0.06)], [Vector3(-2.0, 0, -346.4), Vector3(22.9, 0.5, 0.06)],
+			[Vector3(-13.42, 0, -331.5), Vector3(0.06, 0.5, 29.9)], [Vector3(9.42, 0, -331.5), Vector3(0.06, 0.5, 29.9)]]:
+		var ep: Vector3 = e[0]
+		bd.box("steel_grey", _so(Vector3(ep.x, top + 0.34, ep.z)), e[1])
+	bd.box("snow", _so(Vector3(-2.0, top + 0.68, -331.5)), Vector3(22.6, 0.3, 29.6))
+	for dp: Array in [[Vector3(-12.5, 0, -318.6), Vector3.LEFT], [Vector3(-12.5, 0, -344.4), Vector3.LEFT], [Vector3(8.5, 0, -318.6), Vector3.RIGHT], [Vector3(8.5, 0, -344.4), Vector3.RIGHT]]:
+		BP.FK.downpipe(parts, _so(dp[0]), dp[1], ST.y + y, ST.y + top + 0.3, "metal")
+	# Lueftungsaufbau + Antenne auf dem Dach
+	bd.box("st_wall", _so(Vector3(-7.0, top + 1.2, -338.0)), Vector3(2.4, 1.6, 2.0))
+	bd.box("snow", _so(Vector3(-7.0, top + 2.05, -338.0)), Vector3(2.5, 0.12, 2.1))
+	bd.box("steel_grey", _so(Vector3(5.5, top + 3.0, -342.0)), Vector3(0.08, 5.0, 0.08))
+	parts.build(self, {
+		"frame": BP.FK.frame_mat(Color(0.3, 0.21, 0.13)),
+		"sill": mats["st_stone"],
+		"metal": BP.FK.metal_mat(Color(0.3, 0.31, 0.32)),
+	}, [], {})
+	var gl := wins.build_node(BP.FK.window_mat("day"))
+	if gl != null:
+		add_child(gl)
 	# Steuerraum (Ostseite, offen zur Halle)
 	_mm(bd, body, "concrete", _so(Vector3(3, y, -330)), _so(Vector3(8, 0.0, -330.4)))
 	_mm(bd, body, "concrete", _so(Vector3(3, y, -341.6)), _so(Vector3(8, 0.0, -342)))
@@ -717,8 +811,76 @@ func _build_station(bd: BP.Builder, body: StaticBody3D) -> void:
 	lbl.font_size = 64
 	lbl.pixel_size = 0.01
 	lbl.modulate = Color(0.15, 0.15, 0.15)
-	lbl.position = _so(Vector3(-2.0, 2.6, -317.4))
+	lbl.position = _so(Vector3(-1.0, y + 6.6, -317.35))
 	add_child(lbl)
+
+## Eine Aussenwand der Station (nur Optik): c = Mitte unten auf der Aussenflaeche (alte Koordinaten),
+## n = Aussennormale, L = Laenge, H = Hoehe. ops: [u (Mitte, entlang t = UP x n), Breite, v0, v1, (true = Tor ohne Fenster)].
+## Bruchsteinsockel bis 1,2 m, darueber Putz; Fenster mit Steingewaende, Holzrahmen, Bank und Glas.
+func _st_face(bd: BP.Builder, parts, wins, wr: RandomNumberGenerator, c: Vector3, n: Vector3, L: float, H: float, ops: Array) -> void:
+	var t := Vector3.UP.cross(n).normalized()
+	var R := BP.FK.basis_for(n)
+	var th := 0.5
+	var mid := c - n * (th * 0.5)
+	var sorted := ops.duplicate()
+	sorted.sort_custom(func(a, b): return a[0] < b[0])
+	var u := -L * 0.5
+	var plinth := 1.2
+	for o: Array in sorted:
+		var u0: float = o[0] - o[1] * 0.5
+		var u1: float = o[0] + o[1] * 0.5
+		var v0: float = o[2]
+		var v1: float = o[3]
+		if u0 > u + 0.01:
+			_st_piece(bd, mid, t, R, th, u, u0, 0.0, H, plinth)
+		if v0 > 0.01:
+			_st_piece(bd, mid, t, R, th, u0, u1, 0.0, v0, plinth)
+		if v1 < H - 0.01:
+			_st_piece(bd, mid, t, R, th, u0, u1, v1, H, plinth)
+		if o.size() < 5:
+			var oc: Vector3 = c + t * float(o[0]) +Vector3.UP * ((v0 + v1) * 0.5)
+			var w: float = o[1]
+			var h := v1 - v0
+			var wo := _so(oc)
+			BP.FK.window(parts, wins, wo, n, w, h, 0.22, "frame", "sill", "cross" if w > 1.9 else "t", 0.0, wr.randf_range(0.5, 1.0), wr.randf(), false, true)
+			# Steingewaende (umlaufender Rahmen, steht 6 cm vor)
+			var fw := 0.2
+			bd.box("st_stone", wo + n * 0.03 + Vector3.UP * (h * 0.5 + fw * 0.5), Vector3(w + fw * 2.0, fw, 0.06) * 1.0, R)
+			for s: float in [-1.0, 1.0]:
+				bd.box("st_stone", wo + n * 0.03 + t * (s * (w * 0.5 + fw * 0.5)), Vector3(fw, h, 0.06), R)
+			bd.box("st_stone", wo + n * 0.06 - Vector3.UP * (h * 0.5 + 0.09), Vector3(w + fw * 2.4, 0.18, 0.12), R)
+		u = u1
+	if u < L * 0.5 - 0.01:
+		_st_piece(bd, mid, t, R, th, u, L * 0.5, 0.0, H, plinth)
+	# Sockelabschluss und Traufgesims, an Toren unterbrochen
+	for band: Array in [[plinth, 0.16, 0.12], [H - 0.35, 0.3, 0.16]]:
+		var bv: float = band[0]
+		var cuts: Array = []
+		for o: Array in sorted:
+			if o.size() >= 5 and bv >= float(o[2]) - 0.2 and bv <= float(o[3]) + 0.2:
+				cuts.append([float(o[0]) - float(o[1]) * 0.5, float(o[0]) + float(o[1]) * 0.5])
+		var a := -L * 0.5 - 0.12
+		cuts.append([L * 0.5 + 0.12, L * 0.5 + 0.12])
+		for cu: Array in cuts:
+			if cu[0] > a + 0.05:
+				var bc := (a + float(cu[0])) * 0.5
+				bd.box("st_stone", _so(c + t * bc + n * (float(band[2]) * 0.5) + Vector3.UP * bv), Vector3(float(cu[0]) - a, band[1], band[2]), R)
+			a = cu[1]
+
+## Wandstueck (u0..u1, v0..v1) der Station: unterhalb von plinth Bruchstein (6 cm vorstehend), darueber Putz.
+func _st_piece(bd: BP.Builder, mid: Vector3, t: Vector3, R: Basis, th: float, u0: float, u1: float, v0: float, v1: float, plinth: float) -> void:
+	var w := u1 - u0
+	var cu := (u0 + u1) * 0.5
+	var n := R.z
+	# Innenseite: duenne Putzschale (nur Optik) vor der Wand, damit innen nicht der grobe Aussenputz erscheint
+	if v1 > v0 + 0.01:
+		bd.box("st_inner", _so(mid + t * cu - n * (th * 0.5 + 0.012) + Vector3.UP * ((v0 + v1) * 0.5)), Vector3(w, v1 - v0, 0.02), R)
+	if v0 < plinth:
+		var pv1 := minf(v1, plinth)
+		bd.box("st_stone", _so(mid + t * cu + n * 0.03 + Vector3.UP * ((v0 + pv1) * 0.5)), Vector3(w, pv1 - v0, th + 0.06), R)
+		v0 = pv1
+	if v1 > v0 + 0.01:
+		bd.box("st_wall", _so(mid + t * cu + Vector3.UP * ((v0 + v1) * 0.5)), Vector3(w, v1 - v0, th), R)
 
 ## Seilbahn: Trag- und Zugseil ins Tal, Gitterstuetze.
 func _build_cableway(bd: BP.Builder) -> void:
@@ -785,11 +947,19 @@ func _build_props() -> void:
 	Props.sandbags(world, _so(Vector3(-14.0, -4.0, -312.0)), 30.0, 3.0, rng, covers)
 	Props.vehicle(world, _so(Vector3(-16.0, -4.0, -326.0)), 80.0, "van", Color(0.55, 0.56, 0.58), false, false, covers)
 	# MG-Nester (Sandsack-Ringe)
-	for c2: Vector2 in [Vector2(-42, -240), Vector2(40, -275)]:
+	for d: Array in NESTS_P1 + NESTS_P3:
+		var c2: Vector2 = d[1]
 		var c := _gp(c2.x, c2.y)
 		Props.sandbags(world, c + Vector3(0, 0, 1.8), 0.0, 3.0, rng, covers)
 		Props.sandbags(world, c + Vector3(-1.9, 0, 0), 90.0, 2.4, rng, covers)
 		Props.sandbags(world, c + Vector3(1.9, 0, 0), 90.0, 2.4, rng, covers)
+	# Schuetzengruppen: lange Sandsackmauer nach vorn, kurze Flanken
+	for d: Array in SQUADS_P1 + SQUADS_P3:
+		var c2: Vector2 = d[1]
+		var c := _gp(c2.x, c2.y)
+		Props.sandbags(world, c + Vector3(0, 0, 1.6), 0.0, 5.0, rng, covers)
+		Props.sandbags(world, c + Vector3(-2.9, 0, 0.3), 70.0, 2.0, rng, covers)
+		Props.sandbags(world, c + Vector3(2.9, 0, 0.3), -70.0, 2.0, rng, covers)
 
 func _build_markers() -> void:
 	var m := Node3D.new()
@@ -798,14 +968,20 @@ func _build_markers() -> void:
 	var ps := Geo.marker(m, _gp(0, 2, 0.1), "player_spawn")
 	ps.name = "PlayerSpawn"
 	ps.rotation_degrees.y = 0.0
-	var route: Array[Vector2] = [
-		Vector2(0, -5), Vector2(0, -30), Vector2(0, -55),
-		Vector2(8, -62), Vector2(24, -72), Vector2(30, -90), Vector2(14, -100), Vector2(0, -115), Vector2(-10, -130), Vector2(-4, -150),
-		Vector2(0, -200), Vector2(10, -250), Vector2(0, -300), Vector2(-4, -330),
-		Vector2(0, -362), Vector2(0, -395),
-		Vector2(10, -408), Vector2(30, -425), Vector2(46, -450), Vector2(50, -500), Vector2(48, -550), Vector2(34, -585), Vector2(16, -605),
-		Vector2(4, -622), Vector2(0, -634), Vector2(0.5, -647), Vector2(5, -648),
-	]
+	var route: Array[Vector2] = [Vector2(0, -5), Vector2(0, -30), Vector2(0, -55)]
+	_wp_idx["start"] = 2
+	for p: Vector3 in SERP:
+		route.append(Vector2(p.x, p.z))
+	_wp_idx["kessel"] = route.size() - 1
+	route.append_array([Vector2(0, -200), Vector2(10, -250)])
+	for p: Vector3 in KESSEL_UP:
+		route.append(Vector2(p.x, p.z))
+	_wp_idx["sattel"] = route.size() - 2
+	_wp_idx["steig"] = route.size()
+	for p: Vector3 in STEIG:
+		route.append(Vector2(p.x, p.z))
+	_wp_idx["station"] = route.size() - 1
+	route.append_array([Vector2(4, -622), Vector2(0, -634), Vector2(0.5, -647), Vector2(5, -648)])
 	for i in route.size():
 		var w := Geo.marker(m, _gp(route[i].x, route[i].y, 0.05), "bot_waypoint")
 		w.name = "Waypoint%02d" % i
@@ -813,7 +989,7 @@ func _build_markers() -> void:
 	_trigger("Posten1", _gp(0, -45, 2.0), Vector3(60, 10, 3), _start_phase1)
 	_trigger("Gate1Hint", Vector3(0, 1.0, GATE1_Z + 1.5), Vector3(80, 12, 1.5), func() -> void:
 		if _phase == 1:
-			_say_cd("gate1", 25.0, SD.LENA, "Noch nicht! Erst die Stellungen ausschalten – sonst laufen wir ins MG-Feuer."), false)
+			_say_cd_opt("gate1", 25.0, SD.LENA, "Noch nicht! Erst die Stellungen ausschalten – sonst laufen wir ins MG-Feuer.", {"max_age": 2.0, "valid": func() -> bool: return _phase == 1}), false)
 	_trigger("Kessel", Vector3(0, -40.0, -160.0), Vector3(300, 26, 3), _on_basin)
 	_trigger("Posten2", Vector3(0, -22.0, -390.0), Vector3(60, 12, 3), _start_phase3)
 	_trigger("Gate2Hint", Vector3(0, -20.0, GATE2_Z + 2.0), Vector3(120, 24, 1.5), func() -> void:
@@ -831,7 +1007,7 @@ func _build_skyline() -> void:
 	pass
 
 func _build_atmosphere() -> void:
-	_omni(_so(Vector3(6.0, -1.0, -336.0)), Color(1.0, 0.85, 0.6), 1.6, 9.0)
+	_omni(_so(Vector3(6.0, -1.0, -336.0)), Color(1.0, 0.85, 0.6), 1.0, 9.0)
 	_omni(_so(Vector3(-2.0, 2.5, -330.0)), Color(1.0, 0.9, 0.7), 1.2, 16.0)
 	_omni(_gp(-20, 22, 2.0) + Vector3(0, 0, 3.5), Color(1.0, 0.8, 0.55), 1.0, 8.0)
 
@@ -865,7 +1041,7 @@ func _spawn_wave(index: int) -> void:
 # ------------------------------------------------------------------ Laufzeit-Aufbau (nach dem Navmesh)
 
 func _build_runtime() -> void:
-	# Wetter: Sturm in Wellen, Sichtfenster 22-28 s mit Ansage (wave_warning)
+	# Wetter: Sturm in Wellen mit Aufrissen (nur Atmosphaere – der Moerser haengt nicht mehr daran)
 	wx = WeatherSystem.new()
 	wx.name = "Weather"
 	wx.set("mode", "blizzard")
@@ -876,7 +1052,6 @@ func _build_runtime() -> void:
 	wx.set("storm_duration", Vector2(20.0, 28.0))
 	wx.set("window_duration", Vector2(22.0, 28.0))
 	add_child(wx)
-	wx.connect("wave_warning", _on_wave_warning)
 	# Lena
 	lena = _make_actor("friendly", "rifleman", _gp(1.6, 3.0), FR_PRIMARY, FR_SECONDARY, FR_ARMBAND, 0.0)
 	lena.set("invulnerable", true)
@@ -891,36 +1066,35 @@ func _build_runtime() -> void:
 	# Moerser / Beobachter
 	spot = Spotter.new()
 	spot.name = "ArtillerySpotter"
-	spot.set("salvos_left", 8)
-	spot.set("reload_time", 6.0)
-	spot.set("prep_time", 2.0)
-	spot.set("flight_base", 4.5)
-	spot.set("round_interval", 0.6)
-	spot.set("dispersion", 5.5)
-	spot.set("bias_initial", 28.0)
-	spot.set("bias_keep_on_remark", 1.0)
-	spot.set("adjust_mode", true)
-	spot.set("adjust_dispersion", 3.0)
-	spot.set("adjust_reload", 3.0)
-	spot.set("effect_rounds", 4)
+	# Markieren = sofort eine Salve mit 4-5 Granaten auf den Punkt (keine Ablage, kein Einschiessen)
+	spot.set("salvos_left", 40)
+	spot.set("rounds_per_salvo", 4)
+	spot.set("rounds_extra", 1)
+	spot.set("reload_time", 8.0)
+	spot.set("prep_time", 0.8)
+	spot.set("flight_base", 2.5)
+	spot.set("round_interval", 0.45)
+	spot.set("dispersion", 2.2)
+	spot.set("range_spread", 1.4)
+	spot.set("deflection_spread", 0.9)
+	spot.set("bias_initial", 0.0)
+	spot.set("adjust_mode", false)
+	spot.set("corrections_enabled", false)
+	spot.set("look_mask", 1 | LASE_LAYER)   # Entfernungsmesser trifft auch die Ziel-Kollider (flache Blickwinkel am Sattel)
 	spot.set("min_range", 35.0)
 	spot.set("danger_radius", 30.0)
 	spot.set("blast_radius", 9.0)
 	spot.set("north", Vector3(0, 0, 1))
 	spot.set("battery_dir", Vector3(0.3, 0, 1))
 	add_child(spot)
-	spot.set("visibility_check", _spot_visible)
 	spot.set("protected", [{"node": lena, "radius": 12.0, "name": "Lena"}])
 	spot.set("no_fire", [{"node": _cabin, "radius": 14.0, "name": "Seilbahn"}])
 	spot.connect("mission_requested", _on_mission_requested)
 	spot.connect("mission_refused", _on_mission_refused)
 	spot.connect("danger_close", _on_danger_close)
-	spot.connect("correction_sent", _on_correction_sent)
 	spot.connect("salvo_fired", _on_salvo_fired)
 	spot.connect("shell_impact", _on_shell_impact)
 	spot.connect("salvo_complete", _on_salvo_complete)
-	spot.connect("effect_requested", _on_effect_requested)
-	spot.connect("impact_unseen", _on_impact_unseen)
 	spot.connect("binoculars_changed", func(up: bool) -> void:
 		if up:
 			_tut["raise"] = true)
@@ -1000,47 +1174,88 @@ func _acc() -> float:
 func _sight() -> float:
 	return float(wx.call("sight_factor")) if wx != null else 1.0
 
-## Moerser-Ziele: MG-Nester (Besatzung = Puppen mit Leuchtspur), Unterstand, Schuetzenpanzer, Wechte.
-## hp = Trefferpunkte: Wirkungsfeuer im Kern (0.4 r) 2, im Radius 1; Einschiess-Schuss im Kern 1.
+## Moerser-Ziele: MG-Nester und Schuetzengruppen (Besatzung = Puppen mit Leuchtspur), Unterstand,
+## Schuetzenpanzer, Wechte. hp = Trefferpunkte: Granate im Kern (0.4 r) 2, im Radius 1 (eine gut
+## markierte Salve reicht fuer jedes Ziel).
 func _build_targets() -> void:
-	for d: Array in [["nest_a", Vector2(-42, -240)], ["nest_b", Vector2(40, -275)]]:
-		var c2: Vector2 = d[1]
-		var c := _gp(c2.x, c2.y)
-		var node := Node3D.new()
-		node.name = str(d[0])
-		add_child(node)
-		node.global_position = c
-		var m2 := GunModels.build_m2()   # M2 auf Dreibein oben auf der vorderen Sandsackmauer, Lauf Richtung Posten
-		m2.position = Vector3(0, 0.9, 2.0)
-		m2.rotation_degrees.y = 180.0
-		node.add_child(m2)
-		node.add_child(Geo.box_mesh_node(Vector3(0.6, 0.9, 0.1), mats["steel_dark"], Vector3(0, 0.5, -0.2), Vector3(20, 0, 0)))
-		node.add_child(Geo.box_mesh_node(Vector3(3.2, 0.12, 2.6), mats["white"], Vector3(0, 1.45, -0.3), Vector3(4, 0, 0)))
-		var crew: Array = []
-		var g := _make_actor("enemy", "heavy", c + Vector3(0.3, 0, -0.4), Color.BLACK, Color.BLACK, Color.BLACK, 180.0)
-		g.set("sfx_shot", "enemy_mg")
-		g.set("crouch", true)
-		g.set("invulnerable", true)
-		crew.append(g)
-		var r := _make_actor("enemy", "rifleman", c + Vector3(-1.0, 0, -0.9), Color.BLACK, Color.BLACK, Color.BLACK, 180.0)
-		r.set("crouch", true)
-		r.set("invulnerable", true)
-		crew.append(r)
-		_targets.append({"id": str(d[0]), "kind": "nest", "name": "MG-Nest", "pos": c, "radius": 8.0, "hp": 2, "alive": true, "phase": 1,
-			"crew": crew, "node": node, "fire_t": 2.0 + randf() * 3.0, "seen": false})
+	for d: Array in NESTS_P1:
+		_build_nest(str(d[0]), d[1] as Vector2, 1)
+	for d: Array in SQUADS_P1:
+		_build_squad(str(d[0]), d[1] as Vector2, 1)
 	var dp := _gp(6, -305)
 	var dug := Node3D.new()
 	dug.name = "Unterstand"
 	add_child(dug)
 	dug.global_position = dp
+	_lase_box(dug, Vector3(7.0, 2.6, 7.0), Vector3(0, 1.0, 0))
 	_targets.append({"id": "dugout", "kind": "dugout", "name": "Unterstand", "pos": dp, "radius": 8.0, "hp": 3, "alive": true, "phase": 1,
 		"crew": [], "node": dug, "fire_t": 99.0, "seen": false})
 	var vp: Vector2 = VEH_PATH[VEH_PATH.size() - 1]
 	_targets.append({"id": "vehicle", "kind": "vehicle", "name": "Schützenpanzer", "pos": _gp(vp.x, vp.y), "radius": 7.0, "hp": 2, "alive": true,
 		"phase": 3, "crew": [], "node": null, "fire_t": 99.0, "seen": false})
+	for d: Array in NESTS_P3:
+		_build_nest(str(d[0]), d[1] as Vector2, 3)
+	for d: Array in SQUADS_P3:
+		_build_squad(str(d[0]), d[1] as Vector2, 3)
 	var r0: Vector3 = RINNE[0]
 	_targets.append({"id": "cornice", "kind": "cornice", "name": "Wechte", "pos": Vector3(r0.x - 2.0, r0.y + 3.0, r0.z - 2.0), "radius": 14.0, "hp": 1,
 		"alive": true, "phase": 4, "crew": [], "node": null, "fire_t": 99.0, "seen": false})
+
+## MG-Nest: M2 auf Dreibein, MG-Schuetze + Gewehrschuetze (Puppen), Lauf Richtung Posten (+z).
+func _build_nest(id: String, c2: Vector2, phase: int) -> void:
+	var c := _gp(c2.x, c2.y)
+	var node := Node3D.new()
+	node.name = id
+	add_child(node)
+	node.global_position = c
+	var m2 := GunModels.build_m2()   # M2 auf Dreibein oben auf der vorderen Sandsackmauer, Lauf Richtung Posten
+	m2.position = Vector3(0, 0.9, 2.0)
+	m2.rotation_degrees.y = 180.0
+	node.add_child(m2)
+	node.add_child(Geo.box_mesh_node(Vector3(0.6, 0.9, 0.1), mats["steel_dark"], Vector3(0, 0.5, -0.2), Vector3(20, 0, 0)))
+	node.add_child(Geo.box_mesh_node(Vector3(3.2, 0.12, 2.6), mats["white"], Vector3(0, 1.45, -0.3), Vector3(4, 0, 0)))
+	_lase_box(node, Vector3(5.0, 2.2, 5.0), Vector3(0, 1.0, 0))
+	var crew: Array = []
+	var g := _make_actor("enemy", "heavy", c + Vector3(0.3, 0, -0.4), Color.BLACK, Color.BLACK, Color.BLACK, 180.0)
+	g.set("sfx_shot", "enemy_mg")
+	g.set("crouch", true)
+	g.set("invulnerable", true)
+	crew.append(g)
+	var r := _make_actor("enemy", "rifleman", c + Vector3(-1.0, 0, -0.9), Color.BLACK, Color.BLACK, Color.BLACK, 180.0)
+	r.set("crouch", true)
+	r.set("invulnerable", true)
+	crew.append(r)
+	_targets.append({"id": id, "kind": "nest", "name": "MG-Nest", "pos": c, "radius": 8.0, "hp": 2, "alive": true, "phase": phase,
+		"crew": crew, "node": node, "fire_t": 2.0 + randf() * 3.0, "seen": false})
+
+## Unsichtbarer Kollider (nur LASE_LAYER) fuer den Entfernungsmesser: Markieren auf das Ziel trifft das Ziel,
+## auch bei flachem Blickwinkel (sonst rutscht der Strahl am Ziel vorbei auf den Hang dahinter).
+func _lase_box(parent: Node3D, size: Vector3, off: Vector3) -> void:
+	var b := StaticBody3D.new()
+	b.name = "Lase"
+	b.collision_layer = LASE_LAYER
+	b.collision_mask = 0
+	b.set_meta("no_fit", true)
+	Geo.add_box_shape(b, off, size)
+	parent.add_child(b)
+
+## Schuetzengruppe: drei Gewehrschuetzen (Puppen) hinter einer Sandsackmauer, Einzelfeuer Richtung Posten.
+func _build_squad(id: String, c2: Vector2, phase: int) -> void:
+	var c := _gp(c2.x, c2.y)
+	var node := Node3D.new()
+	node.name = id
+	add_child(node)
+	node.global_position = c
+	_lase_box(node, Vector3(7.0, 2.0, 4.0), Vector3(0, 0.9, 0))
+	var crew: Array = []
+	for k in 3:
+		var p := c + Vector3(-1.8 + 1.8 * float(k), 0, -0.2 - 0.4 * float(k % 2))
+		var a := _make_actor("enemy", "marksman" if k == 1 else "rifleman", Vector3(p.x, ter.height(p.x, p.z), p.z), Color.BLACK, Color.BLACK, Color.BLACK, 180.0)
+		a.set("crouch", true)
+		a.set("invulnerable", true)
+		crew.append(a)
+	_targets.append({"id": id, "kind": "squad", "name": "Schützengruppe", "pos": c, "radius": 8.0, "hp": 2, "alive": true, "phase": phase,
+		"crew": crew, "node": node, "fire_t": 1.0 + randf() * 3.0, "seen": false})
 
 func _target(id: String) -> Dictionary:
 	for t in _targets:
@@ -1071,6 +1286,7 @@ func _build_vehicle() -> void:
 	for s: Array in IfvModel.shapes():
 		Geo.add_box_shape(ab, s[0] as Vector3, s[1] as Vector3)
 	_veh.add_child(ab)
+	_lase_box(_veh, Vector3(4.0, 3.2, 7.5), Vector3(0, 1.4, 0))
 	_veh.visible = false
 
 ## Wechte: ueberhaengende Schneekante oben an der Rinne (Moerserziel, Kollision fuer den Entfernungsmesser).
@@ -1185,22 +1401,37 @@ func _start_phase1() -> void:
 	_tut_on = true
 	spot.set("enabled", true)
 	_update_phase1_obj()
-	_say(SD.LENA, "Zwei MG-Nester und ein Unterstand unten im Kessel. Fernglas, Ziel markieren – ich gebe es an den Mörserzug. Warte auf die Lücken im Sturm.")
-	_later(5.0, func() -> void:
+	# Einweisung schliesst an das Absetz-Briefing an (sobald der Funk frei ist), nicht hinten in der Schlange
+	_when_radio_free(func() -> void:
 		if _phase == 1:
-			_say(SD.LENA, "Der Zug schießt sich erst mit einer Granate ein. Schau, wo sie liegt, korrigier mit den Pfeiltasten – sitzt sie, dann [%s] für Wirkungsfeuer." % _key("spotter_effect")))
+			_say_opt(SD.LENA, "Unten im Kessel: MG-Nester, Schützengruppen und ein Unterstand. Fernglas, Ziel markieren – der Mörserzug schießt sofort, eine volle Salve.", 0.0,
+				{"priority": 1}), 20.0)
 	_later(6.0, func() -> void:
 		if _phase == 1:
-			wx.call("open_window", 26.0))
+			wx.call("open_window", 26.0))   # Sturm reisst kurz auf (nur Optik)
 	_counter_t = 90.0
-	_report_t = 16.0
+	_report_t = 8.0
 
 func _update_phase1_obj() -> void:
+	_obj("Stellungen im Kessel mit dem Mörser ausschalten (%s)" % _phase_count(1))
+
+## "erledigt/gesamt" der Moerserziele einer Phase.
+func _phase_count(phase: int) -> String:
 	var n := 0
+	var all := 0
 	for t in _targets:
-		if int(t["phase"]) == 1 and not bool(t["alive"]):
-			n += 1
-	_obj("Stellungen im Kessel mit dem Mörser ausschalten (%d/3)" % n)
+		if int(t["phase"]) == phase:
+			all += 1
+			if not bool(t["alive"]):
+				n += 1
+	return "%d/%d" % [n, all]
+
+## Lage der Moerserziele (MG-Nester + Schuetzengruppen) einer Phase.
+static func _target_spots(phase: int) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for d: Array in (NESTS_P1 + SQUADS_P1 if phase == 1 else NESTS_P3 + SQUADS_P3):
+		out.append(d[1] as Vector2)
+	return out
 
 func _end_phase1(quiet: bool = false) -> void:
 	if _phase != 1:
@@ -1212,7 +1443,7 @@ func _end_phase1(quiet: bool = false) -> void:
 	_open_gate("g1")
 	_obj("Durch den Kessel – Webers Nachhut bei der Zollhütte")
 	if not quiet:
-		_say(SD.BRANDT, "Alle drei Stellungen sind still. Webers Nachhut zieht sich zur Zollhütte zurück – geht runter und räumt auf.")
+		_say_opt(SD.BRANDT, "Alle Stellungen im Kessel sind still. Webers Nachhut zieht sich zur Zollhütte zurück – geht runter und räumt auf.", 0.0, {"priority": 1, "cut": true})
 
 ## Gegenstoss: echte Gegner steigen die Serpentine zum Posten hoch.
 func _spawn_counter() -> void:
@@ -1220,7 +1451,8 @@ func _spawn_counter() -> void:
 		return
 	var pl := _player()
 	var to: Vector3 = pl.global_position if pl != null else _gp(OP1.x, OP1.y)
-	for d: Array in [["assault", Vector2(-4, -150)], ["rifleman", Vector2(0, -142)], ["rifleman", Vector2(-10, -132)], ["assault", Vector2(2, -156)]]:
+	for d: Array in [["assault", Vector2(-4, -150)], ["rifleman", Vector2(6, -143)], ["rifleman", Vector2(14, -137)], ["assault", Vector2(0, -154)],
+			["rifleman", Vector2(20, -128)], ["assault", Vector2(-8, -155)]]:
 		var c: Vector2 = d[1]
 		var e := _enemy(str(d[0]), _gp(c.x, c.y), "reich", _acc())
 		if e == null:
@@ -1229,7 +1461,7 @@ func _spawn_counter() -> void:
 		if e.has_method("alert"):
 			e.call("alert", to, false)
 		_reveal[e.get_instance_id()] = {"n": e, "until": _t + 10.0}
-	_say(SD.LENA, "Bewegung an der Serpentine – die kommen zu uns hoch! Erst die, dann weiter mit dem Mörser.")
+	_say_opt(SD.LENA, "Bewegung an der Serpentine – die kommen zu uns hoch! Erst die, dann weiter mit dem Mörser.", 0.0, {"priority": 1, "cut": true})
 
 func _on_basin() -> void:
 	if _phase != 2 or _waves_spawned.has(1):
@@ -1248,15 +1480,19 @@ func _spawn_wave_alp(index: int) -> void:
 	match index:
 		1:
 			list = [["rifleman", Vector2(10, -245)], ["assault", Vector2(-8, -255)], ["rifleman", Vector2(20, -275)], ["heavy", Vector2(-14, -280)],
-				["marksman", Vector2(4, -300)], ["rifleman", Vector2(24, -292)], ["assault", Vector2(-4, -270)]]
+				["marksman", Vector2(4, -300)], ["rifleman", Vector2(24, -292)], ["assault", Vector2(-4, -270)],
+				["rifleman", Vector2(-20, -230)], ["assault", Vector2(30, -240)], ["rifleman", Vector2(-24, -300)], ["heavy", Vector2(12, -312)]]
 		2:
 			list = [["rifleman", Vector2(48, -490)], ["assault", Vector2(50, -505)], ["marksman", Vector2(49, -520)],
-				["rifleman", Vector2(40, -570)], ["assault", Vector2(30, -590)]]
+				["rifleman", Vector2(40, -570)], ["assault", Vector2(30, -590)],
+				["assault", Vector2(49, -540)], ["rifleman", Vector2(46, -555)], ["marksman", Vector2(36, -582)]]
 		3:
 			list = [["rifleman", Vector2(-7, -634)], ["officer", Vector2(-2, -644)], ["rifleman", Vector2(-9, -622)],
-				["assault", Vector2(6, -626)], ["heavy", Vector2(-4, -652)]]
+				["assault", Vector2(6, -626)], ["heavy", Vector2(-4, -652)],
+				["rifleman", Vector2(10, -640)], ["assault", Vector2(-15, -624)], ["marksman", Vector2(2, -664)]]
 		9:
-			list = [["assault", Vector2(-14, -615)], ["rifleman", Vector2(12, -618)], ["marksman", Vector2(-18, -640)]]
+			list = [["assault", Vector2(-14, -615)], ["rifleman", Vector2(12, -618)], ["marksman", Vector2(-18, -640)],
+				["rifleman", Vector2(16, -630)], ["assault", Vector2(-20, -630)]]
 	var faction := "garde_winter" if index == 2 or index == 9 else "reich"
 	for d: Array in list:
 		var c: Vector2 = d[1]
@@ -1268,7 +1504,10 @@ func _spawn_wave_alp(index: int) -> void:
 		if e.has_method("alert") and index != 9:
 			e.call("alert", alert_to, false)
 	if index == 1:
-		_later(2.5, func() -> void: _say_once("contact1", SD.LENA, "Kontakt! Sie sind noch nicht alle tot."))
+		_later(2.5, func() -> void:
+			if not _said.has("contact1"):
+				_said["contact1"] = true
+				_say_opt(SD.LENA, "Kontakt! Sie sind noch nicht alle tot.", 0.0, {"priority": 1, "max_age": 2.0}))
 
 func _start_phase3() -> void:
 	if _phase != 2:
@@ -1278,11 +1517,12 @@ func _start_phase3() -> void:
 	_spot_active = true
 	spot.set("salvos_left", maxi(int(spot.get("salvos_left")), 6))
 	spot.set("enabled", true)
-	_obj("Schützenpanzer an der Passstraße mit dem Mörser zerstören")
+	_update_phase3_obj()
 	_say(SD.BRANDT, "Ein Schützenpanzer rollt von der Bergstation hoch zur Brücke. Wenn der sich dort eingräbt, kommt keiner durch.")
 	_veh_drive()
 	var pl := _player()
-	for d: Array in [["rifleman", Vector2(-4, -520)], ["assault", Vector2(10, -528)], ["rifleman", Vector2(3, -540)]]:
+	for d: Array in [["rifleman", Vector2(-4, -520)], ["assault", Vector2(10, -528)], ["rifleman", Vector2(3, -540)],
+			["assault", Vector2(-6, -548)], ["rifleman", Vector2(12, -552)]]:
 		var c: Vector2 = d[1]
 		var e := _enemy(str(d[0]), _gp(c.x, c.y), "reich", _acc())
 		if e == null:
@@ -1292,7 +1532,14 @@ func _start_phase3() -> void:
 			e.call("alert", pl.global_position, false)
 	_later(8.0, func() -> void:
 		if _phase == 3:
-			_say(SD.LENA, "Infanterie vor dem Panzer, auf der Straße! Die halten wir mit dem Gewehr – den Panzer nimmt der Mörser."))
+			_say_opt(SD.LENA, "Infanterie vor dem Panzer, auf der Straße! Die halten wir mit dem Gewehr – den Panzer nimmt der Mörser.", 0.0,
+				{"priority": 1, "max_age": 2.0, "valid": func() -> bool: return _phase == 3}))
+	_later(16.0, func() -> void:
+		if _phase == 3:
+			_say_idle("p3_nests", 60.0, SD.LENA, "Dazu MG-Nester und eine Schützengruppe an der Straße. Alles Ziele für den Mörser."))
+
+func _update_phase3_obj() -> void:
+	_obj("Schützenpanzer und Stellungen an der Passstraße mit dem Mörser zerstören (%s)" % _phase_count(3))
 
 func _veh_drive() -> void:
 	if _veh_state != "idle":
@@ -1308,7 +1555,8 @@ func _veh_stopped() -> void:
 	_veh_state = "stopped"
 	var t := _target("vehicle")
 	t["seen"] = true
-	_say(SD.LENA, "Er steht. Jetzt oder nie – markier ihn.")
+	_say_opt(SD.LENA, "Er steht. Jetzt oder nie – markier ihn.", 0.0,
+		{"priority": 2, "cut": true, "drop_live": true, "valid": func() -> bool: return _veh_state == "stopped"})
 	wx.call("open_window", 24.0)
 
 func _tick_vehicle(delta: float) -> void:
@@ -1341,7 +1589,7 @@ func _tick_vehicle(delta: float) -> void:
 	_veh_fire_t -= delta
 	if _veh_fire_t > 0.0:
 		return
-	_veh_fire_t = randf_range(2.2, 3.6) if bool(wx.call("is_window_open")) else randf_range(4.0, 6.0)
+	_veh_fire_t = randf_range(2.6, 4.4)
 	var mz: Node3D = _veh_parts.get("coax_muzzle")
 	if mz == null:
 		return
@@ -1384,8 +1632,7 @@ func _destroy_vehicle(quiet: bool) -> void:
 	Props.fire(_veh, Vector3(0, 2.0, 0.6), 1.6, true, 3.0, 5.0)
 	if not quiet:
 		Combat.explode(_veh.global_position + Vector3(0, 1.5, 0), 6.0, 60.0, _player(), 1.5)
-		_say(SD.LENA, "Panzer brennt! Treffer!")
-		_later(4.0, _start_phase4)
+		_say_opt(SD.LENA, "Panzer brennt! Treffer!", 0.0, {"priority": 2, "cut": true})
 
 func _start_phase4() -> void:
 	if _phase != 3:
@@ -1393,8 +1640,10 @@ func _start_phase4() -> void:
 	_phase = 4
 	_obj("Wechte über der Rinne beschießen – Lawine auslösen, bevor Falk sprengt")
 	_say(SD.BRANDT, "Bewegung in der Rinne westlich von euch. Graue Mäntel – Falks Garde-Jäger. Die wollen zur Bergstation, vor euch.")
-	_say(SD.FALK, "Weber gehört mir. Wer sich mir in den Weg stellt, bleibt im Schnee.")
-	_say(SD.LENA, "Über der Rinne hängt eine Wechte. Ein Treffer, und der ganze Hang kommt runter.")
+	_say_opt(SD.FALK, "Weber gehört mir. Wer sich mir in den Weg stellt, bleibt im Schnee.", 0.0,
+		{"drop_live": true, "valid": func() -> bool: return not _avalanche})
+	_say_opt(SD.LENA, "Über der Rinne hängt eine Wechte. Ein Treffer, und der ganze Hang kommt runter.", 0.0,
+		{"drop_live": true, "valid": func() -> bool: return not _avalanche})
 	_target("cornice")["seen"] = true
 	spot.set("salvos_left", maxi(int(spot.get("salvos_left")), 4))
 	for d: Array in [["assault", Vector2(-74, -470)], ["rifleman", Vector2(-70, -466)], ["marksman", Vector2(-77, -462)], ["assault", Vector2(-66, -474)], ["rifleman", Vector2(-72, -480)]]:
@@ -1420,12 +1669,14 @@ func _tick_garde(delta: float) -> void:
 					e.call("alert", pl.global_position, false)
 				if _alive(e):
 					_reveal[e.get_instance_id()] = {"n": e, "until": _t + 8.0}
-			_say(SD.LENA, "Die Grauen kommen die Rinne runter – linke Flanke, %d Uhr!" % _clock(Vector3(-55, 0, -450)))
+			_say_opt(SD.LENA, "Die Grauen kommen die Rinne runter – linke Flanke, %d Uhr!" % _clock(Vector3(-55, 0, -450)), 0.0,
+				{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return not _avalanche})
 	if _falk_t > 0.0:
 		_falk_t -= delta
 		if _falk_t <= 20.0 and not _falk_warned:
 			_falk_warned = true
-			_say(SD.BRANDT, "Die Garde schleppt Ladungen an die Wechte. Noch zwanzig Sekunden, dann jagen sie den Hang selbst hoch!")
+			_say_opt(SD.BRANDT, "Die Garde schleppt Ladungen an die Wechte. Noch zwanzig Sekunden, dann jagen sie den Hang selbst hoch!", 0.0,
+				{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return not _avalanche})
 		if _falk_t <= 0.0:
 			_trigger_avalanche(false)
 
@@ -1442,11 +1693,11 @@ func _trigger_avalanche(by_player: bool, quiet: bool = false) -> void:
 	var dur := 0.3 if quiet else 5.0
 	if not quiet:
 		if by_player:
-			_say(SD.LENA, "Da kommt der Hang! Runter, runter!")
+			_say_opt(SD.LENA, "Da kommt der Hang! Runter, runter!", 0.0, {"priority": 2, "cut": true})
 			_say(SD.BRANDT, "Die Rinne ist zu. Von den Grauen kommt keiner mehr raus. Die Straße auch nicht – nehmt den Steig über den Grat.")
 		else:
 			Combat.explode(_wechte.global_position + Vector3(2, 1, 0), 6.0, 0.0, null, 1.6)
-			_say(SD.BRANDT, "Sprengung am Hang! Falk jagt die Wechte selbst hoch!")
+			_say_opt(SD.BRANDT, "Sprengung am Hang! Falk jagt die Wechte selbst hoch!", 0.0, {"priority": 2, "cut": true})
 			_say(SD.LENA, "Er begräbt seine eigenen Leute, nur um die Straße zu sperren...")
 			_say(SD.BRANDT, "Die Straße ist zu. Nehmt den Steig über den Grat.")
 		_avalanche_fx(dur)
@@ -1514,9 +1765,9 @@ func _start_phase5() -> void:
 	_obj("Über den Grat-Steig zur Bergstation – bevor die Seilbahn abfährt")
 	_spawn_wave_alp(2)
 	_cable_t = DEPART_TIME
-	_later(4.0, func() -> void:
+	_later(4.0, _when_radio_free.bind(func() -> void:
 		if _phase == 5:
-			_say(SD.BRANDT, "Die Bergstation macht die Seilbahn klar. Zweieinhalb Minuten, dann ist Weber über die Grenze – lauft!"))
+			_say_opt(SD.BRANDT, "Die Bergstation macht die Seilbahn klar. Zweieinhalb Minuten, dann ist Weber über die Grenze – lauft!", 0.0, {"priority": 1}), 10.0))
 
 func _tick_countdown(delta: float) -> void:
 	if _cable_t <= 0.0 or _phase != 5:
@@ -1524,7 +1775,7 @@ func _tick_countdown(delta: float) -> void:
 	var before := _cable_t
 	_cable_t -= delta
 	if before > 60.0 and _cable_t <= 60.0:
-		_say(SD.BRANDT, "Noch eine Minute bis zur Abfahrt!")
+		_say_opt(SD.BRANDT, "Noch eine Minute bis zur Abfahrt!", 0.0, {"priority": 1, "max_age": 3.0})
 	if _cable_t <= 0.0:
 		_late = true
 		_depart_cabin()
@@ -1535,7 +1786,9 @@ func _on_ridge() -> void:
 	if _phase < 5:
 		return
 	_checkpoint("cp_grat")
-	_say_once("ridge", SD.LENA, "Garde auf dem Grat! Deckung!")
+	if not _said.has("ridge"):
+		_said["ridge"] = true
+		_say_opt(SD.LENA, "Garde auf dem Grat! Deckung!", 0.0, {"priority": 1, "max_age": 2.0})
 
 func _start_phase6() -> void:
 	if _phase != 5:
@@ -1574,54 +1827,19 @@ func _try_finish() -> void:
 
 # ------------------------------------------------------------------ Moerser-Rueckmeldungen
 
-func _spot_visible(p: Vector3) -> bool:
-	if wx == null:
-		return true
-	if bool(wx.call("is_window_open")):
-		return true
-	var pl := _player()
-	return pl != null and pl.global_position.distance_to(p) < float(wx.call("visibility_range")) * 0.8
-
-func _on_wave_warning(kind: String, _s: float) -> void:
-	if not _spot_active:
-		return
-	# Zeitkritische Warnung nur bei freiem Funk – verspätet in der Warteschlange wäre sie falsch
-	# (der HUD-Balken zeigt den Countdown ohnehin).
-	if _radio_busy():
-		return
-	if kind == "window":
-		_say_cd("ww", 30.0, SD.LENA, "Der Sturm reißt gleich auf – zehn Sekunden. Fernglas bereit.")
-	else:
-		_say_cd("ws", 30.0, SD.LENA, "Es zieht wieder zu – noch zehn Sekunden Sicht.")
-
 func _on_mission_requested(_target_p: Vector3, _dist: float) -> void:
 	_salvo_hit = false
 	_tut["mark"] = true
 	_say_idle("req", 75.0, SD.LENA, "Feuerauftrag ist raus. Mörserzug bestätigt.")
 
-func _on_salvo_fired(_aim: Vector3, _ft: float, rounds: int) -> void:
+func _on_salvo_fired(_aim: Vector3, _ft: float, _rounds: int) -> void:
 	_salvo_hit = false
-	_eff_active = rounds > 1
-
-func _on_effect_requested(_t2: Vector3) -> void:
-	_tut["effect"] = true
-
-func _on_correction_sent(_f: float, _r: float) -> void:
-	_salvo_hit = false
-	_tut["corr"] = true
-	_say_idle("corr", 90.0, SD.LENA, "Korrektur ist raus. Nächste Salve auf die verbesserten Werte.")
-
-func _on_impact_unseen(_p: Vector3) -> void:
-	_bt_unseen = true
-	_say_idle("unseen", 25.0, SD.LENA, "Einschlag nicht beobachtet – im Sturm sehe ich nichts. Im nächsten Fenster neu einschießen.")
 
 func _on_mission_refused(reason: String) -> void:
 	if _bot and _t >= float(_cd.get("dbg_ref", -1.0)):
 		_cd["dbg_ref"] = _t + 5.0
 		print("[alpenpass] verweigert: %s" % reason)
 	match reason:
-		"sicht":
-			_say_idle("sicht", 30.0, SD.LENA, "Ich sehe nichts, du siehst nichts. Warte, bis der Sturm Luft holt.")
 		"laden":
 			_say_idle("laden", 30.0, SD.LENA, "Die Rohre laden noch. Geduld.")
 		"leer":
@@ -1655,10 +1873,8 @@ func _on_shell_impact(pos: Vector3, _i: int) -> void:
 		if str(t["kind"]) == "cornice":
 			d = pos.distance_to(tp)
 			pts = 1 if d < r else 0
-		elif _eff_active:
-			pts = 2 if d < r * 0.4 else (1 if d < r else 0)
 		else:
-			pts = 1 if d < r * 0.4 else 0
+			pts = 2 if d < r * 0.4 else (1 if d < r else 0)
 		if pts <= 0:
 			continue
 		_salvo_hit = true
@@ -1674,45 +1890,17 @@ func _on_shell_impact(pos: Vector3, _i: int) -> void:
 func _on_salvo_complete(impacts: Array) -> void:
 	var open := _open_targets()
 	if not _salvo_hit and not open.is_empty() and not impacts.is_empty():
-		var mean := Vector3.ZERO
-		for p: Variant in impacts:
-			mean += p as Vector3
-		mean /= float(impacts.size())
-		var best: Dictionary = {}
-		var bd := INF
-		for t in open:
-			var dd := Vector2(mean.x - _target_pos(t).x, mean.z - _target_pos(t).z).length()
-			if dd < bd:
-				bd = dd
-				best = t
-		if not _eff_active and bd < 7.0:
-			_say_idle("good", 12.0, SD.LENA, "Der liegt gut! Jetzt [%s] – Wirkungsfeuer." % _key("spotter_effect"))
-		else:
-			_misses += 1
-			if _misses == 1:
-				_say_idle("miss1", 8.0, SD.LENA, "Daneben. Sag mir die Korrektur – weiter, kürzer, links, rechts.")
-			else:
-				_say_idle("miss", 70.0, SD.LENA, "Liegt nicht im Ziel. Korrigieren!")
-		# Tutorial: die ersten Einschiess-Schuesse werden ausgewertet (danach muss der Spieler selbst schaetzen)
-		if _tut_on and not _eff_active and _hint_n < 2 and not best.is_empty() and bd >= 7.0:
-			_hint_n += 1
-			var tp := _target_pos(best)
-			var b: Array = spot.call("ot_basis", tp)
-			var diff := mean - tp
-			diff.y = 0.0
-			var f := roundi(diff.dot(b[0] as Vector3) / 10.0) * 10
-			var r := roundi(diff.dot(b[1] as Vector3) / 10.0) * 10
-			var parts: Array[String] = []
-			if f != 0:
-				parts.append("%d m zu %s" % [absi(f), "weit" if f > 0 else "kurz"])
-			if r != 0:
-				parts.append("%d m %s" % [absi(r), "rechts" if r > 0 else "links"])
-			_hint = "Einschlag lag %s vom Ziel  →  Korrektur: %s, dann [LMB] senden" % [", ".join(parts), Spotter.correction_text(Vector2(-f, -r))]
-			_hint_t = 14.0
+		_misses += 1
+		_say_idle("miss", 25.0, SD.LENA, "Die Salve lag daneben. Markier direkt auf das Ziel.")
 	if not open.is_empty() and int(spot.get("salvos_left")) <= 0:
 		_request_refill()
 	if _bot:
-		print("[alpenpass] salve: wirkung=%s treffer=%s ziel=%s" % [str(_eff_active), str(_salvo_hit), _bt_id])
+		var mi := Vector3.ZERO
+		for p: Variant in impacts:
+			mi += (p as Vector3) / float(maxi(impacts.size(), 1))
+		var tt := _target(_bt_id)
+		print("[alpenpass] salve: treffer=%s ziel=%s n=%d mitte=%s ziel_pos=%s aim=%s" % [str(_salvo_hit), _bt_id, impacts.size(), str(mi.snapped(Vector3.ONE)),
+			str(_target_pos(tt).snapped(Vector3.ONE)) if not tt.is_empty() else "-", str(_bt_aim.snapped(Vector3.ONE))])
 		_bot_after_salvo(impacts)
 
 func _open_targets() -> Array[Dictionary]:
@@ -1739,7 +1927,15 @@ func _destroy_target(t: Dictionary, quiet: bool) -> void:
 					(c as Node3D).rotation_degrees += Vector3(randf_range(30, 70), randf_range(-40, 40), 0)
 				Props.fire(self, n.global_position + Vector3(0.4, 0.1, 0.2), 0.7, true, 1.5, 3.0)
 			if not quiet:
-				_say(SD.LENA, "MG-Nest ist weg. Volltreffer.")
+				_say_opt(SD.LENA, "MG-Nest ist weg. Volltreffer.", 0.0, {"max_age": 2.0, "key": "ap_kill"})
+		"squad":
+			t["alive"] = false
+			for a: Variant in (t["crew"] as Array):
+				if _alive(a):
+					(a as Node).call("_die")
+			Props.fire(self, (t["pos"] as Vector3) + Vector3(0.6, 0.1, 0.8), 0.5, true, 1.2, 2.5)
+			if not quiet:
+				_say_idle("squad_down", 4.0, SD.LENA, "Die Schützengruppe ist erledigt.")
 		"dugout":
 			t["alive"] = false
 			var p: Vector3 = t["pos"]
@@ -1748,7 +1944,7 @@ func _destroy_target(t: Dictionary, quiet: bool) -> void:
 			Props.fire(self, p + Vector3(1, 0.4, 2.4), 0.8, true, 2.0, 3.0)
 			if not quiet:
 				VFX.spawn_dust_cloud(p, 8.0)
-				_say(SD.LENA, "Der Unterstand ist eingestürzt. Gute Arbeit.")
+				_say_opt(SD.LENA, "Der Unterstand ist eingestürzt. Gute Arbeit.", 0.0, {"max_age": 2.0, "key": "ap_kill"})
 		"vehicle":
 			_destroy_vehicle(quiet)
 		"cornice":
@@ -1763,6 +1959,15 @@ func _destroy_target(t: Dictionary, quiet: bool) -> void:
 				all_dead = false
 		if all_dead and not quiet:
 			_later(3.0, func() -> void: _end_phase1())
+	elif int(t["phase"]) == 3:
+		if _phase == 3:
+			_update_phase3_obj()
+		var all_dead3 := true
+		for o in _targets:
+			if int(o["phase"]) == 3 and bool(o["alive"]):
+				all_dead3 = false
+		if all_dead3 and not quiet:
+			_later(4.0, _start_phase4)
 
 # ------------------------------------------------------------------ Kabine / Weber
 
@@ -1859,13 +2064,13 @@ func _tick_discovery(delta: float) -> void:
 			if bool(t["seen"]):
 				continue
 			var tp := _target_pos(t)
-			if fwd.angle_to((tp - cam.global_position).normalized()) < deg_to_rad(6.0) and _spot_visible(tp):
+			if fwd.angle_to((tp - cam.global_position).normalized()) < deg_to_rad(6.0):
 				t["seen"] = true
 				_say_idle("spotted", 6.0, SD.LENA, "Gesehen – %s, %d Meter. Markier es." % [str(t["name"]), roundi(_dist_to_player(tp) / 10.0) * 10])
 	_report_t -= delta
 	if _report_t > 0.0:
 		return
-	_report_t = 22.0
+	_report_t = 12.0
 	for t in _open_targets():
 		if bool(t["seen"]):
 			continue
@@ -1888,34 +2093,22 @@ func _build_hud() -> void:
 	_hud_ctrl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_hud_ctrl)
 	_hud_ctrl.draw.connect(_draw_hud)
+	_hud_root = UIStyle.HudRoot.new()
+	_hud.add_child(_hud_root)
+	_hud_ui = Control.new()
+	_hud_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hud_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud_root.add_child(_hud_ui)
+	_hud_ui.draw.connect(_draw_hud_ui)
 
-func _draw_hud() -> void:
+func _draw_hud_ui() -> void:
 	var pl := _player()
-	if pl == null or wx == null or spot == null:
+	if pl == null or spot == null:
 		return
 	var f := ThemeDB.fallback_font
-	var vs := _hud_ctrl.size
-	var c := _hud_ctrl
-	# --- Wetter (oben rechts)
-	var open := bool(wx.call("is_window_open"))
-	var vr := minf(float(wx.call("visibility_range")), 1500.0)
-	var wp := str(wx.call("wave_phase"))
-	var box := Rect2(vs.x - 300.0, 92.0, 280.0, 70.0)
-	c.draw_rect(box, Color(0.02, 0.03, 0.05, 0.5))
-	var col := Color(0.55, 0.88, 1.0) if open else Color(0.92, 0.94, 0.98)
-	var title := "SICHTFENSTER" if open else ("STURM" if wp == "storm" else ("STURM LÄSST NACH" if wp == "down" else "STURM ZIEHT AUF"))
-	c.draw_string(f, box.position + Vector2(12, 22), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, col)
-	var vtxt := "Sicht %d m" % (roundi(vr / 10.0) * 10)
-	c.draw_string(f, box.position + Vector2(268.0 - f.get_string_size(vtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x, 22), vtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, col)
-	var sub := ""
-	if open:
-		sub = "zieht zu in %d s" % ceili(float(wx.call("seconds_to_storm")))
-	else:
-		sub = "Lücke in ~%d s" % ceili(float(wx.call("seconds_to_window")))
-	c.draw_string(f, box.position + Vector2(12, 44), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.85, 0.87, 0.9))
-	var vis := float(wx.call("visibility"))
-	c.draw_rect(Rect2(box.position + Vector2(12, 54), Vector2(256, 6)), Color(1, 1, 1, 0.15))
-	c.draw_rect(Rect2(box.position + Vector2(12, 54), Vector2(256 * vis, 6)), col)
+	var vs := _hud_ui.size
+	var c := _hud_ui
+	var fac := _hud_root.factor
 	# --- Moerser (links): Tutorial-Schritte bzw. Status
 	if _spot_active:
 		var y0 := vs.y * 0.34
@@ -1923,32 +2116,32 @@ func _draw_hud() -> void:
 		if _tut_on:
 			lines = [
 				[_tut.has("raise"), "[%s] Fernglas heben" % _key("binoculars")],
-				[_tut.has("mark"), "Ziel anvisieren, [LMB] markieren (nur bei Sicht)"],
-				[_tut.has("impact"), "Einschießschuss beobachten (Rauch)"],
-				[_tut.has("corr"), "Pfeiltasten korrigieren (10 m, Shift 50 m), [LMB] senden"],
-				[_tut.has("effect"), "Sitzt er: [%s] Wirkungsfeuer (4 Granaten)" % _key("spotter_effect")],
+				[_tut.has("mark"), "Ziel anvisieren, [LMB] markieren – Salve kommt sofort"],
+				[_tut.has("impact"), "Einschläge beobachten – steht noch was, erneut markieren"],
 			]
-		var h := 58.0 + 22.0 * float(lines.size())
-		c.draw_rect(Rect2(16, y0, 430, h), Color(0.02, 0.03, 0.05, 0.5))
-		c.draw_string(f, Vector2(28, y0 + 22), "MÖRSERZUG", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.78, 0.4))
+		var k := float(UIStyle.min_fs(14, fac)) / 14.0   # Tafel waechst mit der Mindestschrift (kleine Fenster)
+		var h := (36.0 + 22.0 * float(lines.size())) * k
+		c.draw_rect(Rect2(16, y0, 480 * k, h), Color(0.02, 0.03, 0.05, 0.5))
+		c.draw_string(f, Vector2(28, y0 + 22 * k), "MÖRSERZUG", HORIZONTAL_ALIGNMENT_LEFT, -1, UIStyle.min_fs(16, fac), Color(1.0, 0.78, 0.4))
 		var st := str(spot.call("state"))
 		var tl := float(spot.call("state_time_left"))
-		var st_txt := {"ready": "bereit", "prep": "richtet ein", "flight": "Granaten in der Luft %d s" % ceili(tl), "reload": "lädt %d s" % ceili(tl), "empty": "keine Wirkungssalven"}.get(st, st) as String
-		c.draw_string(f, Vector2(130, y0 + 22), "%s  ·  Wirkungssalven %d" % [st_txt, int(spot.get("salvos_left"))], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.9, 0.9, 0.9))
-		var corr: Vector2 = spot.call("pending_correction")
-		c.draw_string(f, Vector2(28, y0 + 44), "Korrektur vorgemerkt: %s" % Spotter.correction_text(corr), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.8, 0.85, 0.9))
+		var st_txt := {"ready": "feuerbereit", "prep": "Feuer!", "flight": "Salve in der Luft %d s" % ceili(tl), "reload": "lädt %d s" % ceili(tl), "empty": "keine Salven"}.get(st, st) as String
+		c.draw_string(f, Vector2(28 + 102 * k, y0 + 22 * k), "%s  ·  Salven %d" % [st_txt, int(spot.get("salvos_left"))], HORIZONTAL_ALIGNMENT_LEFT, -1, UIStyle.min_fs(14, fac), Color(0.9, 0.9, 0.9))
 		for i in lines.size():
 			var done: bool = lines[i][0]
-			c.draw_string(f, Vector2(28, y0 + 68 + 22.0 * float(i)), ("✔ " if done else "○ ") + str(lines[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14,
+			c.draw_string(f, Vector2(28, y0 + (46 + 22.0 * float(i)) * k), ("✔ " if done else "○ ") + str(lines[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, UIStyle.min_fs(14, fac),
 				Color(0.55, 0.9, 0.55) if done else Color(0.95, 0.95, 0.95))
-		if _hint_t > 0.0 and _hint != "":
-			c.draw_string(f, Vector2(28, y0 + h + 22), _hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1.0, 0.85, 0.45))
 	# --- Seilbahn-Countdown (oben Mitte)
 	if _phase == 5 and _cable_t > 0.0:
 		var txt := "SEILBAHN FÄHRT AB IN %d:%02d" % [int(_cable_t) / 60, int(_cable_t) % 60]
 		var cc := Color(1.0, 0.35, 0.3) if _cable_t < 30.0 else Color(1.0, 0.9, 0.6)
 		c.draw_string(f, Vector2(vs.x * 0.5 - 200, 120), txt, HORIZONTAL_ALIGNMENT_CENTER, 400, 22, cc)
-	# --- Marker
+
+func _draw_hud() -> void:
+	var pl := _player()
+	if pl == null or spot == null:
+		return
+	# --- Marker (echte Pixel)
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
@@ -1974,7 +2167,8 @@ func _draw_marker(cam: Camera3D, p: Vector3, col: Color, label: String, diamond:
 	var m := 36.0
 	if not behind and sp.x > m and sp.y > m and sp.x < vs.x - m and sp.y < vs.y - m:
 		var d := cam.global_position.distance_to(p)
-		var s := clampf(700.0 / maxf(d, 1.0), 7.0, 22.0)
+		var ms := clampf(UIStyle.hud_scale(vs), 0.6, 2.0)
+		var s := clampf(700.0 / maxf(d, 1.0), 7.0, 22.0) * ms
 		if diamond:
 			var pts := PackedVector2Array([sp + Vector2(0, -s), sp + Vector2(s, 0), sp + Vector2(0, s), sp + Vector2(-s, 0), sp + Vector2(0, -s)])
 			c.draw_polyline(pts, col, 2.0)
@@ -1986,7 +2180,7 @@ func _draw_marker(cam: Camera3D, p: Vector3, col: Color, label: String, diamond:
 				c.draw_line(cn, cn - Vector2(sx * s * 0.5, 0), col, 2.0)
 				c.draw_line(cn, cn - Vector2(0, sy * s * 0.5), col, 2.0)
 		if label != "":
-			c.draw_string(ThemeDB.fallback_font, sp + Vector2(-120, s + 18), label, HORIZONTAL_ALIGNMENT_CENTER, 240, 13, col)
+			c.draw_string(ThemeDB.fallback_font, sp + Vector2(-120, s + 18 * ms), label, HORIZONTAL_ALIGNMENT_CENTER, 240, maxi(roundi(13 * ms), 9), col)
 		return
 	# ausserhalb: Pfeil am Rand
 	var ctr := vs * 0.5
@@ -2030,10 +2224,10 @@ func _process(delta: float) -> void:
 			var a := randf() * TAU
 			Avalanche.puff(self, Vector3(_heli.global_position.x + cos(a) * 6.0, gy + 0.8, _heli.global_position.z + sin(a) * 6.0), 6.0, 4, 2.4)
 	_tick_backdrop()
-	if _hint_t > 0.0:
-		_hint_t -= delta
 	if _hud_ctrl != null:
 		_hud_ctrl.queue_redraw()
+	if _hud_ui != null:
+		_hud_ui.queue_redraw()
 
 ## Gipfelketten: eigene Luftperspektive aus dem aktuellen Nebel (Sturm -> verschwinden, Sichtfenster -> Fernsicht).
 func _tick_backdrop() -> void:
@@ -2048,6 +2242,28 @@ func _tick_backdrop() -> void:
 	m.set_shader_parameter("haze_k", fd * 0.26)
 	m.set_shader_parameter("haze_cap", lerpf(0.62, 1.0, clampf((fd - 0.0015) / 0.004, 0.0, 1.0)))
 	m.set_shader_parameter("haze_color", _env.fog_light_color)
+
+## Fernglas-Optik: Der Tiefennebel (Wetter ~0.009/m) macht 250 m Zielentfernung zu >90 % Weiss -> im Glas nur Marker.
+## Bei gehobenem Fernglas laeuft der Nebel mit 0.3fach Dichte (verguetete Optik, Kontrast) und die Belichtung sinkt etwas,
+## damit Schnee Zeichnung behaelt. Laeuft nach allen _process (WeatherSystem schreibt die Dichte jeden Frame neu).
+func _optic_env() -> void:
+	if _env == null or spot == null or not is_instance_valid(spot):
+		return
+	var up := bool(spot.call("is_up"))
+	var cur := Vector2(_env.fog_density, _env.volumetric_fog_density)
+	if not is_equal_approx(cur.x, _optic_fog.x) or not is_equal_approx(cur.y, _optic_fog.y):
+		_optic_base = cur   # Wetter hat neu geschrieben (oder Fernglas war unten)
+	if up:
+		_env.fog_density = _optic_base.x * 0.3
+		_env.volumetric_fog_density = _optic_base.y * 0.35
+		_env.tonemap_exposure = 0.84
+		_optic_fog = Vector2(_env.fog_density, _env.volumetric_fog_density)
+	else:
+		if _optic_fog.x >= 0.0:
+			_env.fog_density = _optic_base.x
+			_env.volumetric_fog_density = _optic_base.y
+			_env.tonemap_exposure = 0.95
+		_optic_fog = Vector2(-1.0, -1.0)
 
 func _physics_process(delta: float) -> void:
 	if spot == null or not is_inside_tree():
@@ -2085,9 +2301,9 @@ func _dbg_status() -> void:
 	for t in _targets:
 		if bool(t["alive"]):
 			alive.append("%s:%d" % [str(t["id"]), int(t["hp"])])
-	print("[alpenpass] t=%.0f phase=%d pos=%s spot=%s salvos=%d win=%s drive=%s targets=%s veh=%s cabin=%.2f cable_t=%.0f enemies=%d" % [_t, _phase,
+	print("[alpenpass] t=%.0f phase=%d pos=%s spot=%s salvos=%d drive=%s targets=%s veh=%s cabin=%.2f cable_t=%.0f enemies=%d" % [_t, _phase,
 		str(pl.global_position.snapped(Vector3.ONE)) if pl != null else "-", str(spot.call("state")), int(spot.get("salvos_left")),
-		str(wx.call("is_window_open")), str(bot_drives_player()), ",".join(alive), _veh_state, _cabin_prog, _cable_t,
+		str(bot_drives_player()), ",".join(alive), _veh_state, _cabin_prog, _cable_t,
 		get_tree().get_nodes_in_group("enemy").size()])
 
 func _tick_cabin(delta: float) -> void:
@@ -2106,23 +2322,31 @@ func _tick_cabin(delta: float) -> void:
 
 func _tick_targets(delta: float) -> void:
 	var pl := _player()
-	if pl == null or _phase != 1:
+	if pl == null or (_phase != 1 and _phase != 3):
 		return
-	var vis := bool(wx.call("is_window_open"))
-	# MG-Nester: Leuchtspur-Feuerstoesse Richtung Posten (im Fenster haeufiger -> verraten ihre Lage)
+	# MG-Nester: Leuchtspur-Feuerstoesse Richtung Posten, Schuetzengruppen Einzelfeuer (verraten ihre Lage)
 	for t in _targets:
-		if str(t["kind"]) != "nest" or not bool(t["alive"]):
+		var kind := str(t["kind"])
+		if (kind != "nest" and kind != "squad") or not bool(t["alive"]) or int(t["phase"]) != _phase:
 			continue
 		var crew: Array = t["crew"]
 		t["fire_t"] = float(t["fire_t"]) - delta
 		if float(t["fire_t"]) > 0.0:
 			continue
-		t["fire_t"] = randf_range(2.5, 4.5) if vis else randf_range(5.0, 8.0)
+		t["seen"] = true
+		if kind == "squad":
+			t["fire_t"] = randf_range(1.6, 3.0)
+			for k in 2:
+				var sh: Variant = crew[randi() % crew.size()]
+				var aim_s := pl.global_position + Vector3(randf_range(-5, 5), randf_range(-1.0, 3.0), randf_range(-4, 4))
+				_later(0.35 * float(k) + randf() * 0.2, func() -> void:
+					if _alive(sh):
+						(sh as Node).call("puppet_fire", aim_s, 2.0))
+			continue
+		t["fire_t"] = randf_range(3.0, 5.0)
 		var a0: Variant = crew[0]
 		if not _alive(a0):
 			continue
-		if vis:
-			t["seen"] = true
 		var aim := pl.global_position + Vector3(randf_range(-6, 6), randf_range(-1.0, 3.0), randf_range(-4, 4))
 		for k in 5:
 			_later(0.11 * float(k), func() -> void:
@@ -2205,7 +2429,7 @@ func _bot_stand() -> Vector3:
 	return _gp(OP2.x, OP2.y - 6.0)
 
 func _bot_err() -> float:
-	return 10.0 if _skill == "novice" else (5.0 if _skill == "average" else 2.5)
+	return 4.0 if _skill == "novice" else (2.5 if _skill == "average" else 1.2)
 
 func _tick_bot(delta: float) -> void:
 	var pl := _player()
@@ -2267,71 +2491,23 @@ func _tick_bot(delta: float) -> void:
 	var st := str(spot.call("state"))
 	if st != "ready" and st != "empty":
 		return
-	match _bt_next:
-		"mark":
-			if not bool(wx.call("is_window_open")):
-				return
-			var e := _bot_err()
-			_bt_aim = tp + Vector3(_brng.randf_range(-e, e), 0.4, _brng.randf_range(-e, e))
-			pl.look_at_point(_bt_aim)
-			if bool(spot.call("mark_from_camera")):
-				_bt_next = "wait"
-				_bt_idle = 0.0
-				_bt_unseen = false
-			_bt_wait = 1.5
-		"corr":
-			if bool(spot.call("send_correction")):
-				_bt_next = "wait"
-				_bt_idle = 0.0
-				_bt_unseen = false
-			else:
-				spot.call("clear_correction")
-				_bt_next = "mark"
-			_bt_wait = 1.0
-		"effect":
-			if bool(spot.call("fire_for_effect")):
-				_bt_next = "wait"
-				_bt_idle = 0.0
-				_bt_unseen = false
-			_bt_wait = 3.0
+	if _bt_next == "mark":
+		var e := _bot_err()
+		_bt_aim = tp + Vector3(_brng.randf_range(-e, e), 0.4, _brng.randf_range(-e, e))
+		pl.look_at_point(_bt_aim)
+		if bool(spot.call("mark_from_camera")):
+			_bt_next = "wait"
+			_bt_idle = 0.0
+		_bt_wait = 1.5
 
-func _bot_after_salvo(impacts: Array) -> void:
+## Nach der Salve: Ziel steht noch -> neu markieren (keine Korrektur noetig, die Salve liegt am Zielpunkt).
+func _bot_after_salvo(_impacts: Array) -> void:
 	var t := _target(_bt_id)
-	if t.is_empty() or not bool(t["alive"]) or impacts.is_empty():
-		_bt_next = "mark"
+	_bt_next = "mark"
+	if t.is_empty() or not bool(t["alive"]):
 		return
-	if _bt_unseen:
-		_bt_unseen = false
-		_bt_next = "mark"
-		_bt_wait = 1.0
-		return
-	var tp := _target_pos(t)
-	var mean := Vector3.ZERO
-	for p: Variant in impacts:
-		mean += p as Vector3
-	mean /= float(impacts.size())
-	var diff := tp - mean
-	diff.y = 0.0
-	var err := diff.length()
-	if (not _eff_active and err < 7.0) or (_eff_active and err < 5.0):
-		_bt_next = "effect"
-	else:
-		var b: Array = spot.call("ot_basis", tp)
-		var f := diff.dot(b[0] as Vector3)
-		var r := diff.dot(b[1] as Vector3)
-		if _skill == "novice":
-			f += _brng.randf_range(-7.0, 7.0)
-			r += _brng.randf_range(-7.0, 7.0)
-		var fr := roundf(f / 5.0) * 5.0
-		var rr := roundf(r / 5.0) * 5.0
-		if fr == 0.0 and rr == 0.0:
-			_bt_next = "effect"
-		else:
-			spot.call("clear_correction")
-			spot.call("add_correction", fr, rr)
-			_bt_next = "corr"
-	_bt_aim = tp + Vector3(0, 0.4, 0)
-	_bt_wait = _brng.randf_range(1.0, 2.5) if _skill != "novice" else _brng.randf_range(2.0, 4.0)
+	_bt_aim = _target_pos(t) + Vector3(0, 0.4, 0)
+	_bt_wait = _brng.randf_range(0.6, 1.6) if _skill != "novice" else _brng.randf_range(1.5, 3.0)
 
 # ------------------------------------------------------------------ Debug-Einstieg
 
@@ -2348,7 +2524,7 @@ func _debug_phase(n: int) -> void:
 		_heli.queue_free()
 		_heli = null
 	var pos := _gp(0, -50, 0.2)
-	var first_wp := 2
+	var first_wp := int(_wp_idx.get("start", 2))
 	_start_phase1()
 	if n >= 2:
 		for t in _targets:
@@ -2356,13 +2532,15 @@ func _debug_phase(n: int) -> void:
 				_destroy_target(t, true)
 		_end_phase1(true)
 		pos = _gp(-4, -150, 0.2)
-		first_wp = 9
+		first_wp = int(_wp_idx.get("kessel", 9))
 	if n >= 3:
 		_start_phase3()
 		pos = _gp(0, -392, 0.2)
-		first_wp = 14
+		first_wp = int(_wp_idx.get("sattel", 14))
 	if n >= 4:
-		_destroy_vehicle(true)
+		for t in _targets:
+			if int(t["phase"]) == 3:
+				_destroy_target(t, true)
 		_start_phase4()
 		pos = _gp(0, -400, 0.2)
 	if n == 4 and str(Game.arg("avalanche", "")) != "":  # Captures: Lawine nach x s ausloesen
@@ -2371,10 +2549,10 @@ func _debug_phase(n: int) -> void:
 		_trigger_avalanche(true, true)
 		_start_phase5()
 		pos = _gp(10, -408, 0.2)
-		first_wp = 16
+		first_wp = int(_wp_idx.get("steig", 16))
 	if n >= 6:
 		pos = _gp(4, -604, 0.2)
-		first_wp = 22
+		first_wp = int(_wp_idx.get("station", 22))
 		_start_phase6()
 	for w in get_tree().get_nodes_in_group("bot_waypoint"):
 		if int(w.get_meta("order", 0)) < first_wp:

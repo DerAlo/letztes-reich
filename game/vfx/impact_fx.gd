@@ -1,5 +1,5 @@
 extends Node3D
-## Kleiner gepoolter Effekt fuer Einschlaege (Staub, Funken), Blut und grosse Staubwolken.
+## Kleiner gepoolter Effekt fuer Einschlaege (Staub, Funken) und grosse Staubwolken. Blut: blood_fx.gd.
 
 signal finished(fx: Node3D)
 
@@ -12,11 +12,9 @@ var _busy: bool = false
 var _tween: Tween
 var _dust: GPUParticles3D
 var _sparks: GPUParticles3D
-var _drops: GPUParticles3D
 var _dust_pm: ParticleProcessMaterial
 var _dust_mat: ShaderMaterial
 var _spark_pm: ParticleProcessMaterial
-var _drop_pm: ParticleProcessMaterial
 var _built: bool = false
 
 func is_busy() -> bool:
@@ -66,27 +64,6 @@ func _build() -> void:
 		_sparks.randomness = 0.5
 		add_child(_sparks)
 
-		var dm := SphereMesh.new()
-		dm.radius = 0.025
-		dm.height = 0.05
-		dm.radial_segments = 6
-		dm.rings = 3
-		_drop_pm = ParticleProcessMaterial.new()
-		_drop_pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-		_drop_pm.emission_sphere_radius = 0.05
-		_drop_pm.spread = 40.0
-		_drop_pm.gravity = Vector3(0, -9.8, 0)
-		_drop_pm.initial_velocity_min = 1.0
-		_drop_pm.initial_velocity_max = 3.5
-		_drop_pm.scale_min = 0.5
-		_drop_pm.scale_max = 1.4
-		_drop_pm.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
-		var blood_mat := StandardMaterial3D.new()
-		blood_mat.albedo_color = Color(0.32, 0.01, 0.01)
-		blood_mat.roughness = 0.2
-		_drops = VfxLib.make_particles(8, 0.8, _drop_pm, dm, blood_mat)
-		_drops.randomness = 0.4
-		add_child(_drops)
 
 ## kind: concrete, dirt, metal, wood, sand, blood, cloud
 ## Sofort beenden und ausblenden (nach dem Vorwaermen im Ladebildschirm).
@@ -112,7 +89,6 @@ func play(kind: String, pos: Vector3, normal: Vector3, s: float = 1.0) -> void:
 	var dens := 0.6
 	var dust_scale := 0.35
 	var spark := false
-	var drops := false
 	match kind:
 		"metal":
 			col = Vector3(0.22, 0.2, 0.19); dens = 0.35; spark = true; dust_scale = 0.22
@@ -121,7 +97,7 @@ func play(kind: String, pos: Vector3, normal: Vector3, s: float = 1.0) -> void:
 		"wood":
 			col = Vector3(0.3, 0.2, 0.12); dens = 0.4; dust_scale = 0.25
 		"blood":
-			col = Vector3(0.32, 0.015, 0.012); dens = 0.55; dust_scale = 0.2; drops = true
+			col = Vector3(0.32, 0.015, 0.012); dens = 0.55; dust_scale = 0.2
 		"cloud":
 			col = Vector3(0.38, 0.34, 0.29); dens = 0.8; dust_scale = 1.0
 		_:
@@ -150,10 +126,6 @@ func play(kind: String, pos: Vector3, normal: Vector3, s: float = 1.0) -> void:
 		_spark_pm.direction = n
 		if spark:
 			_sparks.restart()
-	if _drops:
-		_drop_pm.direction = n
-		if drops:
-			_drops.restart()
 	_tween = create_tween()
 	_tween.tween_interval(5.5 if big else 2.0)
 	_tween.tween_callback(func() -> void:

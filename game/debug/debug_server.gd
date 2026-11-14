@@ -57,6 +57,11 @@ func _ready() -> void:
 		if Game.arg("start-paused", false) != false:
 			_pause_mode = true
 			get_tree().paused = true
+	# --review=<ordner>: Review-Werkzeug (Bilder inkl. HUD, Funk-Timing, Ereignisse) – game/debug/review.gd
+	if str(Game.arg("review", "")) not in ["", "false", "0"]:
+		var rv: Node = (load("res://game/debug/review.gd") as GDScript).new()
+		rv.name = "Review"
+		add_child(rv)
 	if not _enabled and not _autopilot_wanted:
 		set_process(false)
 		set_physics_process(false)

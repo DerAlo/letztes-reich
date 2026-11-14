@@ -19,6 +19,8 @@ const VIEWS := {
 	"k": [Vector3(37.0, 1.7, -150.5), Vector3(42.5, -1.5, -157.0)],   # Rueckhalle/Schacht
 	"l": [Vector3(-18.0, 3.0, -112.0), Vector3(20.0, 6.0, -150.0)],   # Platz diagonal
 	"m": [Vector3(41.0, -3.4, -190.0), Vector3(40.6, -3.6, -200.0)],  # Voss
+	"n": [Vector3(39.0, 1.7, -133.0), Vector3(35.0, 1.0, -139.5)],    # Fernmeldestelle, Funkerpult
+	"o": [Vector3(39.6, -3.4, -166.0), Vector3(46.0, -2.3, -182.0)],  # Tunnel, Leuchtenseite
 }
 
 func _ready() -> void:

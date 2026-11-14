@@ -77,6 +77,7 @@ func _find(pl: Player) -> Node3D:
 
 func _start(pl: Player, e: Node3D) -> void:
 	_victim = e
+	candidate = null   # sonst startet try_auto() nach der Animation erneut auf die Leiche (Endlosschleife)
 	_t = 0.0
 	_start_pos = pl.global_position
 	var efwd := -e.global_transform.basis.z
@@ -131,6 +132,9 @@ func _animate(pl: Player, delta: float) -> void:
 func try_auto() -> bool:
 	var pl := _player()
 	if pl == null or _t >= 0.0 or candidate == null:
+		return false
+	if not is_instance_valid(candidate) or not (candidate as Enemy).is_alive():
+		candidate = null
 		return false
 	_start(pl, candidate)
 	return true

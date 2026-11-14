@@ -15,6 +15,7 @@ var aim_weight: float = 0.0
 var recoil: float = 0.0
 var reload_t: float = -1.0           # <0 aus, sonst 0..1 Fortschritt
 var spine_weight: float = 1.0
+var lean: float = 0.0               # rad Oberkoerper-Vorlage beim Laufen (SoldierVisual.set_loco)
 
 ## Schaftkappe (Kolbenende) in Chest-lokalen Koordinaten.
 var shoulder_pocket := Vector3(-0.085, 0.12, 0.07)
@@ -77,7 +78,7 @@ func _process_modification() -> void:
 	for e in SPINE:
 		var bi: int = _b[e[0]]
 		var f: float = e[1]
-		var r := Basis(Vector3.UP, sy * f) * Basis(Vector3.RIGHT, -sp * f)
+		var r := Basis(Vector3.UP, sy * f) * Basis(Vector3.RIGHT, (lean - sp) * f)
 		var g := sk.get_bone_global_pose(bi)
 		var pg := sk.get_bone_global_pose(sk.get_bone_parent(bi))
 		sk.set_bone_pose_rotation(bi, (pg.basis.inverse() * (r * g.basis)).get_rotation_quaternion())

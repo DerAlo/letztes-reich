@@ -44,6 +44,20 @@ static func mat(dir: String, tint: Color = Color.WHITE, scale: float = 0.3, roug
 	_cache[key] = m
 	return m
 
+## Matter Schotter/Kies: ohne glaenzende Stellen im Gegenlicht der tiefen Sonne (volle Rauheit,
+## wenig Spekular, flachere Normalen). Eigene Kopie, damit mat() fuer andere Nutzer unveraendert bleibt.
+static func matte(dir: String, tint: Color = Color.WHITE, scale: float = 0.3, world: bool = true) -> StandardMaterial3D:
+	var key := "matte|%s|%s|%s|%s" % [dir, tint.to_html(), scale, world]
+	if _cache.has(key):
+		return _cache[key]
+	var m := (mat(dir, tint, scale, 1.0, 0.0, world).duplicate()) as StandardMaterial3D
+	m.roughness_texture = null
+	m.roughness = 1.0
+	m.metallic_specular = 0.12
+	m.normal_scale = 0.45
+	_cache[key] = m
+	return m
+
 static func steel() -> StandardMaterial3D:
 	return mat("rust_coarse_01", Color(0.42, 0.36, 0.32), 0.6, 0.95, 0.0, false)
 
@@ -113,7 +127,7 @@ static func kit() -> Kit:
 static func track(k: Kit, x: float, z0: float, z1: float, rng: RandomNumberGenerator) -> void:
 	var len := absf(z0 - z1)
 	var cz := (z0 + z1) * 0.5
-	var ballast := k.b("ballast", mat("gravel_stones", Color(0.62, 0.58, 0.54), 0.55))
+	var ballast := k.b("ballast", matte("gravel_stones", Color(0.62, 0.58, 0.54), 0.55))
 	ballast.add(Vector3(x, 0.06, cz), Vector3(3.6, 0.12, len))
 	ballast.add(Vector3(x, 0.0, cz), Vector3(4.4, 0.08, len))
 	var sl := k.b("sleepers", mat("damaged_concrete_floor_02", Color(0.55, 0.52, 0.5), 0.9))
@@ -294,7 +308,7 @@ static func gondola(root: Node3D, rng: RandomNumberGenerator, color: Color) -> V
 		for s: float in [-0.5, 0.5]:
 			rib.add(Vector3(s * (W + 0.04), DECK_Y + H * 0.5, z), Vector3(0.08, H, 0.14))
 		z += 1.6
-	var fill := k.b("fill", mat("gravel_stones", Color(0.18, 0.16, 0.15), 0.8, 1.0, 0.0, false))
+	var fill := k.b("fill", matte("gravel_stones", Color(0.18, 0.16, 0.15), 0.8, false))
 	fill.add(Vector3(0, DECK_Y + H - 0.4, 0), Vector3(W - 0.25, 0.6, L - 0.3))
 	for i in 5:
 		fill.add_ball(Vector3(rng.randf_range(-0.7, 0.7), DECK_Y + H - 0.1, rng.randf_range(-5.0, 5.0)), Vector3(1.6, 0.8, 2.5))
@@ -491,7 +505,6 @@ static func warehouse(parent: Node3D, pos: Vector3, size: Vector3, gate_side: fl
 	var wall := k.b("wall", mat("worn_corrugated_iron", Color(0.75, 0.72, 0.68), 0.25))
 	var roof := k.b("roof", mat("rusty_corrugated_iron", Color(0.55, 0.5, 0.47), 0.25))
 	var frame := k.b("frame", dark_steel())
-	var dark := k.b("dark", Geo.flat(Color(0.015, 0.013, 0.012), 1.0))
 	var W := size.x
 	var D := size.z
 	var H := size.y
@@ -539,11 +552,14 @@ static func warehouse(parent: Node3D, pos: Vector3, size: Vector3, gate_side: fl
 			frame.add(Vector3(front_x + gate_side * 0.2, gh2 * 0.5, gz + s * (gw + 0.2)), Vector3(0.25, gh2, 0.25))
 		# halb offenes Rolltor
 		wall.add(Vector3(front_x + gate_side * 0.05, gh2 - 0.9, gz), Vector3(0.1, 1.8, gw - 0.2))
-	# Fensterband (dunkel, Oberlichter)
+	# Fensterband: aussen dunkles, leicht spiegelndes Drahtglas; innen milchig vom Abendhimmel hinterleuchtet
+	var glass_out := k.b("glass_out", Geo.flat(Color(0.12, 0.13, 0.14), 0.18, 0.35))
+	var glass_in := k.b("glass_in", Geo.flat(Color(0.5, 0.52, 0.55), 0.6, 0.0, Color(0.78, 0.8, 0.86), 1.1))
 	for wx: float in [back_x, front_x]:
 		var z := -D * 0.5 + 3.0
 		while z < D * 0.5 - 2.0:
-			dark.add(Vector3(wx + signf(wx) * 0.17, H - 1.4, z), Vector3(0.02, 1.0, 2.2))
+			glass_out.add(Vector3(wx + signf(wx) * 0.17, H - 1.4, z), Vector3(0.02, 1.0, 2.2))
+			glass_in.add(Vector3(wx - signf(wx) * 0.17, H - 1.4, z), Vector3(0.02, 1.0, 2.2))
 			z += 4.0
 	# Satteldach
 	var pitch := atan2(H * 0.22, W * 0.5)
@@ -552,8 +568,17 @@ static func warehouse(parent: Node3D, pos: Vector3, size: Vector3, gate_side: fl
 		var c := Vector3(s * (W * 0.25 + 0.15), H + H * 0.11, 0)
 		roof.add(c, Vector3(rw, 0.15, D + 1.0), Basis(Vector3.BACK, -s * pitch))
 	Geo.add_box_shape(b, Vector3(0, H + 0.4, 0), Vector3(W, 0.6, D))
-	# Innen: dunkler Boden + Stuetzen
-	dark.add(Vector3(0, 0.02, 0), Vector3(W - 0.6, 0.04, D - 0.6))
+	# Lichtband-Oberlichter in beiden Dachflaechen (innen unter der Dachhaut, von aussen verdeckt)
+	var sky_in := k.b("skylight", Geo.flat(Color(0.6, 0.62, 0.66), 0.5, 0.0, Color(0.82, 0.85, 0.92), 1.6))
+	for s: float in [-1.0, 1.0]:
+		var bas := Basis(Vector3.BACK, -s * pitch)
+		var c := Vector3(s * (W * 0.25 + 0.15), H + H * 0.11, 0) - bas.y * 0.12
+		var zs2 := -D * 0.5 + 4.0
+		while zs2 < D * 0.5 - 3.0:
+			sky_in.add(c + Vector3(0, 0, zs2 + 1.5), Vector3(rw * 0.4, 0.03, 3.0), bas)
+			zs2 += 6.0
+	# Innen: Betonboden + Stuetzen
+	k.b("floor", mat("damaged_concrete_floor_02", Color(0.5, 0.48, 0.46), 0.3)).add(Vector3(0, 0.02, 0), Vector3(W - 0.6, 0.04, D - 0.6))
 	var z2 := -D * 0.5 + 6.0
 	while z2 < D * 0.5 - 3.0:
 		for s: float in [-0.5, 0.5]:
@@ -561,8 +586,77 @@ static func warehouse(parent: Node3D, pos: Vector3, size: Vector3, gate_side: fl
 		frame.add(Vector3(0, H - 0.3, z2), Vector3(W - 1.0, 0.35, 0.25))
 		z2 += 6.0
 	k.flush(b)
+	# Duenne Blechwaende bei tiefer Sonne: doppelseitig Schatten werfen, sonst leckt Licht auf den Hallenboden
+	for n: String in ["plinth", "wall", "roof"]:
+		var mi := b.get_node_or_null(n) as GeometryInstance3D
+		if mi != null:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	_warehouse_lights(b, W, H, D, pitch)
 	parent.add_child(b)
 	return b
+
+## Hallenlicht: kuehles Tageslicht unter den Oberlichtern (schattenlos, weich) und einige warme
+## Hallenstrahler an den Bindern (Notstrom), damit das Innere lesbar, aber nicht taghell ist.
+static func _warehouse_lights(b: Node3D, W: float, H: float, D: float, pitch: float) -> void:
+	var lamp_m := Geo.flat(Color(0.2, 0.2, 0.19), 0.5, 0.6)
+	var bulb_m := Geo.flat(Color(1.0, 0.85, 0.6), 0.4, 0.0, Color(1.0, 0.78, 0.5), 5.0)
+	var z := -D * 0.5 + 7.0
+	var i := 0
+	while z < D * 0.5 - 4.0:
+		# Tageslicht unter dem Oberlicht (Streulicht nach unten)
+		var day := OmniLight3D.new()
+		day.light_color = Color(0.8, 0.85, 0.95)
+		day.light_energy = 1.1
+		day.light_indirect_energy = 0.6
+		day.light_volumetric_fog_energy = 0.15
+		day.light_specular = 0.2
+		day.omni_range = maxf(W, H) * 1.05
+		day.omni_attenuation = 0.8
+		day.shadow_enabled = false
+		day.position = Vector3(0, H - 0.8, z)
+		b.add_child(day)
+		# jeder zweite Binder: warmer Hallenstrahler mit Schirm
+		if i % 2 == 0:
+			var lp := Vector3(0, H - 1.6, z - 1.0)
+			var shade := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.12
+			cm.bottom_radius = 0.38
+			cm.height = 0.32
+			shade.mesh = cm
+			shade.material_override = lamp_m
+			shade.position = lp
+			b.add_child(shade)
+			var bulb := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.1
+			sm.height = 0.14
+			bulb.mesh = sm
+			bulb.material_override = bulb_m
+			bulb.position = lp + Vector3(0, -0.14, 0)
+			bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			b.add_child(bulb)
+			var cable := MeshInstance3D.new()
+			var bx := BoxMesh.new()
+			bx.size = Vector3(0.02, 1.3, 0.02)
+			cable.mesh = bx
+			cable.material_override = lamp_m
+			cable.position = lp + Vector3(0, 0.8, 0)
+			b.add_child(cable)
+			var sp := SpotLight3D.new()
+			sp.light_color = Color(1.0, 0.8, 0.55)
+			sp.light_energy = 3.5
+			sp.light_indirect_energy = 0.5
+			sp.light_volumetric_fog_energy = 0.4
+			sp.spot_range = H + 3.0
+			sp.spot_angle = 62.0
+			sp.spot_attenuation = 0.9
+			sp.shadow_enabled = false
+			sp.position = lp + Vector3(0, -0.2, 0)
+			sp.rotation_degrees = Vector3(-90.0, 0, 0)
+			b.add_child(sp)
+		z += 6.0
+		i += 1
 
 # ------------------------------------------------------------------ Masten und Leitungen
 

@@ -171,6 +171,9 @@ func _on_draw() -> void:
 		st = "FAHRT" if bool(ifv.call("moving")) else "HALT"
 	_txt(Vector2(dx - 110.0 * sc, dy - 128.0 * sc), st, int(18 * sc), C_DIM)
 
+	# ---- Zielmarken (Gruppe "ifv_marker", Meta hud_label; Panzerfaust-Schuetzen im Anschlag blinken rot)
+	_draw_markers(sz, sc)
+
 	# ---- Warnungen
 	var rw: float = ifv.get("rocket_warn")
 	if rw > 0.0 and fmod(rw, 0.3) > 0.12:
@@ -189,3 +192,94 @@ func _on_draw() -> void:
 	if bool(ifv.get("dead")):
 		_draw_ctl.draw_rect(Rect2(Vector2.ZERO, sz), Color(0.2, 0.0, 0.0, 0.5))
 		_txt(Vector2(c.x - 300.0 * sc, c.y - 60.0 * sc), "FAHRZEUG AUSGEFALLEN", int(44 * sc), C_RED, HORIZONTAL_ALIGNMENT_CENTER, 600.0 * sc)
+
+## Sichtlinie Kamera -> Zielpunkt durch Weltgeometrie verdeckt? (Treffer am Ziel selbst zaehlt als frei)
+func _occluded(cam: Camera3D, target: Node3D, p: Vector3) -> bool:
+	var space := cam.get_world_3d().direct_space_state
+	if space == null:
+		return false
+	var q := PhysicsRayQueryParameters3D.create(cam.global_position, p, 1)
+	var ex: Array[RID] = []
+	if ifv is CollisionObject3D:
+		ex.append((ifv as CollisionObject3D).get_rid())
+	if target is CollisionObject3D:
+		ex.append((target as CollisionObject3D).get_rid())
+	q.exclude = ex
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return false
+	return (hit["position"] as Vector3).distance_to(p) > 1.5
+
+## Markiert Ziele im Turmbild: Eckwinkel + Bezeichnung + Entfernung, ausserhalb des Bildes ein Randpfeil.
+## Meta am Ziel: hud_label (Text), hud_off (Vector3, Zielpunkt ueber dem Ursprung), hud_hp_max (Lebensbalken
+## aus `health`), hud_aim (Zeitpunkt in s bis zu dem der Schuetze im Anschlag ist -> rot, blinkend).
+func _draw_markers(sz: Vector2, sc: float) -> void:
+	var cam: Camera3D = ifv.get("cam")
+	if cam == null or not is_instance_valid(cam) or not cam.is_inside_tree():
+		return
+	var vp_size := cam.get_viewport().get_visible_rect().size
+	if vp_size.x < 2.0:
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	var me := (ifv as Node3D).global_position
+	var inset := 70.0 * sc
+	for n: Node in get_tree().get_nodes_in_group("ifv_marker"):
+		if not (n is Node3D) or not is_instance_valid(n) or n.is_queued_for_deletion() or not n.has_meta("hud_label"):
+			continue
+		if n.has_method("is_alive") and not bool(n.call("is_alive")):
+			continue
+		var p: Vector3 = (n as Node3D).global_position + (n.get_meta("hud_off", Vector3(0, 1.2, 0)) as Vector3)
+		var dist := me.distance_to(p)
+		if dist > 140.0:
+			continue
+		var aim := float(n.get_meta("hud_aim", 0.0)) > now
+		var col := C_WARN
+		if aim:
+			col = C_RED if fmod(now, 0.25) < 0.15 else Color(1.0, 0.9, 0.85, 0.95)
+		var label := "%s  %d m" % [str(n.get_meta("hud_label")), int(dist)]
+		if aim:
+			label = "FEUERT!  " + label
+		var behind := cam.is_position_behind(p)
+		var sp := cam.unproject_position(p) / vp_size * sz
+		var on := not behind and sp.x > inset and sp.x < sz.x - inset and sp.y > inset and sp.y < sz.y - inset
+		if on and not aim and _occluded(cam, n as Node3D, p):
+			# Ziel steht hinter einer Hauswand (z.B. Fensterloch schraeg von vorn noch nicht einsehbar):
+			# gedimmte Raute statt Zielwinkel, sonst klebt die Marke auf der falschen Fassade.
+			var dc := Color(col.r, col.g, col.b, 0.45)
+			var q := 9.0 * sc
+			var pts := PackedVector2Array([sp + Vector2(0, -q), sp + Vector2(q, 0), sp + Vector2(0, q), sp + Vector2(-q, 0), sp + Vector2(0, -q)])
+			_draw_ctl.draw_polyline(pts, dc, 1.5 * sc)
+			_txt(sp + Vector2(-150.0 * sc, -q - 22.0 * sc), "%s (verdeckt)  %d m" % [str(n.get_meta("hud_label")), int(dist)], int(14 * sc), dc, HORIZONTAL_ALIGNMENT_CENTER, 300.0 * sc)
+		elif on:
+			var r := clampf(900.0 / maxf(dist, 1.0), 16.0, 46.0) * sc * (1.25 if aim else 1.0)
+			var l := r * 0.45
+			var w := (3.0 if aim else 2.0) * sc
+			for cx: float in [-1.0, 1.0]:
+				for cy: float in [-1.0, 1.0]:
+					var corner := sp + Vector2(cx, cy) * r
+					_draw_ctl.draw_line(corner, corner - Vector2(cx * l, 0), col, w)
+					_draw_ctl.draw_line(corner, corner - Vector2(0, cy * l), col, w)
+			_txt(sp + Vector2(-150.0 * sc, -r - 8.0 * sc), label, int((22 if aim else 17) * sc), col, HORIZONTAL_ALIGNMENT_CENTER, 300.0 * sc)
+			if n.has_meta("hud_hp_max"):
+				var k := clampf(float(n.get("health")) / float(n.get_meta("hud_hp_max")), 0.0, 1.0)
+				var br := Rect2(sp + Vector2(-r, r + 6.0 * sc), Vector2(r * 2.0, 7.0 * sc))
+				_draw_ctl.draw_rect(br, Color(0, 0, 0, 0.5))
+				_draw_ctl.draw_rect(Rect2(br.position, Vector2(br.size.x * k, br.size.y)), col)
+				_draw_ctl.draw_rect(br, col, false, 1.0)
+		else:
+			# Richtung auf dem Bildrand (hinter der Kamera gespiegelt)
+			var c := sz * 0.5
+			var d := sp - c
+			if behind:
+				d = -d
+			if d.length() < 1.0:
+				d = Vector2(0, 1)
+			d = d.normalized()
+			var half := c - Vector2(inset, inset)
+			var t := minf(half.x / maxf(absf(d.x), 0.001), half.y / maxf(absf(d.y), 0.001))
+			var tip := c + d * t
+			var side := Vector2(-d.y, d.x)
+			var a := (22.0 if aim else 15.0) * sc
+			_draw_ctl.draw_colored_polygon(PackedVector2Array([tip + d * a, tip + side * a * 0.7, tip - side * a * 0.7]), col)
+			var tp := tip - d * 40.0 * sc + Vector2(-150.0 * sc, 6.0 * sc)
+			_txt(tp, label, int((20 if aim else 15) * sc), col, HORIZONTAL_ALIGNMENT_CENTER, 300.0 * sc)

@@ -148,3 +148,50 @@ static func fit(c: Control, vs: Vector2) -> void:
 	c.size = REF
 	c.scale = Vector2(s, s)
 	c.position = (vs - REF * s) * 0.5
+
+
+## HUD-Skalierung: Faktor, mit dem ein fuer 1920x1080 gebautes HUD auf die aktuelle Ansicht skaliert wird.
+## Hoehe ist massgeblich (16:9, 21:9 -> HUD gleich hoch, mehr Breite); bei schmalen Fenstern (< 4:3) begrenzt die Breite.
+static func hud_scale(vs: Vector2) -> float:
+	return clampf(minf(vs.y / REF.y, vs.x / 1440.0), 0.2, 4.0)
+
+
+## Mindestschriftgroesse: liefert eine Groesse (in HUD-Pixeln), die nach Skalierung mit factor nicht unter
+## min_px echte Pixel faellt (kleine Fenster wie 960x540 -> Texte bleiben lesbar).
+static func min_fs(fs: int, factor: float, min_px: float = 9.0) -> int:
+	return maxi(fs, ceili(min_px / maxf(factor, 0.01)))
+
+
+## Wurzel fuer HUD-Elemente einer CanvasLayer: virtuelle Flaeche mit 1080 px Hoehe (Breite folgt dem Seitenverhaeltnis),
+## per scale auf die echte Ansicht gebracht. Kinder mit Ankern/Offsets in 1080p-Pixeln skalieren damit sauber in jedem
+## Fenster (z. B. 960x540 bei --bg). Nicht fuer Zeichnungen mit unproject_position() benutzen (die liefern echte Pixel).
+## Gebrauch: var root := UIStyle.HudRoot.new(); layer.add_child(root); root.add_child(...)
+class HudRoot extends Control:
+	var factor: float = 1.0
+	var _min_fonts: Array = []   ## [Control, Basisgroesse, min_px]
+
+	func _init() -> void:
+		name = "HudRoot"
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _ready() -> void:
+		get_viewport().size_changed.connect(_fit)
+		_fit()
+
+	## Schriftgroesse eines Labels/Controls (in HUD-Pixeln) so halten, dass sie nach Skalierung nicht unter
+	## min_px echte Pixel faellt; wird bei jeder Fensteraenderung neu angewandt.
+	func keep_min_font(c: Control, base: int, min_px: float = 9.0) -> void:
+		_min_fonts.append([c, base, min_px])
+		c.add_theme_font_size_override("font_size", UIStyle.min_fs(base, factor, min_px))
+
+	func _fit() -> void:
+		var vs: Vector2 = get_viewport().get_visible_rect().size
+		if vs.x < 1.0 or vs.y < 1.0:
+			return
+		factor = UIStyle.hud_scale(vs)
+		position = Vector2.ZERO
+		scale = Vector2(factor, factor)
+		size = vs / factor
+		for e: Array in _min_fonts:
+			if is_instance_valid(e[0]):
+				(e[0] as Control).add_theme_font_size_override("font_size", UIStyle.min_fs(int(e[1]), factor, float(e[2])))

@@ -4,6 +4,15 @@ extends StaticBody3D
 ## meldet sie shot_by_player -> das Level laesst die Mission am Checkpoint neu starten.
 ## Gruppe "damageable" (Combat.explode): nur Schaden mit Quelle Spieler zaehlt; die Breach-Ladung (Quelle Tuer)
 ## und Gegnerfeuer werden ignoriert. Gruppe "hostage" (nicht "enemy": Autopilot/HUD zielen nie darauf).
+## Optik: mit `variant` (z. B. "praesidentin", "abgeordneter", "frau") eine MakeHuman-Figur in gebackener
+## Geiselpose (assets/characters/civilian/civ_<variant>_geisel.glb, game/characters/civ_figure.gd) auf einem
+## Poly-Haven-Stuhl; ohne variant oder bei fehlender Datei die alte Kastenfigur. Kollider unveraendert.
+
+const CivFigure = preload("res://game/characters/civ_figure.gd")
+const FK = preload("res://game/levels/furniture_kit.gd")
+## Abstand Sohle -> Gesaess-Unterkante der Pose "bound_seat" je Figur (Ausgabe von build_civ.py)
+const SEAT_DROP := {"praesidentin": 0.449, "abgeordneter": 0.45, "alt": 0.449, "frau": 0.448, "mantel": 0.461,
+	"frau2": 0.412}
 
 signal shot_by_player(hostage: Node)
 signal executed(hostage: Node)
@@ -14,6 +23,7 @@ signal executed(hostage: Node)
 @export var skin: Color = Color(0.62, 0.47, 0.38)
 @export var shirt: Color = Color(0.78, 0.78, 0.76)
 @export var display_name: String = ""
+@export var variant: String = ""               ## MakeHuman-Figur (leer = Kastenfigur)
 
 var alive: bool = true
 var _body: Node3D
@@ -57,7 +67,47 @@ func _shape(c: Vector3, s: Vector3) -> void:
 	cs.position = c
 	add_child(cs)
 
+## Stuhl unter der sitzenden Geisel (Poly Haven dining_chair_02, sonst Kastenstuhl). Teil der Geisel, faellt nicht mit.
+func _chair() -> void:
+	if variant != "" and FK.place(self, "dining_chair_02", Vector3(0, 0.49, 0.04), Vector3(0.44, 0.98, 0.58), 180.0,
+			{"scale": 1.0, "stretch": 1.0}):
+		return
+	var chair := _m(Color(0.22, 0.12, 0.08), 0.6)
+	_box(self, Vector3(0.48, 0.06, 0.46), chair, Vector3(0, 0.45, 0.02))
+	_box(self, Vector3(0.48, 0.6, 0.06), chair, Vector3(0, 0.78, 0.24))
+	for sx: float in [-0.21, 0.21]:
+		for sz: float in [-0.18, 0.22]:
+			_box(self, Vector3(0.04, 0.45, 0.04), chair, Vector3(sx, 0.225, sz))
+
+## MakeHuman-Figur in Geiselpose; false = Modell fehlt (Kastenfigur).
+func _build_real() -> bool:
+	var mi := CivFigure.instance(variant, "geisel", "bound_seat" if pose == "seat" else "kneel")
+	if mi == null:
+		return false
+	_body = Node3D.new()
+	_body.name = "Body"
+	add_child(_body)
+	var hip_y := 0.5 if pose == "seat" else 0.42
+	if pose == "seat":
+		_chair()
+		_shape(Vector3(0, 0.3, -0.25), Vector3(0.4, 0.6, 0.55))
+	else:
+		_shape(Vector3(0, 0.22, 0.08), Vector3(0.4, 0.44, 0.6))
+	_torso = Node3D.new()
+	_torso.position = Vector3(0, hip_y, 0)
+	_body.add_child(_torso)
+	# Ursprung der Pose: sitzend an der Gesaess-Unterkante (Sohlen auf dem Boden, Gesaess sinkt ins Polster
+	# ~0,47 m), kniend am Boden unter dem Becken
+	var drop := clampf(float(SEAT_DROP.get(variant, 0.45)), 0.41, 0.47)
+	mi.position = Vector3(0, drop - hip_y, 0.06) if pose == "seat" else Vector3(0, -hip_y, 0.0)
+	_torso.add_child(mi)
+	_shape(Vector3(0, hip_y + 0.31, 0.02), Vector3(0.46, 0.6, 0.3))
+	_shape(Vector3(0, hip_y + 0.8, 0.0), Vector3(0.24, 0.28, 0.25))
+	return true
+
 func _build() -> void:
+	if variant != "" and _build_real():
+		return
 	var sm := _m(suit)
 	var sk := _m(skin, 0.7)
 	var hm := _m(hair, 0.9)
@@ -69,13 +119,7 @@ func _build() -> void:
 	add_child(_body)
 	var hip_y := 0.5 if pose == "seat" else 0.42
 	if pose == "seat":
-		# Stuhl (Teil der Geisel, faellt nicht mit)
-		var chair := _m(Color(0.22, 0.12, 0.08), 0.6)
-		_box(self, Vector3(0.48, 0.06, 0.46), chair, Vector3(0, 0.45, 0.02))
-		_box(self, Vector3(0.48, 0.6, 0.06), chair, Vector3(0, 0.78, 0.24))
-		for sx: float in [-0.21, 0.21]:
-			for sz: float in [-0.18, 0.22]:
-				_box(self, Vector3(0.04, 0.45, 0.04), chair, Vector3(sx, 0.225, sz))
+		_chair()
 		# Oberschenkel waagerecht, Unterschenkel senkrecht
 		for sx: float in [-0.1, 0.1]:
 			_box(_body, Vector3(0.15, 0.15, 0.46), sm, Vector3(sx, hip_y + 0.05, -0.17))

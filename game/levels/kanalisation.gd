@@ -15,6 +15,13 @@ const Brain = preload("res://game/enemies/stealth_brain.gd")
 const TakedownScript = preload("res://game/weapons/takedown.gd")
 const HudScript = preload("res://game/levels/curfew_hud.gd")
 const NightVision = preload("res://game/systems/nightvision.gd")
+const CivFigure = preload("res://game/characters/civ_figure.gd")
+const PH = preload("res://game/levels/ph_props.gd")
+const DK = preload("res://game/levels/debris_kit.gd")
+const FK = preload("res://game/levels/furniture_kit.gd")
+## Realismus-Durchgang (Poly Haven, CC0; tools/fetch_realism_assets.py, assets/CREDITS_ASSETS.md)
+const RL_TEX := "res://assets/environment/realism/textures/"
+const RL_MOD := "res://assets/environment/realism/models/"
 
 const XA := -2.75                 ## Mitte Versorgungsgang (oben)
 const Y_WALK := -4.5              ## Bankette / trockene Boeden im Sammler
@@ -55,6 +62,7 @@ var _defuse_lock: bool = false
 var _splash_t: float = 0.0
 var _splash: AudioStreamPlayer3D
 var _said: Dictionary = {}
+var _hold_t0: float = -1.0       ## Bot: Beginn des Wartens auf die Sammler-Einweisung
 
 func _init() -> void:
 	level_name = "kanalisation"
@@ -69,6 +77,8 @@ func _ready() -> void:
 	await super()
 	if not is_inside_tree():
 		return
+	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
+		add_child(load("res://game/levels/tools/villa_shots.gd").new())
 	var pl := _player()
 	if pl != null:
 		_base_speed = [pl.walk_speed, pl.sprint_speed, pl.crouch_speed]
@@ -98,6 +108,33 @@ func _later(t: float, f: Callable) -> void:
 
 func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	Events.story_radio.emit(speaker, text, dur)
+
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key/drop_live, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _say_opt(speaker: String, text: String, opts: Dictionary, dur: float = 0.0) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+func _say_once_opt(key: String, speaker: String, text: String, opts: Dictionary) -> void:
+	if _said.has(key):
+		return
+	_said[key] = true
+	_say_opt(speaker, text, opts)
+
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f ausfuehren, sobald der Funk frei ist (hoechstens max_wait s warten).
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_busy() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
+
+func _no_alarm() -> bool:
+	return not bool(director.get("alarm"))
 
 ## Funkspruch nur einmal (Schluessel), z. B. fuer Ausloeser, die mehrfach feuern koennen.
 func _say_once(key: String, speaker: String, text: String, dur: float = 0.0) -> void:
@@ -293,8 +330,8 @@ func _build_ground() -> void:
 	mats["floor"] = Geo.mat("asphalt_02", Color(0.3, 0.29, 0.27), 0.3, 0.7)
 	mats["sludge"] = Geo.flat(Color(0.09, 0.085, 0.06), 0.9)
 	mats["metal"] = Geo.mat("rusty_metal_02", Color(0.3, 0.3, 0.3), 0.5, 1.0)
-	mats["pipe"] = Geo.flat(Color(0.22, 0.2, 0.17), 0.55, 0.6)
-	mats["pipe_red"] = Geo.flat(Color(0.35, 0.08, 0.06), 0.6, 0.3)
+	mats["pipe"] = Geo.mat("rusty_metal_02", Color(0.4, 0.37, 0.33), 1.2, 0.9, 0.5)
+	mats["pipe_red"] = Geo.mat("rusty_metal_02", Color(0.6, 0.18, 0.13), 1.2, 0.9, 0.3)
 	mats["rack"] = Geo.flat(Color(0.045, 0.05, 0.055), 0.4, 0.6)
 	mats["warn"] = Geo.flat(Color(0.75, 0.55, 0.04), 0.6)
 	mats["crate"] = Geo.flat(Color(0.22, 0.24, 0.16), 0.85)
@@ -312,8 +349,17 @@ func _build_ground() -> void:
 	mats["skin"] = Geo.flat(Color(0.55, 0.4, 0.32), 0.7)
 	mats["coat"] = Geo.flat(Color(0.12, 0.12, 0.1), 0.85)
 	mats["ladder"] = Geo.flat(Color(0.32, 0.3, 0.27), 0.45, 0.8)
-	mats["plaster"] = Geo.flat(Color(0.5, 0.5, 0.47), 0.92)
-	mats["lino"] = Geo.flat(Color(0.16, 0.17, 0.16), 0.55)
+	# Versorgungskeller: gestrichener Putz, Oelfarben-Sockel, gestrichener Estrich (CC0-Texturen)
+	mats["plaster"] = DK.tex("res://assets/environment/facade/textures/painted_plaster_wall", Color(0.66, 0.66, 0.62), 0.45, 1.0)
+	mats["plaster_sockel"] = DK.tex("res://assets/environment/facade/textures/painted_plaster_wall", Color(0.3, 0.38, 0.33), 0.45, 0.6)
+	mats["lino"] = DK.tex("res://assets/environment/bunker/textures/concrete_floor_painted", Color(0.5, 0.5, 0.48), 0.3, 1.0)
+	mats["galv"] = Geo.mat("rusty_metal_02", Color(0.62, 0.63, 0.64), 0.8, 0.6, 0.7)
+	mats["insul"] = Geo.flat(Color(0.62, 0.6, 0.55), 0.95)
+	mats["band"] = Geo.flat(Color(0.5, 0.5, 0.52), 0.4, 0.8)
+	mats["wheel_red"] = Geo.flat(Color(0.5, 0.06, 0.04), 0.5, 0.2)
+	mats["gauge"] = Geo.flat(Color(0.85, 0.84, 0.8), 0.3)
+	mats["cab_grey"] = Geo.flat(Color(0.48, 0.49, 0.47), 0.5, 0.3)
+	mats["beam"] = Geo.flat(Color(0.16, 0.12, 0.08), 0.9)
 	var w := StandardMaterial3D.new()
 	w.albedo_color = Color(0.035, 0.045, 0.03)
 	w.roughness = 0.06
@@ -380,8 +426,11 @@ func _build_service_tunnel(bd: BP.Builder, body: StaticBody3D) -> void:
 	_ladder_mesh(bd, Vector3(XA, -4.5, -33.6), 4.6, 180.0)
 	# Voss mit Laterne am Einstieg
 	_figure(Vector3(XA + 0.8, 0.0, 0.2), 200.0)
-	var lan := Geo.box_mesh_node(Vector3(0.2, 0.3, 0.2), mats["amber"], Vector3(XA + 1.1, 0.15, -0.6))
-	add_child(lan)
+	# Sturmlaterne (Poly Haven "Lantern_01", CC0, 1,6-fach = 47 cm) auf dem Boden, Flamme als Leuchtkoerper
+	PH.place(self, "lantern_01", PH.xform(Vector3(XA + 1.1, 0.0, -0.6), -20.0, Vector3.ONE * 1.6), -1.0, {"shadows": false})
+	add_child(Geo.box_mesh_node(Vector3(0.03, 0.065, 0.03), mats["amber"], Vector3(XA + 1.1, 0.155, -0.6)))
+	var lf := _omni(Vector3(XA + 1.1, 0.155, -0.6), Color(1.0, 0.66, 0.32), 1.8, 3.2, 0.0)   # Eigenlicht der Flamme (Glas, Messing)
+	lf.set_meta("no_stealth", true)
 	var ll := _omni(Vector3(XA + 1.1, 0.6, -0.6), Color(1.0, 0.7, 0.38), 1.6, 7.0, 0.8, true)
 	ll.set_meta("no_stealth", true)
 
@@ -405,10 +454,15 @@ func _build_collector(bd: BP.Builder, body: StaticBody3D) -> void:
 	_mm(bd, body, "brick", Vector3(XA + 1.5, -1.0, -33.6), Vector3(4.4, -0.7, -36.2))
 	_mm(bd, body, "brick", Vector3(-4.4, -1.0, -33.6), Vector3(XA - 1.5, -0.7, -36.2))
 	_water_zone(Vector2(-1.5, z1), Vector2(1.5, z0))
-	# Einsturz der linken Bankette (z -51..-55): Schutt bis unter die Decke
-	_mm(bd, body, "brick", Vector3(-4.0, Y_WALK, -51.0), Vector3(-1.6, -1.6, -55.0))
-	Props.rubble(self, Vector3(-2.6, Y_WALK, -50.4), 1.6, 1.2, rng, false)
-	Props.rubble(self, Vector3(-1.0, Y_WET, -53.0), 1.3, 0.5, rng, false)
+	# Einsturz der linken Bankette (z -51..-55): Schutt bis unter die Decke. Kollision wie bisher (Block),
+	# Optik als Schuttkegel mit Ziegeln und Betonbrocken (_collapse_debris)
+	Geo.add_box_shape(body, Vector3(-2.8, (Y_WALK - 1.6) * 0.5, -53.0), Vector3(2.4, 2.9, 4.0))
+	# Zufallsfolge von rng unveraendert lassen (frueher Props.rubble), Optik verworfen
+	var tmp := Node3D.new()
+	Props.rubble(tmp, Vector3(-2.6, Y_WALK, -50.4), 1.6, 1.2, rng, false)
+	Props.rubble(tmp, Vector3(-1.0, Y_WET, -53.0), 1.3, 0.5, rng, false)
+	tmp.free()
+	_collapse_debris(bd)
 	# Rampen: links hinunter ins Gerinne, rechts wieder hinauf
 	_ramp(bd, body, "concrete_dark", Vector3(-1.5, Y_WALK, -48.8), Vector3(0.1, Y_WET, -48.8), 1.8)
 	_ramp(bd, body, "concrete_dark", Vector3(1.5, Y_WALK, -57.6), Vector3(-0.1, Y_WET, -57.6), 1.8)
@@ -431,6 +485,32 @@ func _build_collector(bd: BP.Builder, body: StaticBody3D) -> void:
 	while gx <= 1.41:
 		bd.box("metal", Vector3(gx, -3.6, -69.85), Vector3(0.05, 2.6, 0.05))
 		gx += 0.2
+
+## Einsturz im Sammler: Schuttkegel vom Block (x -4..-1.6, z -55..-51, bis unter die Decke) bis auf die
+## Bankette, darauf Ziegel/Ziegelbruch/Betonbrocken, Ausrieselung ins Gerinne, ein abgebrochener Balken und
+## Bewehrungseisen. Reine Optik; der Weg durchs Gerinne (x > -1.5) bleibt frei begehbar.
+func _collapse_debris(bd: BP.Builder) -> void:
+	var nz := DK.make_noise(build_seed + 51)
+	var cmin := Vector2(-4.0, -54.3)
+	var cmax := Vector2(-2.35, -51.7)
+	var ytop := -1.35
+	DK.heap(self, Vector2(-4.0, -56.4), Vector2(-1.38, -49.6), cmin, cmax, Y_WALK, ytop, 1.05, nz)
+	var hf := func(x: float, z: float) -> float:
+		return DK.heap_height(x, z, cmin, cmax, Y_WALK, ytop, 1.05, nz)
+	var dr := RandomNumberGenerator.new()
+	dr.seed = build_seed + 52
+	DK.scatter(self, dr, Vector2(-4.0, -56.4), Vector2(-1.4, -49.6), 300, hf, 0.18, 0.55, 0.7)
+	# Ausrieselung in die Rinne und auf die Bankette davor (kleine Teile, flach)
+	var flat_wet := func(x: float, _z: float) -> float:
+		return Y_WET if x > -1.5 else Y_WALK
+	DK.scatter(self, dr, Vector2(-1.45, -55.6), Vector2(-0.4, -50.4), 55, flat_wet, 0.1, 0.3, 0.75, false)
+	DK.scatter(self, dr, Vector2(-3.9, -50.0), Vector2(-1.6, -48.9), 30, flat_wet, 0.1, 0.25, 0.7, false)
+	# abgebrochener Holzbalken und Bewehrungseisen ragen aus dem Kegel
+	bd.box("beam", Vector3(-2.2, -3.2, -50.9), Vector3(0.16, 0.18, 2.4), Basis.from_euler(Vector3(0.9, 0.35, 0.2)))
+	for i in 5:
+		var a := Vector3(-2.7 + i * 0.12, -2.0 - i * 0.18, -51.4 + (i % 2) * 0.3)
+		_pipe(bd, "metal", a, a + Vector3(0.5 + 0.1 * i, -0.25 - 0.08 * i, 0.35 - 0.15 * i), 0.008)
+	bd.box("concrete_dark", Vector3(-2.0, -1.12, -53.0), Vector3(1.4, 0.24, 3.6), Basis.from_euler(Vector3(0.05, 0.1, -0.25)))
 
 ## Wand quer zum Gang mit Durchgaengen (Paare x_von..x_bis), Durchgangshoehe 2.2 m ueber Y_WALK.
 func _wall_with_doors(bd: BP.Builder, body: StaticBody3D, za: float, zb: float, doors: Array, xa: float, xb: float, top: float) -> void:
@@ -575,10 +655,108 @@ func _build_exit(bd: BP.Builder, body: StaticBody3D) -> void:
 		_pipe(bd, "pipe", Vector3(xa + 0.2, 2.5 - i * 0.3, za), Vector3(xa + 0.2, 2.5 - i * 0.3, zb), 0.1)
 	bd.box("metal", Vector3(0.0, 1.1, zb + 0.05), Vector3(1.2, 2.2, 0.1))                             # Tuer
 	bd.box("exit_green", Vector3(0.0, 2.45, zb + 0.12), Vector3(0.5, 0.18, 0.04))
-	_label("BUNDESKANZLERAMT · VERSORGUNG UG 2", Vector3(0.0, 2.75, zb + 0.32), 0.0, 52, Color(0.85, 0.85, 0.8), 0.007)
+	_label("BUNDESKANZLERAMT · VERSORGUNG UG 2", Vector3(0.0, 2.75, zb + 0.32), 0.0, 52, Color(0.85, 0.85, 0.8), 0.005)
 	bd.box("fluor", Vector3(0.0, 2.95, -184.0), Vector3(0.18, 0.06, 1.2))
 	var l := _omni(Vector3(0.0, 2.6, -184.0), Color(0.9, 0.95, 1.0), 0.8, 7.0, 0.3)
 	l.set_meta("no_stealth", true)
+	_cellar_detail(bd, xa, xb, za, zb)
+
+## Versorgungskeller ausstatten (reine Optik, keine neue Kollision; Leiterloch x +-1.5 / z -176..-180.2 und
+## der Weg zur Tuer bleiben frei): Oelfarbensockel, Heizungsrohre mit Flanschen, Schellen, Daemmung,
+## Absperrschieber und Manometer, Steigleitung, Lueftungskanal, Kabelpritsche, Verteilerkaesten, Hauptverteilung,
+## Stahlregal, Werkzeugkiste, Faesser und Zementsaecke (Poly Haven, CC0).
+func _cellar_detail(bd: BP.Builder, xa: float, xb: float, za: float, zb: float) -> void:
+	var zc := (za + zb) * 0.5
+	var zl := absf(za - zb)
+	# Sockel (1,4 m) in gruener Oelfarbe, Trennstrich
+	bd.box("plaster_sockel", Vector3(xa + 0.01, 0.7, zc), Vector3(0.02, 1.4, zl))
+	bd.box("plaster_sockel", Vector3(xb - 0.01, 0.7, zc), Vector3(0.02, 1.4, zl))
+	bd.box("plaster_sockel", Vector3(0.0, 0.7, za - 0.01), Vector3(xb - xa, 1.4, 0.02))
+	bd.box("plaster_sockel", Vector3(0.0, 0.7, zb + 0.01), Vector3(xb - xa, 1.4, 0.02))
+	for x: float in [xa + 0.022, xb - 0.022]:
+		bd.box("rack", Vector3(x, 1.41, zc), Vector3(0.006, 0.02, zl))
+	# Heizungsrohre an der Westwand: Schellen an Konsolen, Flansche, Daemmung mit Blechbaendern
+	var zr := Basis(Vector3.RIGHT, PI * 0.5)
+	var z := za - 0.6
+	while z > zb + 0.3:
+		bd.box("metal", Vector3(xa + 0.12, 2.2, z), Vector3(0.05, 0.9, 0.06))
+		for i in 3:
+			bd.box("metal", Vector3(xa + 0.17, 2.5 - i * 0.3, z), Vector3(0.1, 0.03, 0.05))
+		z -= 2.4
+	z = za - 1.6
+	while z > zb + 0.5:
+		for i in 3:
+			bd.cyl("band", Vector3(xa + 0.2, 2.5 - i * 0.3, z), 0.14, 0.14, 0.05, 12, zr)
+		z -= 3.1
+	bd.cyl("insul", Vector3(xa + 0.2, 2.2, -179.5), 0.155, 0.155, 9.0, 12, zr)
+	for k in 7:
+		bd.cyl("band", Vector3(xa + 0.2, 2.2, -175.3 - k * 1.4), 0.158, 0.158, 0.03, 12, zr)
+	_label("HEIZUNG  VL  ▶", Vector3(xa + 0.33, 2.5, -186.5), 90.0, 26, Color(0.85, 0.85, 0.8), 0.004)
+	_label("◀  RL", Vector3(xa + 0.33, 1.9, -186.5), 90.0, 26, Color(0.85, 0.85, 0.8), 0.004)
+	# Abgang mit Absperrschieber (Handrad) und Manometer
+	_pipe(bd, "pipe_red", Vector3(xa + 0.2, 1.9, -185.2), Vector3(xa + 0.2, 0.25, -185.2), 0.06)
+	bd.cyl("band", Vector3(xa + 0.2, 1.05, -185.2), 0.085, 0.085, 0.22, 12)
+	bd.box("metal", Vector3(xa + 0.2, 1.05, -185.2), Vector3(0.16, 0.14, 0.2))
+	_pipe(bd, "band", Vector3(xa + 0.28, 1.05, -185.2), Vector3(xa + 0.48, 1.05, -185.2), 0.012)
+	bd.cyl("wheel_red", Vector3(xa + 0.48, 1.05, -185.2), 0.13, 0.13, 0.025, 16, Basis(Vector3.BACK, PI * 0.5))
+	bd.cyl("wheel_red", Vector3(xa + 0.49, 1.05, -185.2), 0.02, 0.02, 0.05, 8, Basis(Vector3.BACK, PI * 0.5))
+	_pipe(bd, "band", Vector3(xa + 0.2, 1.55, -185.2), Vector3(xa + 0.33, 1.55, -185.2), 0.008)
+	bd.cyl("rack", Vector3(xa + 0.35, 1.55, -185.2), 0.055, 0.055, 0.03, 16, Basis(Vector3.BACK, PI * 0.5))
+	bd.cyl("gauge", Vector3(xa + 0.366, 1.55, -185.2), 0.046, 0.046, 0.005, 16, Basis(Vector3.BACK, PI * 0.5))
+	bd.box("pipe_red", Vector3(xa + 0.2, 0.12, -185.2), Vector3(0.22, 0.24, 0.22))
+	# Steigleitung in der Nordwestecke mit Schieber
+	_pipe(bd, "pipe", Vector3(xa + 0.6, 0.0, za - 0.2), Vector3(xa + 0.6, 3.0, za - 0.2), 0.08)
+	bd.cyl("band", Vector3(xa + 0.6, 1.3, za - 0.2), 0.12, 0.12, 0.05, 12)
+	bd.cyl("band", Vector3(xa + 0.6, 1.5, za - 0.2), 0.12, 0.12, 0.05, 12)
+	bd.cyl("wheel_red", Vector3(xa + 0.6, 1.4, za - 0.42), 0.11, 0.11, 0.02, 16, zr)
+	# Lueftungskanal (verzinkt) unter der Decke mit Abhaengern und Gitter
+	# endet 1 m vor der Stirnwand und knickt in die Decke; nah an der Ostwand, damit er das Schild ueber der Tuer nicht verdeckt
+	bd.box("galv", Vector3(3.0, 2.72, (za + zb + 1.0) * 0.5), Vector3(0.6, 0.36, zl - 1.0))
+	bd.box("galv", Vector3(3.0, 2.95, zb + 1.25), Vector3(0.6, 0.1, 0.5))
+	bd.box("band", Vector3(3.0, 2.72, zb + 1.015), Vector3(0.63, 0.39, 0.03))
+	z = za - 1.0
+	while z > zb + 1.5:
+		bd.box("band", Vector3(3.0, 2.72, z), Vector3(0.63, 0.39, 0.03))
+		for sx: float in [-0.33, 0.33]:
+			bd.box("metal", Vector3(3.0 + sx, 2.95, z), Vector3(0.012, 0.1, 0.012))
+		z -= 2.2
+	bd.box("rack", Vector3(2.69, 2.72, -186.0), Vector3(0.02, 0.22, 0.5))
+	for k in 6:
+		bd.box("band", Vector3(2.68, 2.63 + k * 0.035, -186.0), Vector3(0.012, 0.012, 0.48))
+	_label("LÜFTUNG  ZU 2", Vector3(2.68, 2.72, -183.0), -90.0, 24, Color(0.15, 0.15, 0.15), 0.004)
+	# Kabelpritsche an der Ostwand mit Kabeln, Verteilerkaesten mit Kabelrohren
+	bd.box("galv", Vector3(xb - 0.2, 2.62, zc), Vector3(0.3, 0.05, zl))
+	for k in 5:
+		_pipe(bd, "rack", Vector3(xb - 0.32 + k * 0.05, 2.665, za), Vector3(xb - 0.32 + k * 0.05, 2.665, zb), 0.014)
+	for zz: float in [-183.2, -184.6]:
+		if FK.place(self, "res://assets/environment/river/models/utility_box_01", Vector3(xb - 0.13, 1.5, zz), Vector3(0.22, 0.62, 0.46), -90.0):
+			_pipe(bd, "band", Vector3(xb - 0.08, 1.82, zz), Vector3(xb - 0.08, 2.6, zz), 0.02)
+	# Hauptverteilung (Standschrank) an der Ostwand
+	var hz := -188.6
+	bd.box("cab_grey", Vector3(xb - 0.2, 1.0, hz), Vector3(0.4, 2.0, 1.2))
+	bd.box("rack", Vector3(xb - 0.2, 0.05, hz), Vector3(0.36, 0.1, 1.16))
+	bd.box("rack", Vector3(xb - 0.405, 1.05, hz), Vector3(0.01, 1.85, 0.008))
+	for sz: float in [-0.08, 0.08]:
+		bd.box("band", Vector3(xb - 0.415, 1.1, hz + sz), Vector3(0.025, 0.14, 0.03))
+	bd.box("warn", Vector3(xb - 0.403, 1.6, hz - 0.3), Vector3(0.005, 0.16, 0.18))
+	_label("HV  UG 2\n400 V", Vector3(xb - 0.408, 1.75, hz + 0.25), -90.0, 26, Color(0.9, 0.9, 0.85), 0.004)
+	_pipe(bd, "band", Vector3(xb - 0.2, 2.0, hz), Vector3(xb - 0.2, 2.6, hz), 0.05)
+	# Stahlregal mit Kartons, Werkzeugkiste (Nordostecke, ausserhalb des Leiterlochs)
+	FK.place(self, RL_MOD + "steel_frame_shelves_02", Vector3(xb - 0.3, 0.95, -175.4), Vector3(0.5, 1.9, 1.5), -90.0)
+	for k in 3:
+		FK.place(self, "res://assets/environment/street/models/cardboard_box_01", Vector3(xb - 0.32, 0.17 + k * 0.0, -174.9 - k * 0.45), Vector3(0.4, 0.3, 0.4), -90.0 + k * 9.0)
+	FK.place(self, RL_MOD + "metal_tool_chest", Vector3(xb - 0.3, 0.2, -177.4), Vector3(0.4, 0.4, 0.8), -90.0)
+	# Faesser und Zementsaecke in den Westecken
+	FK.place(self, "res://assets/environment/river/models/Barrel_01", Vector3(xa + 0.45, 0.45, -189.9), Vector3(0.6, 0.9, 0.6), 20.0)
+	FK.place(self, "res://assets/environment/river/models/Barrel_01", Vector3(xa + 1.1, 0.45, -190.6), Vector3(0.6, 0.9, 0.6), -35.0)
+	for k in 3:
+		FK.place(self, "res://assets/environment/river/models/cement_bag", Vector3(xa + 0.5, 0.07 + k * 0.13, -175.2 - (k % 2) * 0.1), Vector3(0.45, 0.14, 0.7), 5.0 + k * 11.0)
+	if ResourceLoader.exists("res://assets/environment/interior/models/fire_extinguisher_de/fire_extinguisher_de.gltf"):
+		FK.place(self, "res://assets/environment/interior/models/fire_extinguisher_de", Vector3(1.25, 0.65, zb + 0.15), Vector3(0.2, 0.62, 0.2), 0.0)
+	# zweite Leuchte (tot) und schwaches Notlicht ueber der Hauptverteilung (ohne Einfluss aufs Schleichen)
+	bd.box("fluor_off", Vector3(0.0, 2.95, -177.0), Vector3(0.18, 0.06, 1.2))
+	var nl := _omni(Vector3(2.6, 2.4, -188.6), Color(1.0, 0.86, 0.66), 0.35, 4.5, 0.2)
+	nl.set_meta("no_stealth", true)
 
 ## Leiter an einer Wand: Fuss bei foot, Hoehe h, Blickrichtung (yaw) der Wand, an der sie haengt.
 func _ladder_mesh(bd: BP.Builder, foot: Vector3, h: float, yaw: float) -> void:
@@ -611,6 +789,9 @@ func _work_lamp(pos: Vector3, yaw: float) -> void:
 	root.add_child(l)
 
 func _figure(pos: Vector3, yaw: float) -> void:
+	# Konrad Voss als MakeHuman-Figur; Kastenfigur nur, falls das Modell fehlt
+	if CivFigure.stand(self, "voss", pos, yaw) != null:
+		return
 	var root := Node3D.new()
 	root.position = pos
 	root.rotation_degrees.y = yaw
@@ -768,10 +949,12 @@ func _trip(idx: int) -> void:
 	Combat.explode(pos, 5.5, 85.0, self, 1.2)
 	director.call("raise_alarm", pos, "shot", false)
 	_update_charge_objective()
+	# Falk reagiert, Voss antwortet direkt (Gespraech im selben Frame)
 	_later(1.4, func() -> void:
-		_say_once("blown", StoryData.FALK, "Da unten hat es geknallt. Alle Streifen zur Achse B – ich will ihn, lebend oder in Stücken."))
-	_later(4.5, func() -> void:
-		_say_once("blown_voss", StoryData.VOSS, "Das war nur eine. Hängen die anderen auch noch dran, kommt die halbe Halle runter. Vorsicht an den Lichtschranken."))
+		_say_once_opt("blown", StoryData.FALK, "Da unten hat es geknallt. Alle Streifen zur Achse B – ich will ihn, lebend oder in Stücken.",
+			{"priority": 1, "max_age": 3.0})
+		_say_once_opt("blown_voss", StoryData.VOSS, "Das war nur eine. Hängen die anderen auch noch dran, kommt die halbe Halle runter. Vorsicht an den Lichtschranken.",
+			{"max_age": 3.0, "valid": func() -> bool: return _defused + _blown_count() < _charges.size()}))
 
 func _defuse(idx: int) -> void:
 	var c: Dictionary = _charges[idx]
@@ -786,11 +969,18 @@ func _defuse(idx: int) -> void:
 	_update_charge_objective()
 	match _defused:
 		1:
-			_say_once("def1", StoryData.LENA, "Grüne Lampe – die ist tot. Noch zwei, Jonas.")
+			_say_once_opt("def1", StoryData.LENA, "Grüne Lampe – die ist tot. Noch zwei, Jonas.", {"priority": 1, "max_age": 3.0, "key": "kan_def"})
 		2:
-			_say_once("def2", StoryData.VOSS, "Sauber. Ich hab früher so was gebaut, nicht entschärft. Du machst das besser als ich.")
+			_say_once_opt("def2", StoryData.VOSS, "Sauber. Ich hab früher so was gebaut, nicht entschärft. Du machst das besser als ich.", {"priority": 1, "max_age": 3.0, "key": "kan_def"})
 		3:
-			_say_once("def3", StoryData.KERNER, "Letzte Ladung ist kalt. Die Halle bleibt stehen.")
+			_say_once_opt("def3", StoryData.KERNER, "Letzte Ladung ist kalt. Die Halle bleibt stehen.", {"priority": 1, "max_age": 3.0, "key": "kan_def"})
+
+func _blown_count() -> int:
+	var n := 0
+	for c: Dictionary in _charges:
+		if bool(c.get("blown", false)):
+			n += 1
+	return n
 
 func pos_of(c: Dictionary) -> Vector3:
 	return c["pos"]
@@ -924,6 +1114,9 @@ func _build_markers() -> void:
 		w.name = "Waypoint%02d" % i
 		w.set_meta("order", i)
 	# Checkpoints und Story-Ausloeser
+	# Einweisung (Falk/Lena) noch im sicheren Versorgungsgang, bevor der Spieler in den Sammler zur ersten
+	# Streife hinabsteigt; der Checkpoint-Ausloeser unten bleibt Rueckfall (_on_sammler spielt nur einmal).
+	_trigger("SammlerFunk", Vector3(XA, 1.5, -21.0), Vector3(3.0, 3.0, 1.0), func() -> void: _on_sammler())
 	_trigger("CpSammler", Vector3(XA, Y_WALK + 1.5, -40.0), Vector3(2.6, 3.0, 1.0), func() -> void: _checkpoint("cp_sammler"); _on_sammler())
 	_trigger("Einsturz", Vector3(0.0, Y_WALK + 1.5, -45.0), Vector3(8.0, 3.0, 1.0), _on_collapse)
 	_trigger("CpHalle", Vector3(0.0, Y_WALK + 1.5, -72.0), Vector3(8.0, 3.0, 1.0), func() -> void: _checkpoint("cp_halle"); _on_hall())
@@ -985,6 +1178,11 @@ func _spawn_wave(index: int) -> void:
 		["rifleman", false, [_wp(4.1, W, -152.6, 0.0, -90.0)]],
 		["assault", true, [_wp(-4.0, W, -145.0, 2.0, 90.0), _wp(-4.6, W, -163.0, 2.0, -90.0), _wp(4.0, W, -167.0, 2.0, 0.0)]],
 		["rifleman", false, [_wp(0.0, W, -174.6, 0.0, 0.0)]],
+		# Zusatzwachen (mehr Gegner): linke Bankette, rechtes Becken, Kanalende, Depot links
+		["rifleman", true, [_wp(-2.75, W, -58.0, 4.0, 180.0), _wp(-3.2, W, -73.2, 3.0, 0.0)]],
+		["rifleman", true, [_wp(5.55, Y_WET, -100.0, 3.0, 0.0), _wp(5.55, Y_WET, -80.0, 3.0, 180.0)]],
+		["rifleman", false, [_wp(-1.4, W, -140.0, 0.0, 180.0)]],
+		["rifleman", false, [_wp(-4.1, W, -152.6, 0.0, 90.0)]],
 	]
 	for g: Array in guards:
 		_spawn_guard(str(g[0]), bool(g[1]), g[2] as Array)
@@ -1031,84 +1229,132 @@ func _physics_process(delta: float) -> void:
 		_reinf_t -= delta
 		if _reinf_t < 0.0:
 			_call_reinforcements()
+	_update_alarm_note()
 	if _bot:
 		if takedown != null and takedown.get("candidate") != null:
 			takedown.call("try_auto")
 		if nv != null and not bool(nv.get("nv_on")) and float(nv.get("battery")) > 0.4:
 			nv.call("set_nightvision", true)
+		# Bot: beim Schleichen die Schalldaempferpistole, im Alarm das Gewehr
+		var want := 0 if bool(director.get("alarm")) else 1
+		if pl.weapons.size() > want and pl.weapon_index != want and pl.is_alive():
+			pl._do_switch(want)
 	if bool(director.get("alarm")):
 		for l in _alarm_lamps:
 			l.light_energy = 2.0 + 1.6 * sin(_t * 8.0)
 
+## Autopilot-Hook: schleichen, solange kein Alarm laeuft (geduckt, kein Feuer, Takedowns, Streifen abwarten).
+func autopilot_stealth() -> bool:
+	return director != null and not bool(director.get("alarm")) and not _finished
+
+## Autopilot-Hook: oben am Schacht die Sammler-Einweisung (Falk/Lena) abhoeren, bevor es hinuntergeht --
+## wie ein Spieler, der der Einweisung folgt ("Unten keine Hast"). Hoechstens 30 s.
+func autopilot_hold() -> bool:
+	var pl := _player()
+	if pl == null or pl.global_position.y < -1.0 or pl.global_position.z > -24.0:
+		return false
+	if _hold_t0 < 0.0:
+		_hold_t0 = _t
+	if _t - _hold_t0 > 30.0:
+		return false
+	return not _said.has("sammler_lena") or _radio_busy() > 0.3
+
+## HUD-Zeile unter "ALARM": naechste Welle (zweite mit Gepanzerten) bzw. Staerke des Suchtrupps.
+func _update_alarm_note() -> void:
+	if hud == null:
+		return
+	if not bool(director.get("alarm")):
+		hud.set("alarm_note", "")
+		return
+	var n := 0
+	for e in _reinf:
+		if is_instance_valid(e) and (not e.has_method("is_alive") or bool(e.call("is_alive"))):
+			n += 1
+	var parts: Array[String] = []
+	if _reinf_t >= 0.0:
+		parts.append(("Zweiter Zug rückt" if _reinf_waves == 0 else "Gepanzerte rücken") + " an in %d s" % ceili(_reinf_t))
+	if n > 0:
+		parts.append("Suchtrupp im Sammler: %d Mann" % n)
+	if parts.is_empty():
+		parts.append("Streifen durchkämmen den Sammler")
+	hud.set("alarm_note", " · ".join(parts))
+
 func _intro() -> void:
 	_obj("Durch die Kanalisation zum Kanzleramt – [%s] Nachtsicht, [%s] Lampe" % [_key("nightvision"), _key("flashlight")])
 	_later(1.2, func() -> void:
-		_say(StoryData.VOSS, "Bis hier hab ich dich gebracht, Jonas. Der Schacht am Ende führt in den alten Sammler unter dem Reichstag – da unten ist es stockfinster."))
-	_later(7.5, func() -> void:
-		_say(StoryData.LENA, "Nimm das Nachtsichtgerät. Die Lampe siehst du besser – aber jeder Gardist sieht dich auch."))
-	_later(14.0, func() -> void:
-		_say(StoryData.VOSS, "Ich bleibe am Einstieg und halte den Funk. Unten keine Hast. Wasser trägt jedes Geräusch."))
+		_say(StoryData.VOSS, "Bis hier hab ich dich gebracht, Jonas. Der Schacht am Ende führt in den alten Sammler unter dem Reichstag – da unten ist es stockfinster.")
+		_say_opt(StoryData.LENA, "Nimm das Nachtsichtgerät. Die Lampe siehst du besser – aber jeder Gardist sieht dich auch.", {})
+		_say_opt(StoryData.VOSS, "Ich bleibe am Einstieg und halte den Funk. Unten keine Hast. Wasser trägt jedes Geräusch.", {"valid": _no_alarm}))
 
 func _on_sammler() -> void:
-	_say_once("sammler", StoryData.FALK, "Hier Falk. Alle Streifen im Sammler Tiergarten: Lampen an, Augen auf. Wer sich da unten bewegt, gehört nicht zu uns.")
-	_later(6.0, func() -> void:
-		_say_once("sammler_lena", StoryData.LENA, "Das ist Falk persönlich auf dem Gardefunk. Lampen voraus – bleib im Dunkeln, geduckt. Von hinten, lautlos."))
+	if _said.has("sammler"):
+		return
+	# Falk auf dem Gardefunk, Lena kommentiert direkt (Gespraech im selben Frame); der Schleich-Tipp nur ohne Alarm
+	_say_once_opt("sammler", StoryData.FALK, "Hier Falk. Alle Streifen im Sammler Tiergarten: Lampen an, Augen auf. Wer sich da unten bewegt, gehört nicht zu uns.",
+		{"valid": _no_alarm})
+	_say_once_opt("sammler_lena", StoryData.LENA, "Das ist Falk persönlich auf dem Gardefunk. Lampen voraus – bleib im Dunkeln, geduckt. Von hinten, lautlos.",
+		{"valid": _no_alarm})
 
 func _on_collapse() -> void:
-	_say_once("collapse", StoryData.VOSS, "Die linke Bankette ist eingebrochen. Du musst durchs Gerinne – langsam, das Wasser plätschert bis zur Halle.")
+	_say_once_opt("collapse", StoryData.VOSS, "Die linke Bankette ist eingebrochen. Du musst durchs Gerinne – langsam, das Wasser plätschert bis zur Halle.",
+		{"priority": 2, "max_age": 6.0})
 
 func _on_hall() -> void:
 	if _said.has("hall"):
 		return
 	_said["hall"] = true
-	_say(StoryData.LENA, "Jonas, die Pfeiler – da hängen Ladungen dran. Mit Lichtschranken quer über den Gang.")
-	_later(5.0, func() -> void:
-		_say(StoryData.VOSS, "Das sind die Fundamente des Plenarsaals. Falk will alles hinter sich zusprengen, wenn der Ring sich schließt."))
-	_later(10.5, func() -> void:
-		_say(StoryData.LENA, "Entschärf sie, wenn du rankommst. Oder geh durchs Becken außen herum – nass und laut, aber an den Strahlen vorbei."))
+	# Hallen-Einweisung als ein Gespraech; die Tipps entfallen, wenn die Ladungen schon erledigt sind
+	_say_opt(StoryData.LENA, "Jonas, die Pfeiler – da hängen Ladungen dran. Mit Lichtschranken quer über den Gang.", {"priority": 2, "cut": true})
+	_say_opt(StoryData.VOSS, "Das sind die Fundamente des Plenarsaals. Falk will alles hinter sich zusprengen, wenn der Ring sich schließt.",
+		{"priority": 2, "valid": func() -> bool: return _defused + _blown_count() < _charges.size()})
+	_say_opt(StoryData.LENA, "Entschärf sie, wenn du rankommst. Oder geh durchs Becken außen herum – nass und laut, aber an den Strahlen vorbei.",
+		{"priority": 1, "valid": func() -> bool: return _defused + _blown_count() < _charges.size()})
 	_update_charge_objective()
 
 func _on_channel() -> void:
-	_say_once("channel", StoryData.FALK, "Achse B, Meldung. … Achse B? Riedhammer will den Sammler dicht, bevor die Divisionen am Spreebogen stehen.")
+	_say_once_opt("channel", StoryData.FALK, "Achse B, Meldung. … Achse B? Riedhammer will den Sammler dicht, bevor die Divisionen am Spreebogen stehen.",
+		{"priority": 1, "max_age": 4.0})
 
 func _on_depot() -> void:
-	_say_once("depot", StoryData.VOSS, "Die Überlaufkammer. Die Garde hat sich da ein Depot eingerichtet. Dahinter der Steigschacht zum Kanzleramt – den hab ich vor zwanzig Jahren selbst vermessen.")
+	_say_once_opt("depot", StoryData.VOSS, "Die Überlaufkammer. Die Garde hat sich da ein Depot eingerichtet. Dahinter der Steigschacht zum Kanzleramt – den hab ich vor zwanzig Jahren selbst vermessen.",
+		{"priority": 1, "max_age": 3.0})
 
 func _on_final_shaft() -> void:
 	_obj("Leiter hoch in den Versorgungskeller des Kanzleramts")
-	_say_once("shaft", StoryData.VOSS, "Die Leiter hoch. Oben ist der Versorgungskeller des Kanzleramts. Ab da bist du drin, Jonas.")
+	_say_once_opt("shaft", StoryData.VOSS, "Die Leiter hoch. Oben ist der Versorgungskeller des Kanzleramts. Ab da bist du drin, Jonas.",
+		{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return not _finished})
 
 func _finish() -> void:
 	if _finished:
 		return
 	_finished = true
 	_obj("")
-	_say(StoryData.KERNER, "Bin oben. Keller ist leer.")
-	_later(2.2, func() -> void:
-		_say(StoryData.FALK, "Wer auch immer da unten war: Ich weiß, wohin der Schacht führt. Oben warte ich."))
-	_later(4.0, _on_level_end)
+	# Schlussgespraech direkt, Level endet erst, wenn es durch ist
+	_say_opt(StoryData.KERNER, "Bin oben. Keller ist leer.", {"priority": 2, "cut": true})
+	_say(StoryData.FALK, "Wer auch immer da unten war: Ich weiß, wohin der Schacht führt. Oben warte ich.")
+	_later(1.0, _when_radio_free.bind(_on_level_end, 14.0))
 
 func _on_alarm_raised(reason: String, _pos: Vector3, first: bool) -> void:
 	if not first:
 		return
 	_set_alarm_fx(true)
-	if _reinf_waves < 2:
+	if _reinf_waves < 2 and _reinf_t < 0.0:
 		_reinf_t = 8.0
+	var on_alarm := func() -> bool: return bool(director.get("alarm"))
 	match reason:
 		"body":
-			_say(StoryData.FALK, "Mann am Boden im Sammler! Alle Streifen absuchen – jeden Winkel!")
+			_say_opt(StoryData.FALK, "Mann am Boden im Sammler! Alle Streifen absuchen – jeden Winkel!", {"priority": 1, "cut": true, "valid": on_alarm})
 		"shot":
-			_say(StoryData.FALK, "Schüsse unter Achse B! Alarm. Riegelt die Durchgänge ab!")
+			_say_opt(StoryData.FALK, "Schüsse unter Achse B! Alarm. Riegelt die Durchgänge ab!", {"priority": 1, "cut": true, "valid": on_alarm})
 		_:
-			_say(StoryData.FALK, "Kontakt im Sammler. Er ist allein – holt ihn mir!")
-	_later(2.6, func() -> void:
-		if bool(director.get("alarm")):
-			_say(StoryData.LENA, "Sie haben dich! Lampe aus, raus aus ihrem Licht – oder kämpf dich durch."))
+			_say_opt(StoryData.FALK, "Kontakt im Sammler. Er ist allein – holt ihn mir!", {"priority": 1, "cut": true, "valid": on_alarm})
+	_say_opt(StoryData.LENA, "Sie haben dich! Lampe aus, raus aus ihrem Licht – oder kämpf dich durch.", {"priority": 1, "valid": on_alarm})
 
 func _on_alarm_ended() -> void:
 	_set_alarm_fx(false)
 	_reinf_t = -1.0
-	_say(StoryData.FALK, "… Nichts? Streifen zurück auf ihre Posten. Und haltet die Augen offen.")
+	_say_opt(StoryData.FALK, "… Nichts? Streifen zurück auf ihre Posten. Und haltet die Augen offen.", {"priority": 1, "max_age": 3.0, "bark": true,
+		"valid": func() -> bool: return _no_alarm() and not _finished})
 	var pl := _player()
 	for e in _reinf:
 		if is_instance_valid(e) and pl != null and (e as Node3D).global_position.distance_to(pl.global_position) > 22.0:
@@ -1150,13 +1396,16 @@ func _call_reinforcements() -> void:
 			best_score = score
 			best = p
 	var target := pl.global_position
-	var types: Array = ["rifleman", "assault", "rifleman"] if _reinf_waves == 1 else ["assault", "armored", "rifleman"]
+	var types: Array = ["rifleman", "assault", "rifleman", "rifleman"] if _reinf_waves == 1 else ["assault", "armored", "rifleman", "rifleman"]
 	for i in types.size():
-		_spawn_reinforcement(types[i], best + Vector3((float(i) - 1.0) * 0.8, 0, float(i % 2) * 0.8), target)
+		_spawn_reinforcement(types[i], best + Vector3((float(i) - 1.5) * 0.7, 0, float(i % 2) * 0.8), target)
 	if _reinf_waves == 1:
-		_say(StoryData.FALK, "Zweiter Zug runter in den Sammler. Von beiden Seiten.")
+		_say_opt(StoryData.FALK, "Zweiter Zug runter in den Sammler. Von beiden Seiten.", {"priority": 1, "max_age": 8.0, "bark": true, "key": "kan_reinf"})
 	else:
-		_say(StoryData.FALK, "Schickt die Gepanzerten. Ich will das erledigt haben.")
+		_say_opt(StoryData.FALK, "Schickt die Gepanzerten. Ich will das erledigt haben.", {"priority": 1, "max_age": 8.0, "bark": true, "key": "kan_reinf"})
+	# Eskalation: haelt der Alarm an, folgen nach 30 s die Gepanzerten (HUD zaehlt herunter)
+	if _reinf_waves < 2:
+		_reinf_t = 30.0
 
 func _on_player_respawned() -> void:
 	for e in _reinf:

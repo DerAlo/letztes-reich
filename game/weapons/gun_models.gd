@@ -853,15 +853,17 @@ static func _holo_parts(b: Builder) -> void:
 	b.meta["glass_center"] = Vector3(0, gy, gz)
 	b.meta["glass_size"] = Vector2(gw, gh)
 
-## Rotpunkt-Visier (Rohrbauweise, Aimpoint-CompM4-Stil, prozedural): 30-mm-Rohr mit Objektivglocke,
-## Hoehen-/Seitenturm, Helligkeitsknopf, Ringmontage mit Picatinny-Klemme. Ursprung = Schienenoberkante.
-## Metas: glass_center (Objektivglas, Visierachse), glass_radius, axis_h.
+## Rotpunkt-Visier (Rohrbauweise, Aimpoint-Micro-T-2-Stil, prozedural): kurzes Gehaeuse (~68 mm) mit
+## grossem Objektiv, Hoehen-/Seitenturm, Helligkeitsknopf, Ringmontage mit Picatinny-Klemme. Kurz statt
+## CompM4-Rohr (120 mm): im ADS bleibt der Tunnel klein, das Ziel ist durch und neben dem Glas frei.
+## Ursprung = Schienenoberkante. Metas: glass_center (Objektivglas, Visierachse), glass_radius, axis_h.
 static func build_reddot() -> Node3D:
 	return _instantiate(_template("reddot", _reddot_parts), "RedDotSight")
 
 static func _reddot_parts(b: Builder) -> void:
 	var h: float = 0.03          # Visierachse ueber Schiene (niedrige Montage)
-	var ri: float = 0.0168       # Innenradius (Glas)
+	var ri: float = 0.0150       # Innenradius (Glas)
+	var ro: float = 0.0178       # Gehaeuse-Aussenradius
 	var ax := Vector3(0, h, 0)
 	# Picatinny-Klemme: Grundplatte, Klemmbacken seitlich an der Schiene, Querbolzen mit Mutter rechts
 	b.add(ext("rd_base", [Vector2(0.024, 0.0), Vector2(-0.024, 0.0), Vector2(-0.022, 0.0065), Vector2(0.022, 0.0065)],
@@ -870,40 +872,37 @@ static func _reddot_parts(b: Builder) -> void:
 		b.add(rbox(Vector3(0.003, 0.008, 0.04), 0.001), "anod_matte", T(Vector3(sx * 0.0122, -0.003, 0.0)))
 	b.add(cylz(0.0058, -0.0025, 0.0025, 16, 0.001), "anod_matte", T(Vector3(0.0158, -0.001, 0.004), Vector3(0, 90, 0)))
 	b.add(cylz(0.0024, -0.003, 0.003, 6, 0.0004), "park", T(Vector3(0.0188, -0.001, 0.004), Vector3(0, 90, 0)))
-	# Steg + Ring um das Rohr (Ringdeckel mit zwei Schrauben)
+	# Steg + Ring um das Gehaeuse (Ringdeckel mit zwei Schrauben)
 	b.add(ext("rd_riser", [Vector2(0.014, 0.004), Vector2(-0.014, 0.004), Vector2(-0.011, h - 0.012), Vector2(0.011, h - 0.012)],
 		0.0085, 0.0015, 0.002), "anod_matte")
-	b.add(_cached("rd_ring", func() -> ArrayMesh:
-		return lathe(PackedVector2Array([Vector2(0.0199, -0.0085), Vector2(0.0236, -0.0085), Vector2(0.0236, 0.0085),
-			Vector2(0.0199, 0.0085)]), 28, 0.0012, true)), "anod_matte", T(ax))
+	b.add(_cached("rdm_ring", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(ro, -0.0085), Vector2(ro + 0.0034, -0.0085), Vector2(ro + 0.0034, 0.0085),
+			Vector2(ro, 0.0085)]), 28, 0.0012, true)), "anod_matte", T(ax))
 	for sx: float in [1.0, -1.0]:
-		b.add(rbox(Vector3(0.006, 0.006, 0.014), 0.0012), "anod_matte", T(Vector3(sx * 0.02, h + 0.0005, 0.0)))
-		b.add(cylz(0.0019, -0.0012, 0.0012, 8, 0.0004), "park", T(Vector3(sx * 0.0232, h + 0.0005, 0.0), Vector3(0, 90, 0)))
-	# Rohr: Objektivglocke vorn, schlanker Koerper, Okular hinten; innen geschwaerzt
-	b.add(_cached("rd_tube", func() -> ArrayMesh:
-		return lathe(PackedVector2Array([Vector2(ri + 0.0005, -0.064), Vector2(0.0222, -0.064), Vector2(0.0222, -0.043),
-			Vector2(0.0199, -0.036), Vector2(0.0199, 0.033), Vector2(0.0212, 0.038), Vector2(0.0212, 0.052),
-			Vector2(ri + 0.0012, 0.052), Vector2(ri + 0.0012, -0.06), Vector2(ri + 0.0005, -0.06)]), 36, 0.0009, true)),
+		b.add(rbox(Vector3(0.006, 0.006, 0.014), 0.0012), "anod_matte", T(Vector3(sx * (ro + 0.0002), h + 0.0005, 0.0)))
+		b.add(cylz(0.0019, -0.0012, 0.0012, 8, 0.0004), "park", T(Vector3(sx * (ro + 0.0032), h + 0.0005, 0.0), Vector3(0, 90, 0)))
+	# Gehaeuse: Objektivblende vorn, schlanker Koerper, Okularring hinten; innen geschwaerzt
+	b.add(_cached("rdm_tube", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(ri + 0.0005, -0.036), Vector2(ro + 0.0012, -0.036), Vector2(ro + 0.0012, -0.026),
+			Vector2(ro, -0.022), Vector2(ro, 0.018), Vector2(ro + 0.0008, 0.021), Vector2(ro + 0.0008, 0.030),
+			Vector2(ri + 0.0012, 0.030), Vector2(ri + 0.0012, -0.033), Vector2(ri + 0.0005, -0.033)]), 36, 0.0009, true)),
 		"anod_matte", T(ax))
-	b.add(_cached("rd_bore", func() -> ArrayMesh:
-		return lathe(PackedVector2Array([Vector2(ri - 0.0004, -0.059), Vector2(ri + 0.0008, -0.059), Vector2(ri + 0.0008, 0.051),
-			Vector2(ri - 0.0004, 0.051)]), 36, 0.0, true)), "bore", T(ax))
-	# Gummi-Augenschutz-Ring am Okular, Gewinde-Ring am Objektiv
-	b.add(_cached("rd_eye", func() -> ArrayMesh:
-		return lathe(PackedVector2Array([Vector2(0.018, 0.049), Vector2(0.0216, 0.049), Vector2(0.0218, 0.058), Vector2(0.018, 0.058)]),
-			36, 0.0015, true)), "rubber", T(ax))
-	b.add(_cached("rd_obj", func() -> ArrayMesh:
-		return lathe(PackedVector2Array([Vector2(0.0222, -0.06), Vector2(0.0228, -0.06), Vector2(0.0228, -0.047), Vector2(0.0222, -0.047)]),
-			36, 0.0004, true)), "anod_matte", T(ax))
+	b.add(_cached("rdm_bore", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(ri - 0.0004, -0.032), Vector2(ri + 0.0008, -0.032), Vector2(ri + 0.0008, 0.029),
+			Vector2(ri - 0.0004, 0.029)]), 36, 0.0, true)), "bore", T(ax))
+	# Gewinde-Ring am Objektiv (Klappdeckel abgenommen)
+	b.add(_cached("rdm_obj", func() -> ArrayMesh:
+		return lathe(PackedVector2Array([Vector2(ro + 0.0012, -0.035), Vector2(ro + 0.0018, -0.035), Vector2(ro + 0.0018, -0.027),
+			Vector2(ro + 0.0012, -0.027)]), 36, 0.0004, true)), "anod_matte", T(ax))
 	# Hoehenturm (oben) und Seitenturm (rechts) mit Kappen, Helligkeitsknopf links
-	var tz: float = -0.006
-	b.add(cylz(0.0082, 0.0, 0.0105, 20, 0.0012), "anod_matte", T(ax + Vector3(0, 0.0175, tz), Vector3(-90, 0, 0)))
-	b.add(cylz(0.0089, 0.0085, 0.0145, 20, 0.0016), "anod_matte", T(ax + Vector3(0, 0.0175, tz), Vector3(-90, 0, 0)))
-	b.add(cylz(0.0082, 0.0, 0.0105, 20, 0.0012), "anod_matte", T(ax + Vector3(0.0175, 0, tz), Vector3(0, 90, 0)))
-	b.add(cylz(0.0089, 0.0085, 0.0145, 20, 0.0016), "anod_matte", T(ax + Vector3(0.0175, 0, tz), Vector3(0, 90, 0)))
-	b.add(cylz(0.0095, 0.0, 0.0085, 20, 0.0012), "anod_matte", T(ax + Vector3(-0.017, -0.002, 0.02), Vector3(0, -90, 0)))
-	b.add(cylz(0.0101, 0.0065, 0.0135, 24, 0.0015), "rubber", T(ax + Vector3(-0.017, -0.002, 0.02), Vector3(0, -90, 0)))
-	b.meta["glass_center"] = Vector3(0, h, -0.058)
+	var tz: float = -0.004
+	b.add(cylz(0.0068, 0.0, 0.009, 20, 0.001), "anod_matte", T(ax + Vector3(0, ro - 0.001, tz), Vector3(-90, 0, 0)))
+	b.add(cylz(0.0074, 0.0072, 0.0125, 20, 0.0014), "anod_matte", T(ax + Vector3(0, ro - 0.001, tz), Vector3(-90, 0, 0)))
+	b.add(cylz(0.0068, 0.0, 0.009, 20, 0.001), "anod_matte", T(ax + Vector3(ro - 0.001, 0, tz), Vector3(0, 90, 0)))
+	b.add(cylz(0.0074, 0.0072, 0.0125, 20, 0.0014), "anod_matte", T(ax + Vector3(ro - 0.001, 0, tz), Vector3(0, 90, 0)))
+	b.add(cylz(0.0080, 0.0, 0.0075, 20, 0.001), "anod_matte", T(ax + Vector3(-(ro - 0.001), -0.002, 0.008), Vector3(0, -90, 0)))
+	b.add(cylz(0.0086, 0.0058, 0.0118, 24, 0.0013), "rubber", T(ax + Vector3(-(ro - 0.001), -0.002, 0.008), Vector3(0, -90, 0)))
+	b.meta["glass_center"] = Vector3(0, h, -0.031)
 	b.meta["glass_radius"] = ri
 	b.meta["axis_h"] = h
 

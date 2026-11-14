@@ -104,9 +104,7 @@ func _process(_delta: float) -> void:
 		var sv: SoldierVisual = en._soldier
 		if sv == null:
 			continue
-		sv.anim_tree.set("parameters/loco/blend_position", Vector2(float(loco[0]), float(loco[1])))
-		sv.anim_tree.set("parameters/crouch/blend_position", Vector2(float(loco[0]), float(loco[1])).length())
-		sv.anim_tree.set("parameters/crouch_mix/blend_amount", float(_arg("stance", "0")))
+		sv.set_loco(Vector2(float(loco[0]), float(loco[1])), float(_arg("stance", "0")))
 		sv.ik.aim_weight = float(_arg("aim", "1"))
 		sv.ik.aim_yaw = float(_arg("yaw", "0"))
 		sv.ik.aim_pitch = float(_arg("pitch", "0"))

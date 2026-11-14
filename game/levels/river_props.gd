@@ -5,6 +5,8 @@ extends RefCounted
 ## Alle Funktionen statisch, per preload() einbinden.
 
 const Geo = preload("res://game/levels/level_geo.gd")
+const DebrisSettle = preload("res://game/systems/debris_settle.gd")
+const PH = preload("res://game/levels/ph_props.gd")
 const TEX := "res://assets/environment/river/textures/"
 const MODELS := "res://assets/environment/river/models/"
 const WET_SHADER: Shader = preload("res://assets/environment/river/wet.gdshader")
@@ -334,20 +336,20 @@ static func chimney(parent: Node3D, pos: Vector3, height: float) -> void:
 
 # --------------------------------------------------------------------------- Graeben / Stellungen
 
-## Sandsackreihe (Ellipsoide, zwei Lagen), optional mit Kollision. Laenge entlang lokal x.
+## Sandsackreihe (Jutesaecke aus ph_props.gd, eine Reihe), optional mit Kollision. Laenge entlang lokal x.
 static func sandbag_wall(parent: Node3D, pos: Vector3, yaw_deg: float, length: float, layers: int, rng: RandomNumberGenerator, covers: Array, collide: bool = true) -> void:
 	var b := Geo.static_body(pos, yaw_deg)
-	var bb := Geo.batch()
-	var n := maxi(2, int(length / 0.62))
-	for l in layers:
-		for i in n:
-			var x := -length * 0.5 + (i + 0.5 + (0.5 if l % 2 == 1 else 0.0)) * length / n
-			if x > length * 0.5:
-				continue
-			bb.add_ball(Vector3(x, 0.14 + l * 0.24, rng.randf_range(-0.04, 0.04)), Vector3(0.66, 0.3, 0.42), Basis(Vector3.UP, rng.randf_range(-0.12, 0.12)))
-	add_batch(b, bb, wet("", Color(0.32, 0.3, 0.24), 1.0, {"base_roughness": 0.85, "wetness": 0.9}))
+	# Gefuellte Jutesaecke (ph_props.gd, Poly-Haven hessian_230) statt Ellipsoid-Klumpen; PH-Wall laeuft
+	# entlang lokal z, hier entlang lokal x -> um 90 Grad gedreht. Regennass: dunklerer Jute-Ton.
+	var wall := Node3D.new()
+	wall.name = "SandbagWall"
+	wall.rotation.y = PI * 0.5
+	b.add_child(wall)
+	var mmi := PH.sandbag_wall(wall, length, layers, rng, -1.0, 1)
+	mmi.material_override = PH.sandbag_mat(-1.0, Color(0.6, 0.55, 0.46))
+	var top := 0.12 + layers * PH.BAG_PITCH
 	if collide:
-		Geo.add_box_shape(b, Vector3(0, layers * 0.12 + 0.05, 0), Vector3(length, layers * 0.24 + 0.1, 0.5))
+		Geo.add_box_shape(b, Vector3(0, top * 0.5, 0), Vector3(length, top, 0.5))
 		covers.append(pos)
 	parent.add_child(b)
 
@@ -478,6 +480,7 @@ class FallbackTank extends Node3D:
 		rb.global_transform = tr
 		rb.linear_velocity = Vector3(randf_range(-2, 2), 13.0, randf_range(-2, 2))
 		rb.angular_velocity = Vector3(randf_range(-2, 2), randf_range(-4, 4), randf_range(-2, 2))
+		DebrisSettle.solidify_when_settled(rb, 3.0, 12.0)
 		var f := Props.fire(self, Vector3(0, 1.6, 0.4), 1.6, true, 2.4, 9.0)
 		f.name = "TankFire"
 		destroyed.emit()

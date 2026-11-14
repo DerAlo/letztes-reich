@@ -1,19 +1,22 @@
 extends "res://game/enemies/armored_enemy.gd"
 ## Juggernaut-Endgegner: Bombenschutzanzug, Rotations-MG mit Anlaufen (faire Vorwarnung), kurze Granatwuerfe.
 ## Schwachstellen: Visier (bricht, danach volle Kopftreffer) und der Tornister auf dem Ruecken (platzt -> Taumeln).
-## Taumelt bei 75/50/25 % HP. Rakete = 1/4 HP. Boss-Leiste ueber armor_hud.gd.
+## Taumelt bei 75/50/25 % HP (Taumeln = Trefferfenster, Schaden x stagger_mult). Rakete = 1/4 HP.
+## Boss-Leiste ueber armor_hud.gd; die Statuszeile nennt immer die aktuelle Schwachstelle, und wer nur
+## auf die Panzerung schiesst, bekommt nach einigen Abprallern einen Hinweis eingeblendet.
 
 const GRENADE_SCENE: PackedScene = preload("res://game/weapons/grenade.tscn")
 
 @export_group("Juggernaut")
-@export var suit_pass: float = 0.15            ## Panzerplatten/Helm: fast alles bleibt haengen
-@export var padded_pass: float = 0.22          ## gepolsterter Anzug (Arme/Beine/Seiten)
+@export var suit_pass: float = 0.2            ## Panzerplatten/Helm: fast alles bleibt haengen
+@export var padded_pass: float = 0.3          ## gepolsterter Anzug (Arme/Beine/Seiten)
 @export var chest_open_pass: float = 0.4       ## Brust nach abgefallener Brustplatte
 @export var pack_mult: float = 1.5             ## Tornister: Schwachstelle
 @export var back_open_pass: float = 0.5        ## Ruecken nach geplatztem Tornister
-@export var face_mult: float = 2.0             ## Kopftreffer nach gebrochenem Visier
+@export var face_mult: float = 2.5             ## Kopftreffer nach gebrochenem Visier
 @export var rocket_fraction: float = 0.25
-@export var pack_burst_damage: float = 200.0
+@export var pack_burst_damage: float = 150.0
+@export var stagger_mult: float = 1.5          ## Schaden waehrend des Taumelns (klares Trefferfenster)
 @export var spinup_time: float = 1.1
 @export var grenade_cooldown: float = 9.0
 @export var grenade_min_dist: float = 7.0
@@ -33,6 +36,8 @@ var _step_i: int = 0
 var _grenade_cd: float = 5.0
 var _hud_set: bool = false
 var _pack_burst_done: bool = false
+var _deflect_streak: int = 0                   ## Abpraller des Spielers in Folge (fuer den Schwachstellen-Hinweis)
+var _hint_cd: float = 0.0
 var _jtracer_mesh: QuadMesh = null
 var _jtracer_mat: ShaderMaterial = null
 
@@ -141,8 +146,8 @@ func _build_barrels() -> void:
 func _piece_integrity(id: String) -> float:
 	match id:
 		"chest_plate": return 400.0
-		"pack": return 170.0
-		"visor": return 140.0
+		"pack": return 120.0
+		"visor": return 90.0
 	return INF
 
 func _build_zones() -> void:
@@ -158,6 +163,29 @@ func _build_zones() -> void:
 # ---------------------------------------------------------------- Schadensmodell
 
 func _resolve(loc: Dictionary, amount: float, headshot: bool) -> Dictionary:
+	var r := _resolve_suit(loc, amount, headshot)
+	if _stagger_t > 0.0:
+		r["dmg"] = float(r["dmg"]) * stagger_mult
+	if _last_src_player:
+		if bool(r["deflect"]):
+			_deflect_streak += 1
+			if _deflect_streak >= 6 and _hint_cd <= 0.0:
+				_deflect_streak = 0
+				_hint_cd = 10.0
+				_hud_message(_weak_hint(), true)
+		else:
+			_deflect_streak = 0
+	return r
+
+## Aktuelle Schwachstelle in Worten (Statuszeile der Boss-Leiste, Hinweis nach Abprallern).
+func _weak_hint() -> String:
+	if _intact("visor"):
+		return "PANZERUNG HÄLT – ZIEL: VISIER" + (" ODER TORNISTER" if _intact("pack") else "")
+	if _intact("pack"):
+		return "PANZERUNG HÄLT – ZIEL: KOPF ODER TORNISTER"
+	return "PANZERUNG HÄLT – ZIEL: KOPF"
+
+func _resolve_suit(loc: Dictionary, amount: float, headshot: bool) -> Dictionary:
 	var piece: String = loc["piece"]
 	var zone: String = loc["zone"]
 	var r := {"dmg": amount * padded_pass, "deflect": false, "blood": false, "head": false, "piece": "", "zone": zone if zone != "" else piece}
@@ -246,7 +274,8 @@ func _after_damage(dmg: float, _res: Dictionary) -> void:
 	var frac := health / maxf(max_health, 1.0)
 	while not _stagger_marks.is_empty() and frac <= _stagger_marks[0] and health > 0.0:
 		_stagger_marks.pop_front()
-		_stagger(1.8)
+		_stagger(2.2)
+		_hud_message("ER TAUMELT – JETZT DRAUF!", _last_src_player)
 		_bark("hit", 1.0, true)
 
 func _on_piece_broken(id: String) -> void:
@@ -298,12 +327,16 @@ func _engage() -> void:
 
 func boss_status() -> String:
 	var s: Array[String] = []
+	if _stagger_t > 0.0:
+		s.append("TAUMELT – SCHADEN x%s" % str(snappedf(stagger_mult, 0.1)))
 	if not _intact("visor"):
-		s.append("VISIER OFFEN")
+		s.append("VISIER OFFEN – KOPF")
+	else:
+		s.append("SCHWACHSTELLE: VISIER")
 	if not _intact("pack"):
 		s.append("TORNISTER ZERSTÖRT")
-	if _stagger_t > 0.0:
-		s.append("TAUMELT")
+	else:
+		s.append("TORNISTER (RÜCKEN)")
 	return " · ".join(s)
 
 ## Bots: immer auf den Kopf (Visier ist die erste Schwachstelle von vorn).
@@ -318,6 +351,7 @@ func _tick_state(delta: float) -> void:
 	if state != State.IDLE and state != State.DEAD:
 		_engage()
 	_grenade_cd -= delta
+	_hint_cd -= delta
 	if _stagger_t > 0.0:
 		_stagger_t -= delta
 		_burst_left = 0

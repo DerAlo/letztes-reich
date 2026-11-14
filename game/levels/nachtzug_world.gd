@@ -11,6 +11,11 @@ extends Node3D
 const VF := preload("res://game/vehicles/vehicle_fx.gd")
 const Geo := preload("res://game/levels/level_geo.gd")
 const NP := preload("res://game/levels/night_props.gd")
+const TrackTrees := preload("res://game/levels/track_trees.gd")
+const Int := preload("res://game/levels/nachtzug_interior.gd")
+const Deco := preload("res://game/levels/nachtzug_table_deco.gd")
+const FKit := preload("res://game/levels/facade_kit.gd")
+const MOUNTAIN_SHADER := preload("res://assets/environment/train/mountains_night.gdshader")
 
 const PITCH := 27.5
 const CAR_LEN := 26.0
@@ -85,8 +90,6 @@ var _spark_t: float = 1.0
 var _spark_on: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _cam_in_tunnel: bool = false
-var _tree_mesh: Mesh
-var _bush_mesh: Mesh
 var _dot_mesh: Mesh
 var _crossing_lights: Array[Dictionary] = []
 var _t: float = 0.0
@@ -142,7 +145,7 @@ func _make_mats() -> void:
 	_mats["wood"] = Geo.flat(Color(0.32, 0.18, 0.09), 0.55)
 	_mats["floor"] = Geo.flat(Color(0.2, 0.08, 0.07), 0.95)
 	_mats["ceil"] = Geo.flat(Color(0.72, 0.71, 0.67), 0.8)
-	_mats["lamp"] = Geo.flat(Color(1.0, 0.85, 0.6), 0.5, 0.0, Color(1.0, 0.82, 0.55), 2.4)
+	_mats["lamp"] = Geo.flat(Color(1.0, 0.85, 0.6), 0.5, 0.0, Color(1.0, 0.82, 0.55), 1.0)
 	_mats["seat"] = Geo.flat(Color(0.11, 0.17, 0.32), 0.9)
 	_mats["cloth"] = Geo.flat(Color(0.85, 0.84, 0.8), 0.9)
 	_mats["crate"] = Geo.flat(Color(0.38, 0.28, 0.16), 0.85)
@@ -165,6 +168,16 @@ func _make_mats() -> void:
 	_mats["asphalt"] = Geo.mat("asphalt_02", Color(0.4, 0.4, 0.42), 0.3)
 	_mats["red"] = Geo.flat(Color(1, 0.1, 0.05), 0.5, 0.0, Color(1, 0.1, 0.05), 6.0)
 	_mats["note"] = Geo.flat(Color(0.92, 0.9, 0.82), 0.9)
+	# Innenraum: PBR-Furnier, Paneele, Teppich, Polster (nachtzug_interior.gd)
+	_mats.merge(Int.mats(), true)
+	_mats["lining"] = _mats["veneer"]
+	_mats["upper"] = _mats["panel"]
+	_mats["ceil"] = Int.pbr("res://assets/environment/villa/beige_wall_001", Color(0.86, 0.85, 0.8), 0.8, 0.6, 0.0, 0.25)
+	_mats["floor"] = _mats["carpet"]
+	_mats["seat"] = _mats["moquette"]
+	_mats["wood"] = _mats["veneer_dark"]
+	_mats["cloth"] = _mats["linen"]
+	_mats["crate"] = _mats["planks"]
 
 func _m(k: String) -> Material:
 	return _mats[k]
@@ -186,6 +199,8 @@ func _light(parent: Node3D, pos: Vector3, color: Color, energy: float, rng_m: fl
 	l.light_energy = energy
 	l.omni_range = rng_m
 	l.omni_attenuation = 1.4
+	# Innenlampen streuen kaum in den Volumennebel (sonst milchiger Schleier im Waggon)
+	l.light_volumetric_fog_energy = 0.08
 	l.shadow_enabled = false
 	l.position = pos
 	parent.add_child(l)
@@ -252,6 +267,7 @@ func _build_car(i: int, rails: StaticBody3D) -> void:
 	var under := Geo.batch()
 	var glass := Geo.batch()
 	var lining := Geo.batch()
+	var upper := Geo.batch()
 	var y_lo := FLOOR + WIN_LO
 	var y_hi := FLOOR + WIN_HI
 	# --- Aussenhaut mit Fensterband (W3 +x: Ausschnitt fuer die Ladetuer)
@@ -267,7 +283,7 @@ func _build_car(i: int, rails: StaticBody3D) -> void:
 			stripe.add(Vector3(float(side) * (HW + 0.005), y_lo - 0.08, zm), Vector3(0.02, 0.07, CAR_LEN))
 		if interior:
 			_skin(lining, xi, FLOOR, y_lo, zr, zf, cut)
-			_skin(lining, xi, y_hi, CEIL, zr, zf, cut)
+			_skin(upper, xi, y_hi, CEIL, zr, zf, cut)
 		var wins := _windows(kind, i, side)
 		wins.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
 		var cur := zr
@@ -280,6 +296,8 @@ func _build_car(i: int, rails: StaticBody3D) -> void:
 				if interior:
 					_skin(lining, xi, y_lo, y_hi, cur, a, cut)
 			glass.add(Vector3(x, (y_lo + y_hi) * 0.5, wz), Vector3(0.02 if interior else 0.03, y_hi - y_lo, hw * 2.0))
+			if interior:
+				_window_trim(kind, side, wz, hw * 2.0, xi)
 			cur = wz - hw
 		if cur - zf > 0.01:
 			_skin(body, x, y_lo, y_hi, cur, zf, cut)
@@ -328,7 +346,7 @@ func _build_car(i: int, rails: StaticBody3D) -> void:
 		_col(col, Vector3(0, FLOOR - 0.15, zm), Vector3(HW * 2.0, 0.3, CAR_LEN))
 		var fl := Geo.batch()
 		fl.add(Vector3(0, FLOOR + 0.01, zm), Vector3(IW * 2.0, 0.02, CAR_LEN - 0.2))
-		_mesh(fl, "floor")
+		_mesh(fl, "planks" if kind == "gepaeck" else "floor")
 		var cl := Geo.batch()
 		cl.add(Vector3(0, CEIL - 0.03, zm), Vector3(IW * 2.0, 0.04, CAR_LEN - 0.2))
 		_mesh(cl, "ceil", null, false)
@@ -347,7 +365,9 @@ func _build_car(i: int, rails: StaticBody3D) -> void:
 	_mesh(under, "under")
 	_mesh(glass, "glass" if interior else "lit", null, false)
 	if interior:
-		_mesh(lining, "lining")
+		_mesh(lining, "cargo_wall" if kind == "gepaeck" else "lining")
+		_mesh(upper, "cargo_wall" if kind == "gepaeck" else "upper")
+		_flush()
 		# Deckenlampen + Licht
 		var lamps := Geo.batch()
 		for k in 4:
@@ -356,6 +376,18 @@ func _build_car(i: int, rails: StaticBody3D) -> void:
 		_mesh(lamps, "lamp", null, false)
 		for k in 3:
 			_light(self, Vector3(0.3, CEIL - 0.35, zr - 4.3 - 8.7 * k), Color(1.0, 0.82, 0.58), 1.1, 7.5)
+		# Kein Talnebel im geschlossenen Waggon: negative Dichte hebt den globalen Volumennebel
+		# (0.004) im Innenraum auf -> kein milchiger Schleier um die Deckenlampen.
+		var fv := FogVolume.new()
+		fv.name = "InnenKeinNebel"
+		fv.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+		fv.size = Vector3(IW * 2.0, CEIL - FLOOR, CAR_LEN - 0.4)
+		var fm := FogMaterial.new()
+		fm.density = -0.004
+		fm.albedo = Color(1, 1, 1)
+		fv.material = fm
+		fv.position = Vector3(0.0, (FLOOR + CEIL) * 0.5, zr - CAR_LEN * 0.5)
+		add_child(fv)
 	else:
 		_mesh(lining, "lining")
 		# Hohle Waggons: Dach begehbar, unsichtbares Gelaender, Klimakaesten als Deckung
@@ -424,12 +456,153 @@ func _build_gangway(i: int) -> void:
 func _cover(p: Vector3) -> void:
 	Geo.marker(self, p, "cover_point")
 
+## Optik-Batches je Waggon (Interior-Materialien): {mat: Geo.BoxBatch} und {mat: Int.RBatch}
+var _ib: Dictionary = {}
+var _ir: Dictionary = {}
+
+func _b(mat: String) -> Geo.BoxBatch:
+	if not _ib.has(mat):
+		_ib[mat] = Geo.batch()
+	return _ib[mat]
+
+func _r(mat: String) -> Int.RBatch:
+	if not _ir.has(mat):
+		_ir[mat] = Int.RBatch.new()
+	return _ir[mat]
+
+## Schreibt die gesammelten Optik-Batches als Meshes (ein Draw-Call je Material).
+func _flush(parent: Node3D = null) -> void:
+	var p := parent if parent != null else self
+	for k: String in _ib:
+		_mesh(_ib[k], k, p, k not in ["shade", "bulb", "lamp", "chrome", "linen_thin"])
+	for k: String in _ir:
+		var mi := Int.put(p, (_ir[k] as Int.RBatch).build(), _m(k), k not in ["shade", "bulb", "curtain", "chrome"])
+		if mi != null and k == "curtain":
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ib.clear()
+	_ir.clear()
+
+## Fensterrahmen innen: Brett (Kirsche), Alurahmen, Vorhaenge links/rechts, Hinweisschild.
+func _window_trim(kind: String, side: int, wz: float, ww: float, xi: float) -> void:
+	var y_lo := FLOOR + WIN_LO
+	var y_hi := FLOOR + WIN_HI
+	var inward := -float(side)
+	var hw := ww * 0.5
+	if kind == "gepaeck":
+		_r("alu").add(Vector3(xi + inward * 0.02, y_lo - 0.02, wz), Vector3(0.05, 0.04, ww + 0.06), 0.01)
+		_r("alu").add(Vector3(xi + inward * 0.02, y_hi + 0.02, wz), Vector3(0.05, 0.04, ww + 0.06), 0.01)
+		return
+	# Fensterbrett (Kirsche), leicht vorstehend
+	_r("cherry").add(Vector3(xi + inward * 0.05, y_lo - 0.015, wz), Vector3(0.11, 0.03, ww + 0.1), 0.012)
+	# Alurahmen ringsum (Gummi-Dichtung als dunkle Fuge)
+	for sy: float in [y_lo + 0.02, y_hi - 0.02]:
+		_r("alu").add(Vector3(xi + inward * 0.015, sy, wz), Vector3(0.04, 0.05, ww), 0.012)
+	for sz: float in [wz + hw - 0.025, wz - hw + 0.025]:
+		_r("alu").add(Vector3(xi + inward * 0.015, (y_lo + y_hi) * 0.5, sz), Vector3(0.04, WIN_HI - WIN_LO, 0.05), 0.012)
+	_b("rubber").add(Vector3(xi + inward * 0.004, (y_lo + y_hi) * 0.5, wz), Vector3(0.006, WIN_HI - WIN_LO - 0.06, ww - 0.07))
+	# Querteilung oben (Klappfenster) bei breiten Fenstern
+	if ww > 1.2:
+		_r("alu").add(Vector3(xi + inward * 0.015, y_hi - 0.28, wz), Vector3(0.035, 0.035, ww - 0.06), 0.01)
+	# Vorhaenge: zwei geraffte Bahnen an den Fensterkanten, oben Schiene (nicht hinter den Etagenbetten)
+	if kind == "schlaf" and side < 0:
+		return
+	var xc := xi + inward * 0.07
+	var cw := clampf(ww * 0.17, 0.18, 0.3)
+	_r("curtain").curtain(xc, inward, y_lo - 0.1, y_hi + 0.1, wz + hw + 0.06, wz + hw - cw, 3.0, 0.045)
+	_r("curtain").curtain(xc, inward, y_lo - 0.1, y_hi + 0.1, wz - hw + cw, wz - hw - 0.06, 3.0, 0.045)
+	_r("chrome").add(Vector3(xc + inward * 0.02, y_hi + 0.12, wz), Vector3(0.018, 0.018, ww + 0.2), 0.008, Basis.IDENTITY, 2)
+
+## Ausstattung, die jeder Personenwagen bekommt: Sockelleisten, Gardinenschiene, Deckenleuchten-Rahmen,
+## Notbremse + Fahrplan an den Stirnwaenden, Schmutz-Decals.
+func _furnish_common(i: int, kind: String) -> void:
+	var zr := car_rear(i)
+	var zf := car_front(i)
+	var zm := (zr + zf) * 0.5
+	if kind == "gepaeck":
+		for side: int in [-1, 1]:
+			_b("veneer_dark").add(Vector3(float(side) * (IW - 0.05), FLOOR + 0.1, zm), Vector3(0.04, 0.2, CAR_LEN - 0.4))
+		Int.decal(self, "scuffs.png", Vector3(0.0, FLOOR, zm + 6.0), Vector3(1.6, 0.3, 3.0), Basis(Vector3.UP, 1.3), 0.6, Color(0.3, 0.25, 0.2))
+		Int.decal(self, "smudge.png", Vector3(0.3, FLOOR, zm - 7.0), Vector3(1.4, 0.3, 1.2), Basis(Vector3.UP, 0.4), 0.55, Color(0.25, 0.2, 0.16))
+		return
+	# Sockelleisten (dunkles Furnier) + Handlauf-Leiste unter den Fenstern
+	for side: int in [-1, 1]:
+		_b("veneer_dark").add(Vector3(float(side) * (IW - 0.035), FLOOR + 0.06, zm), Vector3(0.03, 0.12, CAR_LEN - 0.3))
+		_r("cherry").add(Vector3(float(side) * (IW - 0.03), FLOOR + WIN_HI + 0.2, zm), Vector3(0.04, 0.05, CAR_LEN - 0.3), 0.012)
+	# Deckenleuchten: Alurahmen um die Leuchtstreifen
+	for k in 4:
+		var lz := zr - 3.25 - 6.5 * k
+		var lx := 0.0 if kind in ["speise"] else 0.8
+		_r("alu").add(Vector3(lx, CEIL - 0.05, lz), Vector3(0.32, 0.04, 2.3), 0.015)
+	# Stirnwaende: Notbremse (Schild + Griff) und Fahrplan im Rahmen
+	for e: Array in [[zr - 0.11, -1.0], [zf + 0.11, 1.0]]:
+		var ez: float = e[0]
+		var nz: float = e[1]
+		var n := Vector3(0, 0, nz)
+		Int.wall_sign(self, "notbremse.png", Vector3(1.2, FLOOR + 1.85, ez), Vector2(0.32, 0.16), n)
+		_r("alu").add(Vector3(1.2, FLOOR + 1.62, ez + nz * 0.03), Vector3(0.2, 0.12, 0.05), 0.015)
+		_r("red").add(Vector3(1.2, FLOOR + 1.58, ez + nz * 0.07), Vector3(0.14, 0.035, 0.035), 0.015)
+		Int.wall_sign(self, "fahrplan.png", Vector3(-1.15, FLOOR + 1.45, ez), Vector2(0.36, 0.495), n)
+		_r("alu").add(Vector3(-1.15, FLOOR + 1.45, ez - nz * 0.004), Vector3(0.4, 0.535, 0.012), 0.006)
+		Int.wall_sign(self, "rauchverbot.png", Vector3(1.2, FLOOR + 2.35, ez), Vector2(0.14, 0.14), n)
+	# Schmutz: Laufspur im Gang, Wasserfleck an der Decke, Handabdruecke an den Tueren
+	var gx := 0.85 if kind in ["abteil", "schlaf"] else 0.0
+	for k in 3:
+		var dz := zr - 4.0 - 8.5 * k + _rng.randf_range(-1.5, 1.5)
+		Int.decal(self, "scuffs.png" if k % 2 == 0 else "smudge.png", Vector3(gx, FLOOR, dz), Vector3(0.9, 0.3, 2.2),
+			Basis(Vector3.UP, PI * 0.5 + _rng.randf_range(-0.2, 0.2)), 0.45, Color(0.35, 0.28, 0.22))
+	Int.decal(self, "water_stain.png", Vector3(_rng.randf_range(-0.6, 0.6), CEIL, zm + _rng.randf_range(-8.0, 8.0)),
+		Vector3(1.1, 0.3, 1.1), Basis(Vector3.RIGHT, PI), 0.35, Color(0.6, 0.5, 0.35))
+	for ez: float in [zr - 0.1, zf + 0.1]:
+		var down := Vector3(0, 0, -1.0 if ez > zm else 1.0)
+		Int.decal(self, "handmarks.png", Vector3(0.75, FLOOR + 1.2, ez), Vector3(0.35, 0.3, 0.6),
+			Basis(Vector3.RIGHT, -PI * 0.5 * down.z), 0.3, Color(0.4, 0.34, 0.28))
+	# Reiseaufkleber an einem Fensterrahmen (Gangseite)
+	Int.wall_sign(self, "aufkleber.png", Vector3(IW - 0.025, FLOOR + 0.75, zr - 9.3), Vector2(0.09, 0.09), Vector3.LEFT)
+
+## Polsterbank (3 Plaetze) quer im Abteil: Sitz bei (x_c, sz), back_dir = Richtung der Rueckenlehne (+-1 in z).
+func _bench(x_c: float, width: float, sz: float, back_dir: float, places: int, seat_d: float = 0.5) -> void:
+	var pw := width / places
+	_b("veneer_dark").add(Vector3(x_c, FLOOR + 0.13, sz + back_dir * 0.02), Vector3(width - 0.02, 0.26, seat_d - 0.06))
+	_b("black").add(Vector3(x_c, FLOOR + 0.03, sz - back_dir * 0.05), Vector3(width - 0.1, 0.06, seat_d - 0.2))
+	var tilt := Basis(Vector3.RIGHT, back_dir * 0.13)
+	for p in places:
+		var px := x_c - width * 0.5 + pw * (p + 0.5)
+		# Sitzkissen (Oberkante 0,46 m wie die Kollision), vorn leicht abgerundet
+		_r("moquette").add(Vector3(px, FLOOR + 0.365, sz), Vector3(pw - 0.012, 0.19, seat_d), 0.07, Basis.IDENTITY, 3)
+		# Rueckenkissen, nach hinten geneigt
+		var bc := Vector3(px, FLOOR + 0.8, sz + back_dir * (seat_d * 0.5 - 0.07))
+		_r("moquette").add(bc, Vector3(pw - 0.02, 0.66, 0.13), 0.06, tilt, 3)
+		# Kopfschoner (weisses Tuch)
+		var hc := bc + tilt * Vector3(0, 0.2, -back_dir * 0.068)
+		_r("linen").add(hc, Vector3(pw - 0.14, 0.2, 0.012), 0.004, tilt, 1)
+	# Armlehnen an beiden Enden
+	for ex: float in [x_c - width * 0.5 + 0.03, x_c + width * 0.5 - 0.03]:
+		_r("moquette").add(Vector3(ex, FLOOR + 0.56, sz + back_dir * 0.03), Vector3(0.06, 0.2, seat_d - 0.08), 0.025)
+
+## Gepaeckablage aus Chromrohr an einer Wand (Wand bei wz, Ablage ragt in Richtung dir).
+func _rack(x0: float, x1: float, y: float, wz: float, dir: float, depth: float = 0.38) -> void:
+	var xc := (x0 + x1) * 0.5
+	var w := absf(x1 - x0)
+	for k in 5:
+		var z := wz + dir * (0.05 + (depth - 0.05) * float(k) / 4.0)
+		_r("chrome").add(Vector3(xc, y + (0.025 if k == 4 else 0.0), z), Vector3(w, 0.022, 0.022), 0.01, Basis.IDENTITY, 2)
+	for bx: float in [x0 + 0.08, xc, x1 - 0.08]:
+		_r("alu").add(Vector3(bx, y - 0.02, wz + dir * depth * 0.5), Vector3(0.025, 0.04, depth), 0.01, Basis.IDENTITY, 2)
+		_r("alu").add(Vector3(bx, y - 0.14, wz + dir * 0.04), Vector3(0.025, 0.26, 0.03), 0.01, Basis.IDENTITY, 2)
+
+## Leselampe an der Wand (Messingarm + Schirm), Wand bei wz, Lampe zeigt in Richtung dir.
+func _reading_lamp(x: float, y: float, wz: float, dir: float) -> void:
+	_r("brass").add(Vector3(x, y, wz + dir * 0.02), Vector3(0.07, 0.1, 0.03), 0.01)
+	_r("brass").add(Vector3(x, y + 0.02, wz + dir * 0.08), Vector3(0.02, 0.02, 0.11), 0.008, Basis.IDENTITY, 2)
+	# Messinghaube mit Opalglas nach unten (frueher leuchtender Lampenkoerper -> weisse Kugel hinter Koepfen)
+	_r("brass").add(Vector3(x, y - 0.01, wz + dir * 0.15), Vector3(0.085, 0.065, 0.085), 0.034)
+	_r("bulb").add(Vector3(x, y - 0.043, wz + dir * 0.15), Vector3(0.056, 0.006, 0.056), 0.026)
+
 func _furnish_abteil(i: int) -> void:
 	var zr := car_rear(i)
 	var wall := Geo.batch()
-	var seat := Geo.batch()
-	var wood := Geo.batch()
 	var x_wall := -0.1
+	_furnish_common(i, "abteil")
 	for k in 8:
 		var z0 := zr - 2.0 - 2.75 * k
 		var z1 := z0 - 2.75
@@ -446,42 +619,93 @@ func _furnish_abteil(i: int) -> void:
 		for zz: float in ([z0, z1] if k == 7 else [z0]):
 			wall.add(Vector3((-IW + x_wall) * 0.5, (FLOOR + CEIL) * 0.5, zz), Vector3(IW + x_wall, CEIL - FLOOR, 0.08))
 			_col(col, Vector3((-IW + x_wall) * 0.5, (FLOOR + CEIL) * 0.5, zz), Vector3(IW + x_wall, CEIL - FLOOR, 0.08))
-		# Sitzbaenke gegenueber
+		# Sitzbaenke gegenueber (Kollision unveraendert, Optik: Polster)
 		for dz: float in [-0.45, 0.45]:
 			var sz := (z0 if dz < 0.0 else z1) + dz
 			var c := Vector3(-0.92, FLOOR + 0.23, sz)
-			seat.add(c, Vector3(1.5, 0.46, 0.5))
-			seat.add(Vector3(-0.92, FLOOR + 0.8, sz + (0.2 if dz < 0.0 else -0.2)), Vector3(1.5, 0.7, 0.12))
 			_col(col, c, Vector3(1.5, 0.46, 0.5))
-		wood.add(Vector3(-1.48, FLOOR + 0.72, zc), Vector3(0.35, 0.04, 0.5))
-		wood.add(Vector3(-0.92, FLOOR + 1.95, z0 - 0.25), Vector3(1.5, 0.04, 0.4))   # Gepaeckablage
+			var bdir := 1.0 if dz < 0.0 else -1.0
+			_bench(-0.92, 1.5, sz, bdir, 3)
+			var wz := z0 if dz < 0.0 else z1
+			var wdir := -bdir
+			_rack(-1.66, -0.18, FLOOR + 1.95, wz + wdir * 0.04, wdir)
+			_reading_lamp(-1.5, FLOOR + 1.42, wz + wdir * 0.04, wdir)
+			_reading_lamp(-0.35, FLOOR + 1.42, wz + wdir * 0.04, wdir)
+			Int.picture(self, "painting_alps.jpg" if (k + int(dz > 0.0)) % 2 == 0 else "painting_lake.jpg",
+				Vector3(-0.92, FLOOR + 1.48, wz + wdir * 0.04), Vector2(0.56, 0.34), Vector3(0, 0, wdir), _m("veneer_dark"))
+			# Koffer auf mancher Ablage
+			if (k * 2 + int(dz > 0.0)) % 3 == 0:
+				_r("case" if k % 2 == 0 else "case2").add(Vector3(-1.05 + 0.2 * float(k % 3), FLOOR + 2.1, wz + wdir * 0.22), Vector3(0.62, 0.22, 0.34), 0.03)
+		# Klapptisch am Fenster: Kirschholz mit Alukante, Konsole
+		_r("cherry").add(Vector3(-1.49, FLOOR + 0.72, zc), Vector3(0.36, 0.035, 0.5), 0.012)
+		_r("alu").add(Vector3(-1.31, FLOOR + 0.72, zc), Vector3(0.012, 0.04, 0.5), 0.005, Basis.IDENTITY, 1)
+		_r("alu").add(Vector3(-1.6, FLOOR + 0.6, zc), Vector3(0.03, 0.2, 0.06), 0.008, Basis(Vector3.BACK, -0.6), 2)
+		Int.wall_sign(self, "rauchverbot.png", Vector3(-1.66, FLOOR + 0.82, zc + 0.6), Vector2(0.08, 0.08), Vector3.RIGHT)
+		Int.wall_sign(self, "hinweis.png", Vector3(-1.66, FLOOR + 0.8, zc - 0.55), Vector2(0.24, 0.06), Vector3.RIGHT)
+		# Licht der Leselampen (eines je Abteil, ohne Flackern)
+		_light(self, Vector3(-1.0, FLOOR + 1.45, zc), Color(1.0, 0.8, 0.55), 0.32, 2.8, false)
+		# Abteiltuer: Glasschiebetuer offen geparkt (Gangseite, vor der Wand), Rahmen ums Loch, Nummer
+		var dx := x_wall + 0.06
+		for dzz: float in [0.42, -0.42]:
+			_r("alu").add(Vector3(x_wall, FLOOR + 1.05, zc + dzz), Vector3(0.12, 2.1, 0.04), 0.01, Basis.IDENTITY, 2)
+		_r("alu").add(Vector3(x_wall, FLOOR + 2.12, zc), Vector3(0.12, 0.04, 0.88), 0.01, Basis.IDENTITY, 2)
+		for fz: float in [zc + 0.42, zc + 1.18]:
+			_r("alu").add(Vector3(dx, FLOOR + 1.05, fz), Vector3(0.03, 2.08, 0.05), 0.01, Basis.IDENTITY, 2)
+		for fy: float in [FLOOR + 0.05, FLOOR + 2.07, FLOOR + 0.85]:
+			_r("alu").add(Vector3(dx, fy, zc + 0.8), Vector3(0.03, 0.06, 0.8), 0.01, Basis.IDENTITY, 2)
+		_b("glass").add(Vector3(dx, FLOOR + 1.46, zc + 0.8), Vector3(0.012, 1.18, 0.72))
+		var num := Label3D.new()
+		num.text = str(11 + k)
+		num.font_size = 48
+		num.pixel_size = 0.0016
+		num.modulate = Color(0.9, 0.85, 0.7)
+		num.outline_size = 0
+		num.position = Vector3(x_wall + 0.045, FLOOR + 2.3, zc)
+		num.rotation.y = PI * 0.5
+		add_child(num)
+		_r("brass").add(Vector3(x_wall + 0.042, FLOOR + 2.3, zc), Vector3(0.006, 0.09, 0.12), 0.003, Basis.IDENTITY, 1)
+	# Gang: Handlauf vor den Fenstern, Klappsitze
+	_r("chrome").add(Vector3(IW - 0.08, FLOOR + 1.02, zr - 13.0), Vector3(0.025, 0.025, CAR_LEN - 4.5), 0.012, Basis.IDENTITY, 2)
+	for k in 6:
+		var hz := zr - 3.0 - 4.0 * k
+		_r("alu").add(Vector3(IW - 0.045, FLOOR + 1.02, hz), Vector3(0.07, 0.02, 0.02), 0.008, Basis.IDENTITY, 1)
+	for k in 3:
+		var kz := zr - 5.4 - 8.25 * k
+		_r("moquette").add(Vector3(IW - 0.12, FLOOR + 0.62, kz), Vector3(0.06, 0.36, 0.4), 0.025)
+		_r("alu").add(Vector3(IW - 0.06, FLOOR + 0.55, kz), Vector3(0.05, 0.3, 0.06), 0.01)
 	_mesh(wall, "lining")
-	_mesh(seat, "seat")
-	_mesh(wood, "wood")
+	_flush()
 	for z: float in [zr - 1.0, zr - 25.0]:
 		_cover(Vector3(0.9, FLOOR, z))
 
 func _furnish_speise(i: int) -> void:
 	var zr := car_rear(i)
 	var zf := car_front(i)
-	var tab := Geo.batch()
-	var cloth := Geo.batch()
-	var seat := Geo.batch()
-	var lamp := Geo.batch()
+	_furnish_common(i, "speise")
+	var deco := Deco.new(_mats, 4711 + i)   # eigener Seed: Zufallsfolge des Wagens bleibt unveraendert
 	for k in 6:
 		var z := zr - 2.6 - 2.3 * k
 		for sx: float in [-1.2, 1.2]:
-			tab.add(Vector3(sx, FLOOR + 0.37, z), Vector3(0.12, 0.74, 0.12))
-			cloth.add(Vector3(sx, FLOOR + 0.76, z), Vector3(0.78, 0.04, 0.88))
-			cloth.add(Vector3(sx - signf(sx) * 0.39, FLOOR + 0.62, z), Vector3(0.02, 0.26, 0.88))
+			var s := signf(sx)
+			# Tisch: Saeule (Alu), Platte (Kirsche), Tischdecke mit Ueberhang zur Gangseite
+			_r("alu").add(Vector3(sx, FLOOR + 0.37, z), Vector3(0.09, 0.74, 0.09), 0.03)
+			_r("alu").add(Vector3(sx, FLOOR + 0.02, z), Vector3(0.4, 0.03, 0.4), 0.012)
+			_r("cherry").add(Vector3(sx, FLOOR + 0.735, z), Vector3(0.78, 0.04, 0.88), 0.014)
 			_col(col, Vector3(sx, FLOOR + 0.39, z), Vector3(0.75, 0.78, 0.86))
-			lamp.add(Vector3(sx + signf(sx) * 0.25, FLOOR + 0.9, z), Vector3(0.07, 0.2, 0.07))
+			_r("linen").add(Vector3(sx, FLOOR + 0.762, z), Vector3(0.8, 0.012, 0.9), 0.005, Basis.IDENTITY, 1)
+			_r("linen").add(Vector3(sx - s * 0.404, FLOOR + 0.66, z), Vector3(0.01, 0.2, 0.9), 0.004, Basis(Vector3.BACK, s * 0.05), 1)
+			for ez: float in [z + 0.453, z - 0.453]:
+				_r("linen").add(Vector3(sx, FLOOR + 0.69, ez), Vector3(0.8, 0.14, 0.01), 0.004, Basis.IDENTITY, 1)
+			# Tischlampe, Gedeck, Glaeser, Flasche: echte Modelle/Drehkoerper (nachtzug_table_deco.gd)
+			deco.add(sx, z, FLOOR)
+			_r("veneer_dark").add(Vector3(sx + s * 0.12, FLOOR + 0.84, z), Vector3(0.012, 0.14, 0.1), 0.004, Basis(Vector3.BACK, s * 0.15), 1)
+			# Sitzbaenke (2 Plaetze) quer, Polster
 			for dz: float in [-0.9, 0.9]:
-				seat.add(Vector3(sx * 1.04, FLOOR + 0.23, z + dz), Vector3(0.9, 0.46, 0.45))
-				seat.add(Vector3(sx * 1.04, FLOOR + 0.75, z + dz * 1.17), Vector3(0.9, 0.62, 0.1))
+				_bench(sx * 1.04, 0.9, z + dz, signf(dz), 2, 0.45)
 				_col(col, Vector3(sx * 1.04, FLOOR + 0.55, z + dz * 1.06), Vector3(0.9, 1.1, 0.5))
 			if k % 2 == 1:
 				_cover(Vector3(sx * 0.55, FLOOR, z))
+		_light(self, Vector3(0.0, FLOOR + 1.2, z), Color(1.0, 0.78, 0.5), 0.3, 3.2, false)
 	# Kueche vorn links, Gang rechts
 	var kz := zf + 6.5
 	var wall := Geo.batch()
@@ -489,17 +713,20 @@ func _furnish_speise(i: int) -> void:
 	_col(col, Vector3((-IW - 0.3) * 0.5, (FLOOR + CEIL) * 0.5, kz), Vector3(IW - 0.3, CEIL - FLOOR, 0.08))
 	wall.add(Vector3(-0.3, (FLOOR + CEIL) * 0.5, (kz + zf) * 0.5), Vector3(0.08, CEIL - FLOOR, kz - zf))
 	_col(col, Vector3(-0.3, (FLOOR + CEIL) * 0.5, (kz + zf) * 0.5), Vector3(0.08, CEIL - FLOOR, kz - zf))
-	# Theke vor der Kueche (Deckung)
-	var bar := Geo.batch()
-	bar.add(Vector3(-0.9, FLOOR + 0.55, kz + 0.45), Vector3(1.4, 1.1, 0.5))
+	# Theke vor der Kueche (Deckung): Furnierfront, Kirschplatte, Fussleiste, Flaschen
 	_col(col, Vector3(-0.9, FLOOR + 0.55, kz + 0.45), Vector3(1.4, 1.1, 0.5))
+	_b("veneer_dark").add(Vector3(-0.9, FLOOR + 0.52, kz + 0.45), Vector3(1.38, 1.04, 0.48))
+	_r("cherry").add(Vector3(-0.9, FLOOR + 1.075, kz + 0.47), Vector3(1.44, 0.05, 0.56), 0.015)
+	_b("black").add(Vector3(-0.9, FLOOR + 0.05, kz + 0.7), Vector3(1.38, 0.1, 0.02))
+	_r("brass").add(Vector3(-0.9, FLOOR + 0.25, kz + 0.75), Vector3(1.3, 0.025, 0.025), 0.01, Basis.IDENTITY, 2)
+	for b in 5:
+		_r("glass_bottle").add(Vector3(-1.45 + 0.2 * b, FLOOR + 1.85, kz + 0.07), Vector3(0.07, 0.26, 0.07), 0.03)
+	_r("cherry").add(Vector3(-0.95, FLOOR + 1.71, kz + 0.1), Vector3(1.3, 0.03, 0.16), 0.01)
+	Int.wall_sign(self, "fahrplan.png", Vector3(-0.3 + 0.045, FLOOR + 1.5, kz - 2.5), Vector2(0.36, 0.495), Vector3.RIGHT)
 	_cover(Vector3(-0.9, FLOOR, kz + 1.2))
-	_mesh(tab, "steel")
-	_mesh(cloth, "cloth")
-	_mesh(seat, "seat")
-	_mesh(lamp, "lamp", null, false)
+	deco.flush(self)
 	_mesh(wall, "lining")
-	_mesh(bar, "wood")
+	_flush()
 
 const CRATES := [
 	[-1.15, -58.0, 1.0, 1.0, 1.4], [1.15, -60.5, 1.0, 0.9, 1.8], [-1.2, -63.0, 0.9, 1.5, 1.2],
@@ -507,30 +734,39 @@ const CRATES := [
 	[-1.0, -77.0, 1.2, 0.75, 1.0], [1.2, -78.6, 0.8, 1.6, 0.8],
 ]
 
-func _furnish_gepaeck(_i: int) -> void:
+func _furnish_gepaeck(i: int) -> void:
+	_furnish_common(i, "gepaeck")
 	var cr := Geo.batch()
-	var cs := Geo.batch()
+	var cs := Int.RBatch.new()
 	for k in CRATES.size():
 		var c: Array = CRATES[k]
 		var p := Vector3(float(c[0]), FLOOR + float(c[3]) * 0.5, float(c[1]))
 		var s := Vector3(float(c[2]), float(c[3]), float(c[4]))
-		(cr if k % 3 != 1 else cs).add(p, s)
+		if k % 3 != 1:
+			cr.add(p, s)
+			# Kistenkanten (Latten) und Spanngurt
+			for sy: float in [-1.0, 1.0]:
+				_b("veneer_dark").add(p + Vector3(0, sy * (s.y * 0.5 - 0.04), 0), s + Vector3(0.02, -s.y + 0.08, 0.02))
+			_b("black").add(p + Vector3(0, 0, 0), Vector3(s.x + 0.012, s.y + 0.012, 0.05))
+		else:
+			cs.add(p, s, 0.05)
+			_r("alu").add(p + Vector3(0, s.y * 0.5 + 0.02, 0), Vector3(0.3, 0.04, 0.05), 0.015)
 		_col(col, p, s)
 		_cover(Vector3(float(c[0]) * 0.3, FLOOR, float(c[1]) + 1.2))
 	# Gepaecknetze/Regale an den Waenden (Optik)
-	var rack := Geo.batch()
 	for z: float in [-56.5, -65.0, -80.0]:
-		rack.add(Vector3(-1.62, FLOOR + 1.9, z), Vector3(0.15, 0.05, 1.8))
+		_r("alu").add(Vector3(-1.62, FLOOR + 1.9, z), Vector3(0.15, 0.04, 1.8), 0.01)
+		for k in 3:
+			_r("alu").add(Vector3(-1.64, FLOOR + 1.75, z - 0.8 + 0.8 * k), Vector3(0.03, 0.3, 0.03), 0.008, Basis.IDENTITY, 2)
 	_mesh(cr, "crate")
-	_mesh(cs, "case")
-	_mesh(rack, "steel")
+	Int.put(self, cs.build(), _m("case"))
+	_flush()
 
 func _furnish_schlaf(i: int) -> void:
 	var zr := car_rear(i)
 	var wall := Geo.batch()
-	var bunk := Geo.batch()
-	var sheet := Geo.batch()
 	var x_wall := -0.1
+	_furnish_common(i, "schlaf")
 	for k in 9:
 		var z0 := zr - 2.0 - 2.2 * k
 		var z1 := z0 - 2.2
@@ -547,11 +783,43 @@ func _furnish_schlaf(i: int) -> void:
 			_col(col, Vector3((-IW + x_wall) * 0.5, (FLOOR + CEIL) * 0.5, zz), Vector3(IW + x_wall, CEIL - FLOOR, 0.08))
 		# Unteres Bett (Kollision) + oberes Bett (Optik), quer zur Fahrtrichtung an der Rueckwand
 		var bz := z0 - 0.45
-		bunk.add(Vector3(-0.92, FLOOR + 0.25, bz), Vector3(1.55, 0.5, 0.75))
 		_col(col, Vector3(-0.92, FLOOR + 0.25, bz), Vector3(1.55, 0.5, 0.75))
-		bunk.add(Vector3(-0.92, FLOOR + 1.55, bz), Vector3(1.55, 0.12, 0.75))
-		sheet.add(Vector3(-0.92, FLOOR + 0.53, bz), Vector3(1.5, 0.06, 0.7))
-		sheet.add(Vector3(-0.92, FLOOR + 1.64, bz), Vector3(1.5, 0.06, 0.7))
+		for by: float in [0.0, 1.17]:
+			var y0 := FLOOR + by
+			if by == 0.0:
+				_b("veneer_dark").add(Vector3(-0.92, y0 + 0.18, bz), Vector3(1.55, 0.36, 0.75))
+			else:
+				_r("veneer_dark").add(Vector3(-0.92, y0 + 0.32, bz), Vector3(1.55, 0.08, 0.75), 0.015)
+			# Matratze, Laken, Kissen, Wolldecke
+			_r("mattress").add(Vector3(-0.92, y0 + 0.44, bz), Vector3(1.5, 0.15, 0.72), 0.05)
+			_r("linen").add(Vector3(-0.92, y0 + 0.52, bz), Vector3(1.48, 0.02, 0.7), 0.008, Basis.IDENTITY, 2)
+			_r("linen").add(Vector3(-1.44, y0 + 0.57, bz), Vector3(0.36, 0.09, 0.5), 0.04)
+			if by > 0.0 or k not in [2, 5]:
+				_r("blanket").add(Vector3(-0.32, y0 + 0.56, bz), Vector3(0.3, 0.07, 0.66), 0.03)
+		# Absturzsicherung oben, Leiter, Leselampe, Ablage am Fenster
+		_r("chrome").add(Vector3(-0.92, FLOOR + 1.85, bz - 0.36), Vector3(1.4, 0.025, 0.025), 0.012, Basis.IDENTITY, 2)
+		for lx: float in [-0.32, -0.12]:
+			_r("chrome").add(Vector3(lx, FLOOR + 0.95, bz - 0.5), Vector3(0.025, 1.9, 0.025), 0.012, Basis(Vector3.RIGHT, 0.12), 2)
+		for r in 4:
+			_r("chrome").add(Vector3(-0.22, FLOOR + 0.6 + 0.35 * r, bz - 0.47 - 0.04 * r), Vector3(0.22, 0.02, 0.02), 0.008, Basis.IDENTITY, 1)
+		_reading_lamp(-1.55, FLOOR + 1.2, z0 - 0.04, -1.0)
+		_reading_lamp(-1.55, FLOOR + 2.25, z0 - 0.04, -1.0)
+		_r("cherry").add(Vector3(-1.52, FLOOR + 0.78, z1 + 0.45), Vector3(0.3, 0.03, 0.6), 0.01)
+		_rack(-1.66, -0.2, FLOOR + 2.55, z1 + 0.04, 1.0, 0.32)
+		Int.wall_sign(self, "hinweis.png", Vector3(-1.66, FLOOR + 0.75, z1 + 0.95), Vector2(0.24, 0.06), Vector3.RIGHT)
+		_light(self, Vector3(-1.1, FLOOR + 1.3, zc), Color(1.0, 0.78, 0.52), 0.25, 2.6, false)
+		# Abteilnummer ueber der Tuer
+		var num := Label3D.new()
+		num.text = str(1 + k)
+		num.font_size = 48
+		num.pixel_size = 0.0016
+		num.modulate = Color(0.9, 0.85, 0.7)
+		num.position = Vector3(x_wall + 0.045, FLOOR + 2.3, zc)
+		num.rotation.y = PI * 0.5
+		add_child(num)
+		_r("brass").add(Vector3(x_wall + 0.042, FLOOR + 2.3, zc), Vector3(0.006, 0.09, 0.09), 0.003, Basis.IDENTITY, 1)
+		for dzz: float in [0.37, -0.37]:
+			_r("alu").add(Vector3(x_wall, FLOOR + 1.0, zc + dzz), Vector3(0.12, 2.0, 0.04), 0.01, Basis.IDENTITY, 2)
 	# Webers Abteil (vorderstes, Nr. 9): offener Koffer, Notiz, Leselampe
 	var wz := zr - 2.0 - 2.2 * 8.5
 	var suit := Geo.batch()
@@ -563,9 +831,10 @@ func _furnish_schlaf(i: int) -> void:
 	note.add(Vector3(-0.85, FLOOR + 0.57, wz - 0.2), Vector3(0.15, 0.01, 0.08), Basis(Vector3.UP, -0.5))
 	_mesh(note, "note", null, false)
 	_light(self, Vector3(-1.2, FLOOR + 1.3, wz), Color(1.0, 0.8, 0.5), 0.6, 3.0)
+	# Gang: Handlauf, Klappsitz
+	_r("chrome").add(Vector3(IW - 0.08, FLOOR + 1.02, zr - 13.0), Vector3(0.025, 0.025, CAR_LEN - 4.5), 0.012, Basis.IDENTITY, 2)
 	_mesh(wall, "lining")
-	_mesh(bunk, "wood")
-	_mesh(sheet, "cloth")
+	_flush()
 	_cover(Vector3(0.9, FLOOR, zr - 1.0))
 
 func _make_door(region: Node3D, pos: Vector3, size: Vector3, open_off: Vector3, mat: String) -> StaticBody3D:
@@ -801,18 +1070,10 @@ func _build_ground_collider() -> void:
 	Geo.add_box_shape(gb, Vector3(-60, -0.4, -100), Vector3(100, 0.5, 600))
 
 func _build_sky() -> void:
-	# Ferne Berge (statisch, unendliche Parallaxe), Mond, Sterne
-	var mb := Geo.batch()
+	# Ferne Hoehenzuege (statisch, unendliche Parallaxe), Mond, Sterne
+	_build_mountains()
 	var r := RandomNumberGenerator.new()
 	r.seed = 4242
-	for side: int in [-1, 1]:
-		for k in 16:
-			var z := 150.0 - 70.0 * k + r.randf_range(-20, 20)
-			var x := float(side) * r.randf_range(380.0, 440.0)
-			var h := r.randf_range(70.0, 170.0)
-			var w := r.randf_range(90.0, 180.0)
-			mb.add(Vector3(x, h * 0.3, z), Vector3(w, h, w * 0.8), Basis(Vector3.UP, r.randf_range(0, TAU)) * Basis(Vector3.FORWARD, deg_to_rad(r.randf_range(35, 50))))
-	_mesh(mb, "rock", null, false)
 	var dir := Vector3(0.35, -0.6, -0.7).normalized()
 	var mm := StandardMaterial3D.new()
 	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -849,18 +1110,110 @@ func _build_sky() -> void:
 	smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(smi)
 
+## Hoehenzuege links und rechts der Strecke: zwei Hoehenfeld-Streifen (|x| 380..2300 m) mit dem
+## Berg-Shader der Villa (Wald, Fels, Schnee, Dunst), auf Nacht abgestimmt.
+func _mountain_h(nr: FastNoiseLite, nh: FastNoiseLite, x: float, z: float) -> float:
+	var ax := absf(x)
+	var ridge := clampf(nr.get_noise_2d(x, z) * 0.5 + 0.5, 0.0, 1.0)
+	var hills := nh.get_noise_2d(x, z) * 0.5 + 0.5
+	var foot := smoothstep(380.0, 620.0, ax) * (20.0 + 90.0 * hills)
+	var mt := smoothstep(520.0, 1500.0, ax) * (80.0 + 760.0 * pow(ridge, 1.6))
+	if x > 0.0:
+		# rechte Seite: Grat weiter weg und niedriger -> ferne Silhouette statt Wand ueber dem Dorf
+		mt = smoothstep(800.0, 1900.0, ax) * (60.0 + 520.0 * pow(ridge, 1.6))
+	return -3.0 + foot + mt
+
+func _build_mountains() -> void:
+	var nr := FastNoiseLite.new()
+	nr.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	nr.fractal_type = FastNoiseLite.FRACTAL_RIDGED
+	nr.fractal_octaves = 4
+	nr.frequency = 0.0008
+	nr.seed = 1717
+	var nh := FastNoiseLite.new()
+	nh.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	nh.fractal_octaves = 3
+	nh.frequency = 0.004
+	nh.seed = 2323
+	var m := ShaderMaterial.new()
+	m.shader = MOUNTAIN_SHADER
+	m.set_shader_parameter("rock_albedo", load("res://assets/environment/textures/rock_face_03/diffuse.jpg"))
+	m.set_shader_parameter("noise_tex", FKit.noise_tex())
+	m.set_shader_parameter("treeline", 420.0)
+	m.set_shader_parameter("snowline", 640.0)
+	m.set_shader_parameter("forest_color", Color(0.035, 0.05, 0.035))
+	m.set_shader_parameter("meadow_color", Color(0.08, 0.1, 0.06))
+	m.set_shader_parameter("rock_tint", Color(0.42, 0.42, 0.45))
+	m.set_shader_parameter("snow_color", Color(0.62, 0.68, 0.82))
+	m.set_shader_parameter("haze_color", Color(0.1, 0.11, 0.15))
+	m.set_shader_parameter("haze_k", 0.0011)
+	m.set_shader_parameter("haze_energy", 1.0)
+	var nx := 56
+	var nz := 150
+	var z0 := -2600.0
+	var z1 := 2000.0
+	for side: int in [-1, 1]:
+		var grid: Array = []
+		for i in nx + 1:
+			var ax := 380.0 * pow(2300.0 / 380.0, float(i) / nx)
+			var row := PackedVector3Array()
+			row.resize(nz + 1)
+			for j in nz + 1:
+				var z := lerpf(z0, z1, float(j) / nz)
+				var x := float(side) * ax
+				row[j] = Vector3(x, _mountain_h(nr, nh, x, z), z)
+			grid.append(row)
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for i in nx + 1:
+			var row: PackedVector3Array = grid[i]
+			var prev: PackedVector3Array = grid[maxi(i - 1, 0)]
+			var nxt: PackedVector3Array = grid[mini(i + 1, nx)]
+			for j in nz + 1:
+				var tx := nxt[j] - prev[j]
+				var tz := row[mini(j + 1, nz)] - row[maxi(j - 1, 0)]
+				var n := tz.cross(tx).normalized()
+				if n.y < 0.0:
+					n = -n
+				st.set_normal(n)
+				st.add_vertex(row[j])
+		var w := nz + 1
+		for i in nx:
+			for j in nz:
+				var a := i * w + j
+				var b := a + 1
+				var c := a + w + 1
+				var d := a + w
+				var pa: Vector3 = (grid[i] as PackedVector3Array)[j]
+				var pb: Vector3 = (grid[i] as PackedVector3Array)[j + 1]
+				var pc: Vector3 = (grid[i + 1] as PackedVector3Array)[j + 1]
+				# Wicklung: im Uhrzeigersinn von oben gesehen (Godot-Vorderseite)
+				if (pb - pa).cross(pc - pa).y > 0.0:
+					st.add_index(a); st.add_index(c); st.add_index(b)
+					st.add_index(a); st.add_index(d); st.add_index(c)
+				else:
+					st.add_index(a); st.add_index(b); st.add_index(c)
+					st.add_index(a); st.add_index(c); st.add_index(d)
+		var mi := MeshInstance3D.new()
+		mi.name = "Berge_%s" % ("L" if side < 0 else "R")
+		mi.mesh = st.commit()
+		if side > 0:
+			# Rechts liegt das Dorf: dessen Licht hellt den Bodennebel grau auf -> Hangfuss in den
+			# Dunst ueberblenden, sonst haengt der dunkle Grat wie eine Hoehlendecke ueber dem Nebel.
+			var mr := m.duplicate() as ShaderMaterial
+			mr.set_shader_parameter("valley_color", Color(0.15, 0.165, 0.19))
+			mr.set_shader_parameter("valley_lo", 30.0)
+			mr.set_shader_parameter("valley_hi", 230.0)
+			mr.set_shader_parameter("valley_strength", 0.9)
+			mi.material_override = mr
+		else:
+			mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+
 # ------------------------------------------------------------------ Landschafts-Chunks
 
 func _build_chunks() -> void:
-	# Fichten-Impostor (vorgerenderte Fichte, 6 Dreiecke) statt Kegel; Ursprung am Stammfuss
-	_tree_mesh = NP.spruce_impostor(1)
-	var bm := SphereMesh.new()
-	bm.radius = 1.2
-	bm.height = 1.6
-	bm.radial_segments = 6
-	bm.rings = 3
-	bm.material = _m("tree")
-	_bush_mesh = bm
 	var dm := SphereMesh.new()
 	dm.radius = 0.5
 	dm.height = 1.0
@@ -880,11 +1233,9 @@ func _fill_chunk(c: Node3D) -> void:
 	for ch in c.get_children():
 		ch.queue_free()
 	var r := _rng
-	# Nadelwald: Guertel beidseitig, dichter weiter draussen
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = _tree_mesh
-	var xf: Array[Transform3D] = []
+	# Mischwald (Fichten + kahle Laubbaeume, track_trees.gd): Guertel beidseitig, dichter weiter draussen.
+	# Zufallsfolge von _rng unveraendert (Ereignisse/Doerfer bleiben gleich).
+	var trees: Array = []
 	var forest_l := r.randf() < 0.65
 	var forest_r := r.randf() < 0.55
 	for side: int in [-1, 1]:
@@ -896,29 +1247,17 @@ func _fill_chunk(c: Node3D) -> void:
 				x = float(side) * r.randf_range(14.0 if side > 0 else 18.0, 70.0)
 			var s := r.randf_range(0.7, 1.6)
 			var ts := s * 0.72
-			xf.append(Transform3D(Basis(Vector3.UP, float(k) * 2.39).scaled(Vector3(ts, ts * r.randf_range(0.9, 1.3), ts)), Vector3(x, -0.2, -r.randf_range(0.0, CHUNK_LEN))))
-	mm.instance_count = xf.size()
-	for k in xf.size():
-		mm.set_instance_transform(k, xf[k])
-	var mi := MultiMeshInstance3D.new()
-	mi.multimesh = mm
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	c.add_child(mi)
-	# Buesche nah am Gleis
-	var bm := MultiMesh.new()
-	bm.transform_format = MultiMesh.TRANSFORM_3D
-	bm.mesh = _bush_mesh
+			var b := Basis(Vector3.UP, float(k) * 2.39).scaled(Vector3(ts, ts * r.randf_range(0.9, 1.3), ts))
+			trees.append([Vector3(x, -0.2, -r.randf_range(0.0, CHUNK_LEN)), b, k + (0 if side < 0 else 1000)])
+	# Unterholz nah am Gleis: junge Fichten und kahle Straeucher (statt Kugelbuesche)
+	var shrubs: Array = []
 	var bn := r.randi_range(4, 14)
-	bm.instance_count = bn
 	for k in bn:
 		var side := -1.0 if r.randf() < 0.5 else 1.0
 		var x := side * r.randf_range(7.0 if side > 0.0 else 11.0, 22.0)
 		var s := r.randf_range(0.6, 1.4)
-		bm.set_instance_transform(k, Transform3D(Basis().scaled(Vector3(s, s, s)), Vector3(x, 0.2, -r.randf_range(0, CHUNK_LEN))))
-	var bmi := MultiMeshInstance3D.new()
-	bmi.multimesh = bm
-	bmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	c.add_child(bmi)
+		shrubs.append([Vector3(x, 0.2, -r.randf_range(0, CHUNK_LEN)), s, k])
+	TrackTrees.plant(c, trees, shrubs, CHUNK_LEN)
 	# Dorf mit beleuchteten Fenstern
 	if r.randf() < 0.35:
 		_village(c, (-1.0 if r.randf() < 0.5 else 1.0) * r.randf_range(45.0, 180.0), -r.randf_range(20.0, 80.0), r)

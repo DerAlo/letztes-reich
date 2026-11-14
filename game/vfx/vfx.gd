@@ -6,6 +6,7 @@ const VfxLib = preload("res://game/vfx/vfx_lib.gd")
 const ExplosionScript = preload("res://game/vfx/explosion.gd")
 const ImpactScript = preload("res://game/vfx/impact_fx.gd")
 const WorldAudioScript = preload("res://game/vfx/world_audio.gd")
+const BloodScript = preload("res://game/vfx/blood_fx.gd")
 
 const MAX_EXPLOSIONS := 6
 const MAX_IMPACTS := 14
@@ -26,12 +27,16 @@ var _debris_count: int = 0
 var _debris_mat: StandardMaterial3D
 var _ground_col: GPUParticlesCollisionBox3D
 var audio: Node   ## world_audio.gd (Welt-Sounds, Ambient)
+var blood: Node   ## blood_fx.gd (Treffer-Spruehstoss, Blut-Decals, Lachen)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	audio = WorldAudioScript.new()
 	audio.name = "WorldAudio"
 	add_child(audio)
+	blood = BloodScript.new()
+	blood.name = "Blood"
+	add_child(blood)
 	if ground_collider_enabled:
 		_ground_col = GPUParticlesCollisionBox3D.new()
 		_ground_col.size = Vector3(800, 2, 800)
@@ -59,11 +64,14 @@ func spawn_explosion(position: Vector3, scale: float = 1.0) -> void:
 
 func spawn_impact(position: Vector3, normal: Vector3, surface: String = "concrete") -> void:
 	var n := normal if normal.length() > 0.01 else Vector3.UP
+	if surface == "flesh" or surface == "blood":
+		spawn_blood(position, n)
+		audio.call("impact", position, surface)
+		return
 	var fx := _get_impact(false)
 	fx.call("play", surface, position, n.normalized(), 1.25)   # etwas kraeftigere Einschlaege (nur Optik)
 	audio.call("impact", position, surface)
-	if surface != "flesh" and surface != "blood":
-		spawn_decal(position, n, "res://assets/vfx/bullet_hole.png", Vector3(0.28, 0.4, 0.28), 30.0, randf() * TAU)
+	spawn_decal(position, n, "res://assets/vfx/bullet_hole.png", Vector3(0.28, 0.4, 0.28), 30.0, randf() * TAU)
 
 ## Vorbeiflug-Pfeifen einer Kugel an pos (z. B. naechster Punkt einer Fehlschuss-Bahn zur Kamera).
 func play_whiz(pos: Vector3) -> void:
@@ -81,9 +89,15 @@ func play_sfx_3d(sfx_name: String, pos: Vector3, volume_db: float = 0.0, unit_si
 func set_ambient(on: bool) -> void:
 	audio.call("set_ambient", on)
 
-func spawn_blood(position: Vector3, normal: Vector3) -> void:
-	var fx := _get_impact(false)
-	fx.call("play", "blood", position, normal if normal.length() > 0.01 else Vector3.UP, 1.15)
+## Blut-Treffer (blood_fx.gd). dir = Flugrichtung des Geschosses (ZERO = unbekannt, dann -normal);
+## strength 1 = Rumpf, ~1.6 Kopftreffer, ~1.5 Scharfschuetzengewehr. Mehrfachmeldungen desselben
+## Treffers im selben Frame (Gegner + Waffe) werden zusammengefasst.
+func spawn_blood(position: Vector3, normal: Vector3, dir: Vector3 = Vector3.ZERO, strength: float = 1.0) -> void:
+	blood.call("spawn", position, normal, dir, strength)
+
+## Blutet dieses Ziel? (false: Fahrzeuge, Drohnen, Meta "surface" != flesh; Hitboxen werden aufgeloest)
+func is_bleeder(target: Node) -> bool:
+	return BloodScript.is_bleeder(target)
 
 ## Grosse Staubwolke (z. B. einstuerzende Fassade). size = Radius in m ca.
 func spawn_dust_cloud(position: Vector3, size: float = 3.0) -> void:
@@ -171,9 +185,10 @@ func warmup_begin(at: Vector3, fwd: Vector3) -> void:
 		side = Vector3.RIGHT
 	spawn_explosion(at + fwd * 4.0, 0.6)
 	var i := 0
-	for surf in ["concrete", "metal", "wood", "dirt", "blood"]:
+	for surf in ["concrete", "metal", "wood", "dirt"]:
 		spawn_impact(at + side * (float(i) - 2.0) * 0.6 + Vector3.UP * 1.2, -fwd, surf)
 		i += 1
+	blood.call("spawn", at + side * 1.2 + Vector3.UP * 1.2, -fwd, fwd, 1.6)   # Blut-Shader/Partikel vorkompilieren
 	spawn_dust_cloud(at + fwd * 2.0 - side * 2.0, 2.0)
 	spawn_scorch(at + fwd * 2.0, Vector3.UP, 2.0, 1.0)
 	# Pools ganz auffuellen: jeder neue Einschlag-Effekt baut Partikel, Materialien und Kurven-Texturen beim
@@ -202,6 +217,7 @@ func warmup_end() -> void:
 		elif c.get_script() == ImpactScript:
 			c.call("reset")
 	_debris_count = 0
+	blood.call("clear")
 	for d in _decals:
 		if is_instance_valid(d):
 			d.queue_free()

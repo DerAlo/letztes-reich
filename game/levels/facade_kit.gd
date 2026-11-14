@@ -89,6 +89,12 @@ static func window_mat(profile: String = "day") -> ShaderMaterial:
 		m.set_shader_parameter("lamp_energy", 2.6)
 		m.set_shader_parameter("glass_rough", 0.04)
 		m.set_shader_parameter("dirt", 0.35)
+	elif profile == "dusk":
+		# Daemmerung in engen Strassen: Fassaden im Schatten, "day" liess die Scheiben fast schwarz wirken
+		m.set_shader_parameter("interior_ambient", 0.6)
+		m.set_shader_parameter("lamp_energy", 1.8)
+		m.set_shader_parameter("glass_rough", 0.05)
+		m.set_shader_parameter("dirt", 0.5)
 	else:
 		m.set_shader_parameter("interior_ambient", 0.22)
 		m.set_shader_parameter("lamp_energy", 1.6)

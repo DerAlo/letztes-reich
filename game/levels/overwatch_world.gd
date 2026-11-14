@@ -116,7 +116,8 @@ static func build(lv: Node3D, world: Node3D, covers: Array, rng: RandomNumberGen
 	pts["south_a"] = Vector3(32.0, 0.0, -151.4)
 	pts["south_b"] = Vector3(56.0, 0.0, -151.4)
 	# Eingreiftruppe: Deckungsplaetze beiderseits des Rueckwegs (x = -30)
-	pts["qrf"] = [Vector3(-24.0, 0.0, -16.0), Vector3(-37.0, 0.0, -38.0), Vector3(-23.0, 0.0, -54.0), Vector3(-36.0, 0.0, -63.0)]
+	pts["qrf"] = [Vector3(-24.0, 0.0, -16.0), Vector3(-37.0, 0.0, -38.0), Vector3(-23.0, 0.0, -54.0), Vector3(-36.0, 0.0, -63.0),
+		Vector3(-26.0, 0.0, -28.0), Vector3(-35.0, 0.0, -75.0)]
 	print("[overwatch_world] build %d ms" % (Time.get_ticks_msec() - t0))
 	return pts
 
@@ -128,15 +129,17 @@ static func _ground(lv: Node3D, world: Node3D, rng: RandomNumberGenerator) -> vo
 	world.add_child(body)
 	var k := RailProps.kit()
 	# Weite Ebene (Schotter/Matsch), Hofflaeche (Beton), Spawn-Hof
-	k.b("far", K.matte(K.pbr(K.RAIL_TEX + "gravel_road", Color(0.46, 0.43, 0.4), 0.08))).add(Vector3(0, -0.06, -150.0), Vector3(1000.0, 0.1, 1000.0))
+	k.b("far", K.matte(K.pbr(K.RAIL_TEX + "gravel_road", Color(0.46, 0.43, 0.4), 0.08))).add(Vector3(0, -0.08, -150.0), Vector3(1000.0, 0.1, 1000.0))
 	k.b("yard", K.gravel(Color(0.56, 0.53, 0.5))).add(Vector3(10.0, -0.02, -60.0), Vector3(240.0, 0.04, 150.0))
-	k.b("pad", K.concrete_floor(Color(0.62, 0.6, 0.57))).add(Vector3(-2.0, -0.005, 28.0), Vector3(44.0, 0.01, 30.0))
-	k.b("pad", K.concrete_floor(Color(0.6, 0.58, 0.55))).add(Vector3(-30.0, -0.005, -40.0), Vector3(10.0, 0.01, 140.0))
-	k.b("mud", K.mud(Color(0.42, 0.38, 0.34))).add(Vector3(-60.0, -0.004, -10.0), Vector3(40.0, 0.01, 50.0))
-	k.b("grass", K.grass()).add(Vector3(10.0, -0.01, -132.5), Vector3(400.0, 0.01, 7.0))
-	k.b("grass", K.grass()).add(Vector3(10.0, -0.01, -150.5), Vector3(400.0, 0.01, 5.0))
+	k.b("pad", K.concrete_floor(Color(0.62, 0.6, 0.57))).add(Vector3(-2.0, 0.015, 28.0), Vector3(44.0, 0.01, 30.0))
+	k.b("pad", K.concrete_floor(Color(0.6, 0.58, 0.55))).add(Vector3(-30.0, 0.015, -40.0), Vector3(10.0, 0.01, 140.0))
+	k.b("mud", K.mud(Color(0.42, 0.38, 0.34))).add(Vector3(-60.0, 0.007, -10.0), Vector3(40.0, 0.01, 50.0))
+	k.b("grass", K.grass()).add(Vector3(10.0, -0.02, -132.5), Vector3(400.0, 0.01, 7.0))
+	k.b("grass", K.grass()).add(Vector3(10.0, -0.02, -150.5), Vector3(400.0, 0.01, 5.0))
+	# Oberkanten bewusst je ~1 cm gestaffelt (far -0.03, Gras -0.015, Hof 0, Matsch 0.012, Beton 0.02, Spuren 0.03):
+	# vorher lagen Hof und Betonflaechen exakt koplanar bei y=0 -> starkes Z-Fighting-Flackern im Zielfernrohr
 	# Fahrspuren / Schotterwege im Hof
-	for p: Array in [[Vector3(20.0, -0.003, -20.0), Vector3(8.0, 0.01, 90.0), 12.0], [Vector3(-10.0, -0.003, -90.0), Vector3(120.0, 0.01, 7.0), 0.0]]:
+	for p: Array in [[Vector3(20.0, 0.025, -20.0), Vector3(8.0, 0.01, 90.0), 12.0], [Vector3(-10.0, 0.025, -90.0), Vector3(120.0, 0.01, 7.0), 0.0]]:
 		k.b("track", K.gravel(Color(0.48, 0.45, 0.42))).add(p[0], p[1], K.yaw_b(float(p[2])))
 	var n := Node3D.new()
 	n.name = "GroundVisual"

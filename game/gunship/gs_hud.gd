@@ -19,18 +19,27 @@ var ff_warn: float = 0.0          # Eigenbeschuss-Warnung (Sekunden)
 var hint: String = ""
 var hint_t: float = 0.0
 
-var _c: Control
+var _c: Control         ## feste HUD-Teile in 1080p-Pixeln unter UIStyle.HudRoot
+var _w: Control         ## Weltmarker (unproject_position) in echten Pixeln
+var _cv: Control        ## aktuelle Zeichenflaeche der Hilfsfunktionen
 var _font: Font
 var _blink: float = 0.0
 
 func _ready() -> void:
 	layer = 5
 	_font = ThemeDB.fallback_font
+	_w = Control.new()
+	_w.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_w.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_w.draw.connect(_draw_world)
+	add_child(_w)
+	var root := UIStyle.HudRoot.new()
+	add_child(root)
 	_c = Control.new()
 	_c.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_c.draw.connect(_draw_hud)
-	add_child(_c)
+	root.add_child(_c)
 
 func show_hint(text: String, dur: float = 5.0) -> void:
 	hint = text
@@ -41,37 +50,32 @@ func _process(delta: float) -> void:
 	ff_warn = maxf(0.0, ff_warn - delta)
 	hint_t = maxf(0.0, hint_t - delta)
 	_c.queue_redraw()
+	_w.queue_redraw()
 
 func _txt(p: Vector2, s: String, size: int = 16, col: Color = WHITE, align: int = HORIZONTAL_ALIGNMENT_LEFT, width: float = -1.0) -> void:
-	_c.draw_string(_font, p + Vector2(1, 1), s, align, width, size, SHADOW)
-	_c.draw_string(_font, p, s, align, width, size, col)
+	size = UIStyle.min_fs(size, UIStyle.hud_scale(_w.size) if _cv == _c else 1.0)
+	_cv.draw_string(_font, p + Vector2(1, 1), s, align, width, size, SHADOW)
+	_cv.draw_string(_font, p, s, align, width, size, col)
 
 func _line(a: Vector2, b: Vector2, col: Color = WHITE, w: float = 1.6) -> void:
-	_c.draw_line(a + Vector2(1, 1), b + Vector2(1, 1), SHADOW, w)
-	_c.draw_line(a, b, col, w)
+	_cv.draw_line(a + Vector2(1, 1), b + Vector2(1, 1), SHADOW, w)
+	_cv.draw_line(a, b, col, w)
 
 func _rect(r: Rect2, col: Color = WHITE, w: float = 1.4, filled: bool = false) -> void:
 	if filled:
-		_c.draw_rect(r, col, true)
+		_cv.draw_rect(r, col, true)
 	else:
-		_c.draw_rect(r.grow(0.5), SHADOW, false, w)
-		_c.draw_rect(r, col, false, w)
+		_cv.draw_rect(r.grow(0.5), SHADOW, false, w)
+		_cv.draw_rect(r, col, false, w)
 
-func _draw_hud() -> void:
+## Weltmarker (IFF, Zielhinweise) in echten Pixeln; Groessen mit der HUD-Skalierung.
+func _draw_world() -> void:
 	if ctrl == null:
 		return
-	var sz := _c.size
+	_cv = _w
+	var sz := _w.size
 	var cx := sz * 0.5
-	var sel: int = ctrl.sel
-	# --- Bildecken
-	var m := Vector2(sz.x * 0.08, sz.y * 0.09)
-	var L := 46.0
-	for corner: Vector2 in [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]:
-		var p := Vector2(lerpf(m.x, sz.x - m.x, corner.x), lerpf(m.y, sz.y - m.y, corner.y))
-		var sx := 1.0 if corner.x == 0 else -1.0
-		var sy := 1.0 if corner.y == 0 else -1.0
-		_line(p, p + Vector2(L * sx, 0), DIM)
-		_line(p, p + Vector2(0, L * sy), DIM)
+	var ms := UIStyle.hud_scale(sz)
 	# --- IFF eigener Leute
 	var cam: Camera3D = ctrl.cam
 	if world != null and cam != null:
@@ -85,7 +89,7 @@ func _draw_hud() -> void:
 			var sp := cam.unproject_position(wp)
 			if sp.x < 0 or sp.y < 0 or sp.x > sz.x or sp.y > sz.y:
 				continue
-			var s := 6.0
+			var s := 6.0 * maxf(ms, 0.6)
 			_line(sp + Vector2(-s, -s * 1.6), sp, Color(0.85, 0.95, 1.0, 0.55), 1.2)
 			_line(sp + Vector2(s, -s * 1.6), sp, Color(0.85, 0.95, 1.0, 0.55), 1.2)
 		for u2 in world.units:
@@ -94,8 +98,9 @@ func _draw_hud() -> void:
 				var tp := tu.global_position + Vector3(0, 4.0, 0)
 				if not cam.is_position_behind(tp):
 					var sp2 := cam.unproject_position(tp)
-					_line(sp2 + Vector2(-8, -12), sp2, Color(0.85, 0.95, 1.0, 0.55), 1.2)
-					_line(sp2 + Vector2(8, -12), sp2, Color(0.85, 0.95, 1.0, 0.55), 1.2)
+					var q := maxf(ms, 0.6)
+					_line(sp2 + Vector2(-8, -12) * q, sp2, Color(0.85, 0.95, 1.0, 0.55), 1.2)
+					_line(sp2 + Vector2(8, -12) * q, sp2, Color(0.85, 0.95, 1.0, 0.55), 1.2)
 		# Zielhinweise (wenige Ziele uebrig)
 		if mark_targets:
 			for e in world.alive_enemies(-1, true):
@@ -106,15 +111,32 @@ func _draw_hud() -> void:
 				var esp := cam.unproject_position(ep)
 				var inside := Rect2(Vector2(30, 30), sz - Vector2(60, 60)).has_point(esp)
 				if inside:
-					var k := 7.0 + 2.0 * sin(_blink * 6.0)
+					var k := (7.0 + 2.0 * sin(_blink * 6.0)) * maxf(ms, 0.6)
 					_line(esp + Vector2(-k, -k * 1.4), esp + Vector2(k, -k * 1.4), WARN, 1.6)
 					_line(esp + Vector2(-k, -k * 1.4), esp, WARN, 1.6)
 					_line(esp + Vector2(k, -k * 1.4), esp, WARN, 1.6)
 				else:
 					var d := (esp - cx).normalized()
 					var edge := cx + d * minf(sz.x, sz.y) * 0.42
-					_line(edge, edge - d.rotated(0.45) * 16.0, WARN, 2.0)
-					_line(edge, edge - d.rotated(-0.45) * 16.0, WARN, 2.0)
+					_line(edge, edge - d.rotated(0.45) * 16.0 * maxf(ms, 0.6), WARN, 2.0)
+					_line(edge, edge - d.rotated(-0.45) * 16.0 * maxf(ms, 0.6), WARN, 2.0)
+
+func _draw_hud() -> void:
+	if ctrl == null:
+		return
+	_cv = _c
+	var sz := _c.size
+	var cx := sz * 0.5
+	var sel: int = ctrl.sel
+	# --- Bildecken
+	var m := Vector2(sz.x * 0.08, sz.y * 0.09)
+	var L := 46.0
+	for corner: Vector2 in [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]:
+		var p := Vector2(lerpf(m.x, sz.x - m.x, corner.x), lerpf(m.y, sz.y - m.y, corner.y))
+		var sx := 1.0 if corner.x == 0 else -1.0
+		var sy := 1.0 if corner.y == 0 else -1.0
+		_line(p, p + Vector2(L * sx, 0), DIM)
+		_line(p, p + Vector2(0, L * sy), DIM)
 	# --- Fadenkreuz
 	_crosshair(cx, sel)
 	# --- linke Datenspalte (unterhalb der Ziel-Box der StoryUI)
@@ -146,25 +168,27 @@ func _draw_hud() -> void:
 		_bar(Rect2(xr, y0 + 112, 210, 12), upload, WHITE)
 		_txt(Vector2(xr, y0 + 142), "%d %%" % int(upload * 100.0), 15, DIM)
 	# --- Waffenleiste unten
-	var bw := 170.0
+	# Kaesten wachsen mit der Mindestschrift mit (kleine Fenster), sonst ueberlappen Munition und Bezeichnung
+	var wk := float(UIStyle.min_fs(15, UIStyle.hud_scale(_w.size))) / 15.0
+	var bw := 190.0 * wk
 	var bx := cx.x - bw * 1.5 - 10.0
-	var by := sz.y - 66.0
+	var by := sz.y - 18.0 - 48.0 * wk
 	for i in 3:
 		var w: Dictionary = ctrl.weapons[i]
-		var r := Rect2(bx + i * (bw + 10.0), by, bw, 48)
+		var r := Rect2(bx + i * (bw + 10.0), by, bw, 48 * wk)
 		var on := i == sel
 		if on:
-			_c.draw_rect(r, Color(0.93, 0.95, 0.93, 0.12), true)
+			_cv.draw_rect(r, Color(0.93, 0.95, 0.93, 0.12), true)
 		_rect(r, WHITE if on else DIM, 2.0 if on else 1.0)
-		_txt(r.position + Vector2(10, 20), "%d  %s" % [i + 1, str(w["name"])], 17 if on else 15, WHITE if on else DIM)
+		_txt(r.position + Vector2(10, 20 * wk), "%d  %s" % [i + 1, str(w["name"])], 17 if on else 15, WHITE if on else DIM)
 		var rt := float(w["rt"])
 		if rt > 0.0:
 			var k := 1.0 - rt / float(w["reload"])
-			_bar(Rect2(r.position + Vector2(10, 30), Vector2(bw - 20, 9)), k, DIM)
-			_txt(r.position + Vector2(10, 20), "LADEN", 13, WARN, HORIZONTAL_ALIGNMENT_RIGHT, bw - 20)
+			_bar(Rect2(r.position + Vector2(10, 30 * wk), Vector2(bw - 20, 9 * wk)), k, DIM)
+			_txt(r.position + Vector2(10, 20 * wk), "LADEN", 13, WARN, HORIZONTAL_ALIGNMENT_RIGHT, bw - 20)
 		else:
-			_txt(r.position + Vector2(10, 42), "%d / %d" % [int(w["ammo"]), int(w["mag"])], 14, WHITE if on else DIM)
-			_txt(r.position + Vector2(10, 42), str(w["long"]), 11, DIM, HORIZONTAL_ALIGNMENT_RIGHT, bw - 20)
+			_txt(r.position + Vector2(10, 42 * wk), "%d / %d" % [int(w["ammo"]), int(w["mag"])], 14, WHITE if on else DIM)
+			_txt(r.position + Vector2(10, 42 * wk), str(w["long"]), 12, DIM, HORIZONTAL_ALIGNMENT_RIGHT, bw - 20)
 	# --- Warnungen
 	var wy := sz.y * 0.2
 	if ctrl.missile_warn and fmod(_blink, 0.5) < 0.32:
@@ -186,9 +210,9 @@ func _draw_hud() -> void:
 		_txt(Vector2(0, cx.y - 120), "Klicken, um die Optik zu übernehmen", 16, DIM, HORIZONTAL_ALIGNMENT_CENTER, sz.x)
 
 func _bar(r: Rect2, k: float, col: Color) -> void:
-	_c.draw_rect(r, Color(0, 0, 0, 0.35), true)
-	_c.draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(k, 0.0, 1.0), r.size.y)), col, true)
-	_c.draw_rect(r, DIM, false, 1.0)
+	_cv.draw_rect(r, Color(0, 0, 0, 0.35), true)
+	_cv.draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(k, 0.0, 1.0), r.size.y)), col, true)
+	_cv.draw_rect(r, DIM, false, 1.0)
 
 func _crosshair(c: Vector2, sel: int) -> void:
 	match sel:
@@ -207,7 +231,7 @@ func _crosshair(c: Vector2, sel: int) -> void:
 		1:
 			var h := 30.0
 			_rect(Rect2(c - Vector2(h, h), Vector2(h, h) * 2.0), WHITE, 1.6)
-			_c.draw_circle(c, 2.2, WHITE)
+			_cv.draw_circle(c, 2.2, WHITE)
 			for d: Vector2 in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
 				_line(c + d * h, c + d * (h + 40.0))
 				_line(c + d * (h + 52.0), c + d * (h + 60.0), DIM)
@@ -220,6 +244,6 @@ func _crosshair(c: Vector2, sel: int) -> void:
 					var tp: Vector2 = c + d * (gap + t * 28.0)
 					var n := Vector2(-d.y, d.x) * (7.0 if t % 2 == 0 else 4.0)
 					_line(tp - n, tp + n, DIM, 1.4)
-			_c.draw_arc(c + Vector2(1, 1), gap, 0, TAU, 40, SHADOW, 1.6)
-			_c.draw_arc(c, gap, 0, TAU, 40, WHITE, 1.6)
-			_c.draw_circle(c, 1.8, WHITE)
+			_cv.draw_arc(c + Vector2(1, 1), gap, 0, TAU, 40, SHADOW, 1.6)
+			_cv.draw_arc(c, gap, 0, TAU, 40, WHITE, 1.6)
+			_cv.draw_circle(c, 1.8, WHITE)

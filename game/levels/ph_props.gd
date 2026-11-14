@@ -12,6 +12,7 @@ const HESSIAN := "res://assets/environment/props/textures/hessian_230/"
 
 const MODELS := {
 	"tree_stump_01": "res://assets/environment/props/models/tree_stump_01/tree_stump_01.gltf",
+	"tree_stump_02": "res://assets/environment/vegetation/models/tree_stump_02/tree_stump_02.gltf",
 	"lantern_01": "res://assets/environment/props/models/Lantern_01/Lantern_01.gltf",
 	"rock_moss_set_01": "res://assets/environment/river/models/rock_moss_set_01/rock_moss_set_01.gltf",
 	"dead_tree_trunk": "res://assets/environment/river/models/dead_tree_trunk/dead_tree_trunk.gltf",

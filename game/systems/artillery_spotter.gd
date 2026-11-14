@@ -18,6 +18,9 @@ extends Node
 ## dazu ein "Geist" fuer die vorgemerkte Korrektur. [spotter_effect] (F) = Wirkungsfeuer mit
 ## effect_rounds Granaten (elliptische Streuung laengs der Schussrichtung) auf den aktuellen Zielpunkt.
 ##
+## Direktfeuer (adjust_mode = false, corrections_enabled = false, bias_initial = 0): Markieren = sofort eine
+## Salve mit rounds_per_salvo (+ 0..rounds_extra) Granaten auf den markierten Punkt, keine Korrektur.
+##
 ## Bot/Level-API: raise(an), is_up(), mark_from_camera(), mark_point(p), add_correction(weiter, rechts),
 ## send_correction(), fire_for_effect(), refill(n), state(), busy(), is_effect(), last_impacts(),
 ## aim_point(), target_point(), ot_basis(p), has_target().
@@ -54,6 +57,8 @@ signal impact_unseen(pos: Vector3)                ## Einschlag lag ausserhalb de
 @export var adjust_dispersion: float = 3.0       ## m Streuung des Einschiess-Schusses
 @export var adjust_reload: float = 3.0           ## s Pause nach einem Einschiess-Schuss
 @export var effect_rounds: int = 4
+@export var rounds_extra: int = 0               ## + 0..rounds_extra Granaten pro Salve (Zufall)
+@export var corrections_enabled: bool = true    ## false: keine Pfeiltasten-Korrektur (Markieren = sofort Salve)
 @export var range_spread: float = 1.7            ## Ellipse: Laengsstreuung = dispersion * range_spread
 @export var deflection_spread: float = 0.7       ## ... Querstreuung = dispersion * deflection_spread
 @export var smoke_time: float = 22.0             ## s, die eine Rauchsaeule am Einschlag steht
@@ -70,6 +75,7 @@ signal impact_unseen(pos: Vector3)                ## Einschlag lag ausserhalb de
 @export var north: Vector3 = Vector3(0, 0, 1)    ## Weltrichtung "Nord" fuer die Marschrichtung
 @export var battery_dir: Vector3 = Vector3(0, 0, 1)  ## woher die Granaten kommen (Klang)
 @export var ground_mask: int = 1
+@export var look_mask: int = 0  ## Entfernungsmesser-Maske (0 = ground_mask), z. B. + Ziel-Kollider auf eigener Ebene
 
 ## Callable(p: Vector3) -> bool: darf jetzt markiert werden (Sichtfenster)? Leer = immer.
 var visibility_check: Callable
@@ -108,6 +114,7 @@ var _marks: Array = []             ## [{ "pos": Vector3, "t": float, "effect": b
 var _smoke_mat: StandardMaterial3D
 
 var _hud: CanvasLayer
+var _hroot: UIStyle.HudRoot   ## HUD in 1080p-Pixeln, skaliert (Marker rechnen ueber scale_v um)
 var _mask: ColorRect
 var _overlay: Control
 var _lbl_top: Label
@@ -399,6 +406,8 @@ func _start_mission(dist: float, announce: bool = true) -> void:
 func _fire_salvo() -> void:
 	var single := adjust_mode and not _effect
 	var n := 1 if single else (effect_rounds if adjust_mode else rounds_per_salvo)
+	if not single and rounds_extra > 0:
+		n += _rng.randi_range(0, rounds_extra)
 	if not single:
 		salvos_left -= 1
 	var pl := _player()
@@ -531,8 +540,16 @@ func _update_look() -> void:
 	var cam: Camera3D = pl.get_camera()
 	var from := cam.global_position
 	var to := from - cam.global_transform.basis.z * max_range
-	var q := PhysicsRayQueryParameters3D.create(from, to, ground_mask)
+	var q := PhysicsRayQueryParameters3D.create(from, to, look_mask if look_mask != 0 else ground_mask)
 	var hit := cam.get_world_3d().direct_space_state.intersect_ray(q)
+	# Zielerfassung: liegt hinter einer Kuppe ein Ziel-Kollider (look_mask ohne ground_mask) genau auf der
+	# Visierlinie, gilt das Ziel – sonst landet die Markierung auf dem Hang davor.
+	var extra := look_mask & ~ground_mask
+	if extra != 0:
+		var q2 := PhysicsRayQueryParameters3D.create(from, to, extra)
+		var hit2 := cam.get_world_3d().direct_space_state.intersect_ray(q2)
+		if not hit2.is_empty():
+			hit = hit2
 	if hit.is_empty():
 		return
 	_look_point = hit["position"]
@@ -623,7 +640,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _up:
 		return
 	if event.is_action_pressed("fire") and not event.is_echo():
-		if _corr != Vector2.ZERO:
+		if _corr != Vector2.ZERO and corrections_enabled:
 			send_correction()
 		else:
 			mark_from_camera()
@@ -635,6 +652,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("aim") and not event.is_echo() and not rmb_raises:
 		_zoom_i = (_zoom_i + 1) % maxi(zoom_fovs.size(), 1)
 		_sfx2d("overwatch_scope_zoom", -10.0)
+		return
+	if not corrections_enabled:
 		return
 	var step := 50.0 if Input.is_key_pressed(KEY_SHIFT) else 10.0
 	for pair: Array in [["spotter_far", Vector2(step, 0)], ["spotter_near", Vector2(-step, 0)], ["spotter_left", Vector2(0, -step)], ["spotter_right", Vector2(0, step)]]:
@@ -760,6 +779,8 @@ func _build_hud() -> void:
 	_hud = CanvasLayer.new()
 	_hud.layer = 6
 	add_child(_hud)
+	_hroot = UIStyle.HudRoot.new()
+	_hud.add_child(_hroot)
 	_mask = ColorRect.new()
 	_mask.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -769,15 +790,15 @@ func _build_hud() -> void:
 	sm.shader = sh
 	_mask.material = sm
 	_mask.visible = false
-	_hud.add_child(_mask)
+	_hroot.add_child(_mask)
 	_overlay = Control.new()
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.draw.connect(_draw_reticle)
 	_overlay.visible = false
-	_hud.add_child(_overlay)
+	_hroot.add_child(_overlay)
 	_lbl_top = _make_label(Vector2(0.5, 0.27), 22, HORIZONTAL_ALIGNMENT_CENTER)
-	_lbl_bot = _make_label(Vector2(0.5, 0.87), 18, HORIZONTAL_ALIGNMENT_CENTER)
+	_lbl_bot = _make_label(Vector2(0.5, 0.795), 18, HORIZONTAL_ALIGNMENT_CENTER)   # ueber der Untertitelleiste (story_ui)
 	_lbl_small = _make_label(Vector2(0.5, 0.93), 15, HORIZONTAL_ALIGNMENT_CENTER)
 	_lbl_msg = _make_label(Vector2(0.5, 0.34), 20, HORIZONTAL_ALIGNMENT_CENTER)
 	_lbl_msg.modulate = Color(1.0, 0.75, 0.35)
@@ -799,7 +820,8 @@ func _make_label(anchor: Vector2, size: int, align: HorizontalAlignment) -> Labe
 	l.add_theme_constant_override("outline_size", 4)
 	l.modulate = Color(0.85, 1.0, 0.8)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hud.add_child(l)
+	_hroot.add_child(l)
+	_hroot.keep_min_font(l, size)
 	return l
 
 func _state_text() -> String:
@@ -853,7 +875,9 @@ func _update_hud() -> void:
 	elif adjust_mode and not _has_target:
 		line += "\nZiel ins Fadenkreuz · [LMB] Einschießen"
 	_lbl_bot.text = line
-	if adjust_mode:
+	if not corrections_enabled:
+		_lbl_small.text = "[LMB] Ziel markieren – Salve kommt sofort   [RMB] Zoom   [%s] absetzen" % key
+	elif adjust_mode:
 		_lbl_small.text = "[LMB] Einschießen   [Pfeile] Korrektur 10 m (Shift 50)   [%s] Wirkung   [RMB] Zoom   [%s] absetzen" % [fk, key]
 	else:
 		_lbl_small.text = "[LMB] Ziel markieren   [RMB] Zoom   [Pfeile] Korrektur (Shift: 50 m)   [%s] absetzen" % key
@@ -920,7 +944,7 @@ func _draw_marks() -> void:
 		var pts := PackedVector2Array([tp + Vector2(0, -9), tp + Vector2(9, 0), tp + Vector2(0, 9), tp + Vector2(-9, 0), tp + Vector2(0, -9)])
 		_overlay.draw_polyline(pts, tc, 1.5)
 		if font != null:
-			_overlay.draw_string(font, tp + Vector2(12, -10), "ZIELPUNKT", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, tc)
+			_overlay.draw_string(font, tp + Vector2(12, -10), "ZIELPUNKT", HORIZONTAL_ALIGNMENT_LEFT, -1, UIStyle.min_fs(13, _hroot.factor), tc)
 	if _corr != Vector2.ZERO and last != null:
 		var b := ot_basis(_target)
 		var gp: Vector3 = (last as Vector3) + (b[0] as Vector3) * _corr.x + (b[1] as Vector3) * _corr.y
@@ -931,4 +955,4 @@ func _draw_marks() -> void:
 			_overlay.draw_dashed_line(ls, gs, gc, 1.5, 6.0)
 			_overlay.draw_arc(gs, 10.0, 0.0, TAU, 20, gc, 2.0)
 			if font != null:
-				_overlay.draw_string(font, gs + Vector2(13, 4), correction_text(_corr), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, gc)
+				_overlay.draw_string(font, gs + Vector2(13, 4), correction_text(_corr), HORIZONTAL_ALIGNMENT_LEFT, -1, UIStyle.min_fs(14, _hroot.factor), gc)

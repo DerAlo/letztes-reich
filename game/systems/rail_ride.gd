@@ -41,6 +41,8 @@ const DEFAULT_WEAPON := {
 	"tracer_every": 3, "tracer_color": "orange", "tracer_width": 0.9,
 	"sfx": "hafen_mg", "sfx_every": 2, "sfx_db": -5.0, "trauma": 0.02,
 	"splash_radius": 0.0, "splash_damage": 0.0,
+	## Muendungsfeuer: Groesse, Licht (Energie/Reichweite), Sichtdauer je Schuss, Deckkraft des Sprites
+	"flash_size": 0.8, "flash_light": 5.0, "flash_range": 7.0, "flash_time": 0.03, "flash_alpha": 1.0,
 }
 
 # ------------------------------------------------------------------ Konfiguration
@@ -173,7 +175,17 @@ func _ready() -> void:
 	mount_pitch.add_child(muzzle)
 	if build_default_gun:
 		FX.build_pintle_mg(mount_yaw, mount_pitch)
-	_flash = VF.make_muzzle_flash(muzzle, 0.8, 5.0, 7.0)
+	_flash = VF.make_muzzle_flash(muzzle, float(weapon["flash_size"]), float(weapon["flash_light"]), float(weapon["flash_range"]))
+	var fa := float(weapon["flash_alpha"])
+	if fa < 1.0:
+		var seen: Array[Material] = []
+		for c in _flash.get_children():
+			if c is MeshInstance3D and (c as MeshInstance3D).material_override is StandardMaterial3D:
+				var fm := (c as MeshInstance3D).material_override as StandardMaterial3D
+				if fm in seen:
+					continue
+				seen.append(fm)
+				fm.albedo_color = Color(fm.albedo_color.r * fa, fm.albedo_color.g * fa, fm.albedo_color.b * fa, fm.albedo_color.a * fa)
 	cam = Camera3D.new()
 	cam.name = "GunnerCam"
 	cam.near = 0.06
@@ -580,7 +592,7 @@ func _fire_round() -> void:
 	var te := int(weapon["tracer_every"])
 	if te > 0 and shots % te == 0:
 		VF.tracer(self, muzzle.global_position, end, 520.0, str(weapon["tracer_color"]), float(weapon["tracer_width"]))
-	VF.show_flash(_flash, 0.03)
+	VF.show_flash(_flash, float(weapon["flash_time"]))
 	var se := maxi(int(weapon["sfx_every"]), 1)
 	if shots % se == 0:
 		VF.play_2d(self, str(weapon["sfx"]), float(weapon["sfx_db"]), 0.0, &"SFX", randf_range(0.95, 1.05))
@@ -609,7 +621,13 @@ func _fire_round() -> void:
 		armor = target.call("get_enemy") as Node
 	if armor != null and armor.has_method("set_shot_dir"):
 		armor.call("set_shot_dir", dir)
+	# Blut mit Schussrichtung (vor dem Schaden pruefen: Tote verlassen die Gruppe "enemy"; fasst sich mit
+	# der Meldung des Gegners zusammen; Panzerung blockt)
+	var blood_src: Node = armor if armor != null else target
+	var bleeds := (target.is_in_group("enemy") or blood_src.is_in_group("enemy")) and VFX.is_bleeder(blood_src)
 	target.call("take_damage", float(weapon["damage"]), self, pos, nrm)
+	if bleeds and not (blood_src.has_method("armor_blocks_blood") and bool(blood_src.call("armor_blocks_blood"))):
+		VFX.spawn_blood(pos, nrm, dir, 1.2)
 	if not target.is_in_group("enemy") and not target.has_method("get_enemy"):
 		VFX.spawn_impact(pos, nrm, "metal")
 	var enemy_like := target.is_in_group("enemy") or (armor != null and armor.is_in_group("enemy"))

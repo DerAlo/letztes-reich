@@ -97,8 +97,10 @@ func _on_draw() -> void:
 	var icol := C_MAIN if integ > 0.5 else (C_WARN if integ > 0.25 else C_RED)
 	_ctl.draw_rect(Rect2(bx, by, bw * integ, bh), icol)
 	_ctl.draw_rect(Rect2(bx, by, bw, bh), C_DIM, false, maxf(sc, 1.0))
+	# Tempo nur bei fahrenden Bordwaffen; stationaere Waffen (Tuer-MG, MG-Stellung: cruise_speed 0) ohne km/h
 	var kmh := float(ride.get("speed")) * 3.6
-	_txt(Vector2(bx, by + bh + 30.0 * sc), "%d km/h" % roundi(kmh), int(26 * sc), C_MAIN)
+	if float(ride.get("cruise_speed")) > 0.01 or kmh >= 1.0:
+		_txt(Vector2(bx, by + bh + 30.0 * sc), "%d km/h" % roundi(kmh), int(26 * sc), C_MAIN)
 	# Unten rechts: Waffe + Hitze
 	var rx := sz.x - 48.0 * sc - bw
 	var wd: Dictionary = ride.get("weapon")

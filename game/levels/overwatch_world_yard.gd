@@ -410,7 +410,7 @@ static func _sidings(world: Node3D, covers: Array, rng: RandomNumberGenerator) -
 	var bb := K.body(world, "Embankment", true)
 	bk.b("berm", K.gravel(Color(0.5, 0.47, 0.42))).add(Vector3(10.0, 0.0, -124.8), Vector3(140.0, 0.4, 3.2))
 	bk.b("ditch", K.mud(Color(0.36, 0.33, 0.3))).add(Vector3(10.0, 0.012, -129.2), Vector3(200.0, 0.02, 2.4))
-	bk.b("ditch", K.puddle()).add(Vector3(10.0, 0.02, -129.2), Vector3(200.0, 0.01, 0.8))
+	bk.b("ditch", K.puddle()).add(Vector3(10.0, 0.03, -129.2), Vector3(200.0, 0.01, 0.8))
 	K.flush(bk, root, false, 0.0)
 	K.col(bb, Vector3(10.0, 0.0, -124.8), Vector3(140.0, 0.4, 3.2))
 	RailProps.barrier_row(world, Vector3(-22.0, 0.2, -126.2), Vector3(42.0, 0.2, -126.2), covers)
@@ -436,10 +436,10 @@ static func _road(world: Node3D, covers: Array, rng: RandomNumberGenerator) -> D
 	var lm := K.paint(Color(0.78, 0.76, 0.7))
 	var x := x0
 	while x < x1:
-		kd.b("lines", lm).add(Vector3(x + 1.5, 0.042, ROAD_Z), Vector3(3.0, 0.005, 0.12))
+		kd.b("lines", lm).add(Vector3(x + 1.5, 0.05, ROAD_Z), Vector3(3.0, 0.005, 0.12))
 		x += 9.0
 	for s: float in [-1.0, 1.0]:
-		k.b("lines", lm).add(Vector3(0, 0.042, ROAD_Z + s * (ROAD_W * 0.5 - 0.3)), Vector3(L, 0.005, 0.12))
+		k.b("lines", lm).add(Vector3(0, 0.05, ROAD_Z + s * (ROAD_W * 0.5 - 0.3)), Vector3(L, 0.005, 0.12))
 		# Bordstein (niedrig, nur Optik) + Bankett
 		k.b("kerb", K.concrete(Color(0.66, 0.64, 0.6))).add(Vector3(0, 0.05, ROAD_Z + s * (ROAD_W * 0.5 + 0.1)), Vector3(L, 0.1, 0.2))
 		k.b("shoulder", K.gravel(Color(0.52, 0.49, 0.45))).add(Vector3(0, 0.01, ROAD_Z + s * (ROAD_W * 0.5 + 1.2)), Vector3(L, 0.02, 2.0))
@@ -489,6 +489,8 @@ static func _road(world: Node3D, covers: Array, rng: RandomNumberGenerator) -> D
 		enemy.append(Vector3(xx, 0.0, zr - 0.9))
 	enemy.append(Vector3(14.0, 0.0, -149.9))
 	enemy.append(Vector3(40.0, 0.0, -150.3))
+	for ex: Vector3 in [Vector3(-38.0, 0.0, -149.9), Vector3(-8.0, 0.0, -150.4), Vector3(20.0, 0.0, zr - 0.9), Vector3(44.0, 0.0, zr - 0.9)]:
+		enemy.append(ex)
 	# Strassenlaternen (Nordseite, aus) + Mast mit Leuchte
 	x = -150.0
 	while x <= 200.0:

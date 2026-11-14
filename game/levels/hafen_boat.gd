@@ -15,6 +15,7 @@ extends AnimatableBody3D
 const VF := preload("res://game/vehicles/vehicle_fx.gd")
 const FX := preload("res://game/systems/rail_ride_fx.gd")
 const Models := preload("res://game/levels/hafen_models.gd")
+const Night := preload("res://game/levels/hafen_night.gd")   ## glow_light(): runde Positionslichter
 ## Knotenname des Bug-MG im Garde-Modell (JM-16 Zolfaqar: DShK am Bug) und Hoehe Lafette -> Deck
 const MG_NODE := "dshk_007"
 const MG_STAND := 0.95
@@ -33,6 +34,8 @@ var offset_s: float = 120.0          ## Bahnmeter vor (+) / hinter (-) dem Spiel
 var target_offset: float = 45.0      ## naehert sich auf diesen Versatz
 var approach_rate: float = 6.0       ## m/s Annaeherung
 var lateral: float = 18.0            ## seitlich (+ = rechts)
+var lateral_to: float = INF          ## gesetzt: wechselt waehrend der Fahrt auf diese Seite (kreuzt den Kurs)
+var lateral_rate: float = 2.2        ## m/s Seitenwechsel
 var weave_amp: float = 4.0
 var weave_freq: float = 0.07         ## Hz - ruhiges, weites Schlaengeln
 var turn_rate_deg: float = 42.0      ## max. Drehrate des Rumpfs
@@ -51,6 +54,7 @@ var _ph: float = 0.0
 var _burst_cd: float = 3.0
 var _burst_left: int = 0
 var _shot_cd: float = 0.0
+var _burst_lethal: bool = true       ## false = Sperrfeuer ohne Treffer (Level begrenzt gleichzeitiges Scharffeuer)
 var _gun: Node3D
 var _gunner: Node3D
 var _muzzle: Marker3D
@@ -137,10 +141,13 @@ func _build() -> void:
 		VF.mesh_node(_motion, VF.box(Vector3(1.6, 0.9, 1.4)), hull, Vector3(0, 1.25, 0.6))
 		VF.mesh_node(_motion, VF.box(Vector3(1.5, 0.5, 0.06)), glass, Vector3(0, 1.45, -0.12))
 		VF.mesh_node(_motion, VF.box(Vector3(0.7, 0.7, 0.6)), dark, Vector3(0, 0.95, 3.1))
-		var nav_r := VF.mat("hb_nav_r", Color(1, 0.1, 0.1), 0.4, 0.0, Color(1, 0.1, 0.1), 4.0)
-		var nav_g := VF.mat("hb_nav_g", Color(0.1, 1, 0.2), 0.4, 0.0, Color(0.1, 1, 0.2), 4.0)
-		VF.mesh_node(_motion, VF.box(Vector3(0.12, 0.12, 0.12)), nav_r, Vector3(-0.85, 1.75, 0.6))
-		VF.mesh_node(_motion, VF.box(Vector3(0.12, 0.12, 0.12)), nav_g, Vector3(0.85, 1.75, 0.6))
+		# Seitenlichter (rot backbord, gruen steuerbord): kleine Kugeln + runder Lichtpunkt statt Leuchtwuerfel
+		var nav_r := VF.mat("hb_nav_r", Color(1, 0.1, 0.1), 0.4, 0.0, Color(1, 0.1, 0.1), 2.5)
+		var nav_g := VF.mat("hb_nav_g", Color(0.1, 1, 0.2), 0.4, 0.0, Color(0.1, 1, 0.2), 2.5)
+		VF.mesh_node(_motion, VF.sphere(0.06), nav_r, Vector3(-0.85, 1.75, 0.6))
+		VF.mesh_node(_motion, VF.sphere(0.06), nav_g, Vector3(0.85, 1.75, 0.6))
+		Night.glow_light(_motion, Vector3(-0.85, 1.75, 0.6), Color(1, 0.1, 0.08), 3.0, 0.3)
+		Night.glow_light(_motion, Vector3(0.85, 1.75, 0.6), Color(0.1, 1, 0.25), 3.0, 0.3)
 	if role != "weber":
 		# Bug-MG mit Schuetze (Puppe) - Spielmechanik, bleibt auch bei eingesetztem Modell.
 		# Hat das Modell ein eigenes Bug-MG (MG_NODE), wird genau dieses schwenkbar gemacht (Drehpunkt am
@@ -187,11 +194,18 @@ func _build() -> void:
 		_muzzle.position = muzzle_pos
 		_gun.add_child(_muzzle)
 		_flash = VF.make_muzzle_flash(_muzzle, 1.0, 9.0, 12.0)
+		# Suchscheinwerfer (Xenon/LED-Bootsscheinwerfer, real 300-500 m Reichweite): vorher 60 m / Energie 4 -
+		# auf die ueblichen 80-150 m Gefechtsabstand (Bruecke ~88 m) kam davon nichts an. Enger, heller Kegel mit
+		# sichtbarem Strahl im Regen; folgt in _tick_gun dem Ziel (gekoppelt an das Bug-MG).
 		var sl := SpotLight3D.new()
 		sl.light_color = Color(0.9, 0.95, 1.0)
-		sl.light_energy = 4.0
-		sl.spot_range = 60.0
-		sl.spot_angle = 14.0
+		sl.light_energy = 8.0
+		sl.spot_range = 240.0
+		sl.spot_angle = 7.5
+		sl.spot_angle_attenuation = 0.8
+		sl.spot_attenuation = 0.45
+		sl.light_volumetric_fog_energy = 0.6
+		sl.shadow_enabled = false
 		sl.light_specular = 0.3   # sonst grelle Glitzerpunkte auf dem Wasser
 		sl.position = Vector3(0, 1.8, 0.2) if mg == null else _gun.position + Vector3(0, 1.5, 1.6)
 		_motion.add_child(sl)
@@ -350,6 +364,8 @@ func _physics_process(delta: float) -> void:
 		var right := dir.cross(Vector3.UP).normalized()
 		# Schlaengeln: Phase laeuft bei stehender Bahn langsamer, Amplitude kleiner -> kein Seitwaerts-Rutschen
 		var calm := clampf(rspeed / 10.0, 0.25, 1.0)
+		if lateral_to != INF:
+			lateral = move_toward(lateral, lateral_to, lateral_rate * delta)
 		_wt += delta * calm
 		_swerve_t = maxf(0.0, _swerve_t - delta)
 		_swerve = move_toward(_swerve, _swerve_goal if _swerve_t > 0.0 else 0.0, 5.0 * delta)
@@ -417,12 +433,33 @@ func _tick_dead(delta: float) -> void:
 	if _sink_t > 9.0:
 		queue_free()
 
+## Suchscheinwerfer traege auf das Ziel nachfuehren (leicht hinterher, wie von Hand gefuehrt).
+func _aim_spot(tgt: Vector3, delta: float) -> void:
+	if dead or not _gun.has_meta("spot"):
+		return
+	var o: Variant = _gun.get_meta("spot")
+	if not is_instance_valid(o) or not (o is SpotLight3D) or (o as Node).is_queued_for_deletion():
+		return
+	var sl := o as SpotLight3D
+	if not sl.is_inside_tree():
+		return
+	var gp := sl.global_position
+	# auf Rumpf/Wasserlinie vor dem Ziel halten, nicht in die Schuetzenkamera: direkt ins Objektiv
+	# gerichtet fuellte der Strahl im Regen-Dunst das halbe Bild mit Weiss
+	var d := (tgt + Vector3(0, -2.4, 0)) - gp
+	if d.length_squared() < 4.0:
+		return
+	var want := Basis.looking_at(d.normalized(), Vector3.UP)
+	var cur := sl.global_basis.orthonormalized()
+	sl.global_basis = cur.slerp(want, 1.0 - exp(-delta * 3.0))
+
 func _tick_gun(delta: float) -> void:
 	if not gunner_alive or ride == null or not is_instance_valid(ride) or not bool(ride.call("is_alive")):
 		return
 	var tgt := ride.global_position + Vector3.UP * 1.2
 	var lp: Vector3 = (_gun.get_parent() as Node3D).global_transform.affine_inverse() * tgt - _gun.position
 	_gun.rotation.y = lerp_angle(_gun.rotation.y, atan2(-lp.x, -lp.z), 1.0 - exp(-delta * 5.0))
+	_aim_spot(tgt, delta)
 	if _burst_left > 0:
 		_shot_cd -= delta
 		if _shot_cd <= 0.0:
@@ -442,17 +479,24 @@ func _tick_gun(delta: float) -> void:
 		return
 	_burst_left = burst_rounds
 	_shot_cd = 0.0
+	_burst_lethal = true
+	if level_ref != null and level_ref.has_method("boat_fire_slot"):
+		_burst_lethal = bool(level_ref.call("boat_fire_slot", self, burst_rounds * 0.1 + 0.2))
 
 func _fire(tgt: Vector3) -> void:
 	var from := _muzzle.global_position
-	var hit := randf() < hit_chance
+	var hit := _burst_lethal and randf() < hit_chance
 	var aim := tgt
 	if not hit:
 		# Fehlschuesse liegen sichtbar knapp daneben (Wasserfontaenen am Bug), nicht weit weg
 		aim += Vector3(randf_range(-3.0, 3.0), randf_range(-2.5, 2.0), randf_range(-3.0, 3.0))
 	VF.show_flash(_flash, 0.05)
 	VF.play_at(self, "hafen_mg", from, -2.0, 16.0, 340.0, randf_range(0.9, 1.0))
-	VF.tracer(self, from, aim, 420.0, "red", 1.3)
+	# Leuchtspur endet einige Meter vor dem Ziel: tgt ist die Spielerkamera, sonst
+	# landet die Spitze des Leuchtspur-Quaders frontal im Objektiv (rotes Quadrat im Bild).
+	var tr_len := from.distance_to(aim)
+	var tr_end := from + (aim - from) / maxf(tr_len, 0.01) * maxf(tr_len - 6.0, 1.0)
+	VF.tracer(self, from, tr_end, 420.0, "red", 1.3)
 	if hit:
 		ride.call("take_damage", round_damage, self, aim, (from - aim).normalized())
 	else:

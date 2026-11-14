@@ -368,1210 +368,580 @@
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Kerner, Aksoy – Absetzpunkt. Weiter runter kann ich nicht, da unten sieht man die eigene Hand nicht. Raus!",
-  "source": "game/levels/alpenpass.gd:819"
+  "source": "game/levels/alpenpass.gd:1379"
  },
  {
   "id": "8393148cbc85",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Weber will heute Morgen über den Pass nach Österreich. Seine Leute halten den Kessel – und Falks Garde-Jäger in grauen Wintermänteln sind auch irgendwo da draußen.",
-  "source": "game/levels/alpenpass.gd:820"
+  "source": "game/levels/alpenpass.gd:1380"
  },
  {
   "id": "9cb7e74ecb16",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Die Gebirgsjäger vom Bataillon stehen zu uns. Sie haben einen Mörserzug hinter dem Grat. Ich halte den Funk zu ihnen.",
-  "source": "game/levels/alpenpass.gd:821"
- },
- {
-  "id": "d89c664284a7",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Zwei MG-Nester und ein Unterstand unten im Kessel. Fernglas, Ziel markieren – ich gebe es an den Mörserzug. Warte auf die Lücken im Sturm.",
-  "source": "game/levels/alpenpass.gd:839"
- },
- {
-  "id": "8c86eddb75b0",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Alle drei Stellungen sind still. Webers Nachhut zieht sich zur Zollhütte zurück – geht runter und räumt auf.",
-  "source": "game/levels/alpenpass.gd:858"
+  "source": "game/levels/alpenpass.gd:1381"
  },
  {
   "id": "e3742d8384c6",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Ein Schützenpanzer rollt von der Bergstation hoch zur Brücke. Wenn der sich dort eingräbt, kommt keiner durch.",
-  "source": "game/levels/alpenpass.gd:904"
- },
- {
-  "id": "ca2633e2bb62",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er steht. Jetzt oder nie – markier ihn.",
-  "source": "game/levels/alpenpass.gd:922"
- },
- {
-  "id": "94805ec35b5f",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Panzer brennt! Treffer!",
-  "source": "game/levels/alpenpass.gd:945"
+  "source": "game/levels/alpenpass.gd:1521"
  },
  {
   "id": "2deccbaf51b8",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Bewegung in der Rinne westlich von euch. Graue Mäntel – Falks Garde-Jäger. Die wollen zur Bergstation, vor euch.",
-  "source": "game/levels/alpenpass.gd:953"
- },
- {
-  "id": "e4b8008950cc",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Weber gehört mir. Wer sich mir in den Weg stellt, bleibt im Schnee.",
-  "source": "game/levels/alpenpass.gd:954"
- },
- {
-  "id": "bc51c56df796",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Über der Rinne hängt eine Wechte. Ein Treffer, und der ganze Hang kommt runter.",
-  "source": "game/levels/alpenpass.gd:955"
- },
- {
-  "id": "9f1ecb767cb0",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Da kommt der Hang! Runter, runter!",
-  "source": "game/levels/alpenpass.gd:982"
+  "source": "game/levels/alpenpass.gd:1642"
  },
  {
   "id": "a6aab70e1256",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Die Rinne ist zu. Von den Grauen kommt keiner mehr raus. Die Straße auch nicht – nehmt den Steig über den Grat.",
-  "source": "game/levels/alpenpass.gd:983"
- },
- {
-  "id": "b4cb6b9e27a8",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Sprengung am Hang! Falk jagt die Wechte selbst hoch!",
-  "source": "game/levels/alpenpass.gd:986"
+  "source": "game/levels/alpenpass.gd:1697"
  },
  {
   "id": "a680411dff38",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Er begräbt seine eigenen Leute, nur um die Straße zu sperren...",
-  "source": "game/levels/alpenpass.gd:987"
+  "source": "game/levels/alpenpass.gd:1701"
  },
  {
   "id": "e048e49a3dd9",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Die Straße ist zu. Nehmt den Steig über den Grat.",
-  "source": "game/levels/alpenpass.gd:988"
+  "source": "game/levels/alpenpass.gd:1702"
+ },
+ {
+  "id": "5fc96766c000",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Zu spät – und Falks Leute sind vor uns an der Station.",
+  "source": "game/levels/alpenpass.gd:1783"
  },
  {
   "id": "302b533f06b0",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Die Seilbahn läuft – Weber sitzt in der Kabine! Nicht darauf schießen, er muss lebend vor Gericht.",
-  "source": "game/levels/alpenpass.gd:1064"
+  "source": "game/levels/alpenpass.gd:1809"
  },
  {
   "id": "26500d5d8139",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Kerner. Hartnäckig wie immer. Grüßen Sie Falk von mir – falls er Sie vorher nicht erwischt.",
-  "source": "game/levels/alpenpass.gd:1065"
+  "source": "game/levels/alpenpass.gd:1810"
  },
  {
   "id": "028b3aa582ac",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Hier, im Steuerraum. Ein Fahrplan – Nachtzug Innsbruck–Wien, heute Abend, mit Webers Handschrift angestrichen.",
-  "source": "game/levels/alpenpass.gd:1078"
+  "source": "game/levels/alpenpass.gd:1823"
  },
  {
   "id": "05598e691de4",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Dann fahren wir mit.",
-  "source": "game/levels/alpenpass.gd:1079"
+  "source": "game/levels/alpenpass.gd:1824"
  },
  {
   "id": "eacbce9595a1",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Ich hole euch an der Talstation ab. Österreich weiß Bescheid – mehr oder weniger.",
-  "source": "game/levels/alpenpass.gd:1080"
+  "source": "game/levels/alpenpass.gd:1825"
  },
  {
   "id": "6137606b389a",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Der Mörserzug meldet: Munition alle. Sie schicken Nachschub hoch.",
-  "source": "game/levels/alpenpass.gd:1125"
+  "source": "game/levels/alpenpass.gd:1857"
  },
  {
   "id": "56202425b678",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Nachschub ist da. Vier Salven.",
-  "source": "game/levels/alpenpass.gd:1130"
- },
- {
-  "id": "2e8a89c91bf4",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Daneben. Sag mir die Korrektur – weiter, kürzer, links, rechts.",
-  "source": "game/levels/alpenpass.gd:1151"
- },
- {
-  "id": "909c920c4de1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "MG-Nest ist weg. Volltreffer.",
-  "source": "game/levels/alpenpass.gd:1182"
- },
- {
-  "id": "d0e72d91f112",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Der Unterstand ist eingestürzt. Gute Arbeit.",
-  "source": "game/levels/alpenpass.gd:1191"
+  "source": "game/levels/alpenpass.gd:1862"
  },
  {
   "id": "9549e4f025cd",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Feuer einstellen! Das ist die Kabine!",
-  "source": "game/levels/alpenpass.gd:1216"
+  "source": "game/levels/alpenpass.gd:1983"
  },
  {
   "id": "f8ff2c0e3289",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas! Nicht die Kabine!",
-  "source": "game/levels/alpenpass.gd:1218"
+  "source": "game/levels/alpenpass.gd:1985"
  },
  {
   "id": "c31b48018e66",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Abbruch! So nicht!",
-  "source": "game/levels/alpenpass.gd:1221"
+  "source": "game/levels/alpenpass.gd:1988"
  },
  {
   "id": "8f19c5c10f42",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Weg. Der Sturm hat ihn verschluckt.",
-  "source": "game/levels/alpenpass.gd:1281"
+  "source": "game/levels/alpenpass.gd:2316"
  },
  {
   "id": "638211bda786",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Gut so. Ein Bildschirm weniger, der lügt.",
-  "source": "game/levels/berlin_level.gd:678"
+  "source": "game/levels/berlin_level.gd:697"
  },
  {
   "id": "d29c4faa4eee",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Ein Koloss vor dem Eingang! Kopf oder Tornister, Jonas – nicht auf die Panzerung!",
-  "source": "game/levels/berlin_level.gd:862"
+  "source": "game/levels/berlin_level.gd:886"
  },
  {
   "id": "6bfc918a91d7",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Kerner, Aksoy – ruhige Nacht heute. Genießt die Feier, ihr habt sie euch verdient.",
-  "source": "game/levels/berlin_level.gd:958"
+  "source": "game/levels/berlin_level.gd:982"
  },
  {
   "id": "039584d82925",
   "speaker": "Rednerin",
   "character": "rednerin",
   "text": "…zwei Jahre Krieg. Und heute Nacht sagen wir: Europa hat gehalten!",
-  "source": "game/levels/berlin_level.gd:961"
+  "source": "game/levels/berlin_level.gd:985"
  },
  {
   "id": "d1a283acfa15",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Sagt der Mann, der uns zur Ehrenwache eingeteilt hat. Ganz vorne. Direkt an der Bühne.",
-  "source": "game/levels/berlin_level.gd:964"
+  "source": "game/levels/berlin_level.gd:988"
  },
  {
   "id": "66290b845ce9",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas! Die Bühne – runter, runter!",
-  "source": "game/levels/berlin_level.gd:1060"
+  "source": "game/levels/berlin_level.gd:1094"
  },
  {
   "id": "a3d229e2c8d8",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Explosion an der Bühne! Haltet die Stellung, ich kläre die Lage.",
-  "source": "game/levels/berlin_level.gd:1063"
+  "source": "game/levels/berlin_level.gd:1097"
  },
  {
   "id": "4a3a6699da01",
   "speaker": "Lautsprecher (Gen. von Riedhammer)",
   "character": "riedhammer",
   "text": "Bürger Berlins. Ausländische Kräfte haben unsere Feier angegriffen. Die Ordnungsfront übernimmt ab sofort den Schutz des Landes.",
-  "source": "game/levels/berlin_level.gd:1076"
+  "source": "game/levels/berlin_level.gd:1110"
  },
  {
   "id": "24d0d3f03451",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Das sind unsere Leute – mit Armbinden. Ordnungsfront! Die schießen auf alles, was sich bewegt.",
-  "source": "game/levels/berlin_level.gd:1077"
+  "source": "game/levels/berlin_level.gd:1112"
  },
  {
   "id": "aa49bd51bfe9",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Das ist ein Putsch. Das Sendezentrum am Ende der Achse – solange sie senden, glaubt ihnen das Land. Schaltet es ab.",
-  "source": "game/levels/berlin_level.gd:1079"
+  "source": "game/levels/berlin_level.gd:1113"
  },
  {
   "id": "d235560c7548",
   "speaker": "Lautsprecher (Gen. von Riedhammer)",
   "character": "riedhammer",
   "text": "Bleibt in euren Häusern. Wer sich fügt, hat nichts zu befürchten.",
-  "source": "game/levels/berlin_level.gd:1087"
- },
- {
-  "id": "89ffb006f48e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Klingt, als hätten sie die Durchsage schon vor der Feier aufgenommen.",
-  "source": "game/levels/berlin_level.gd:1088"
+  "source": "game/levels/berlin_level.gd:1121"
  },
  {
   "id": "7550aa75e26b",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Hubschrauber! Unsere Kennung – die haben auch die Flieger auf ihrer Seite.",
-  "source": "game/levels/berlin_level.gd:1093"
- },
- {
-  "id": "b44539b8cbb0",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Panzer auf dem Platz! Bleib in Deckung – Kugeln bringen da nichts.",
-  "source": "game/levels/berlin_level.gd:1166"
+  "source": "game/levels/berlin_level.gd:1127"
  },
  {
   "id": "cca4fccabc77",
   "speaker": "Lautsprecher (Gen. von Riedhammer)",
   "character": "riedhammer",
   "text": "Ordnung. Stärke. Das letzte Reich beginnt heute Nacht.",
-  "source": "game/levels/berlin_level.gd:1171"
- },
- {
-  "id": "3b6ca55085b1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "„Das letzte Reich.“ Gefeiert mit Sprengstoff unter der Bühne.",
-  "source": "game/levels/berlin_level.gd:1172"
+  "source": "game/levels/berlin_level.gd:1205"
  },
  {
   "id": "63b9934ef41f",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin – ich warte auf euch.",
-  "source": "game/levels/berlin_level.gd:1173"
+  "source": "game/levels/berlin_level.gd:1207"
  },
  {
   "id": "b7bb80fd6eef",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Kommt rein, Kerner. Nur du. Aksoy sichert den Eingang.",
-  "source": "game/levels/berlin_level.gd:1178"
+  "source": "game/levels/berlin_level.gd:1212"
  },
  {
   "id": "78bfa9f81edf",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Warum nur du? Und wie ist er vor uns da reingekommen? Jonas – pass auf.",
-  "source": "game/levels/berlin_level.gd:1179"
+  "source": "game/levels/berlin_level.gd:1213"
  },
  {
   "id": "163e7d57f2d2",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Tut mir leid, Kerner. Deutschland braucht Ordnung.",
-  "source": "game/levels/berlin_level.gd:1221"
+  "source": "game/levels/berlin_level.gd:1256"
  },
  {
   "id": "08a8ce802a43",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas… er war es die ganze Zeit.",
-  "source": "game/levels/berlin_level.gd:1226"
- },
- {
-  "id": "8a2366d07014",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Der General … wird Sie … enttäuschen …",
-  "source": "game/levels/bunker.gd:882"
- },
- {
-  "id": "dae71d66cddb",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Falk ist erledigt. Ich hab die Panzertür zum Kontrollraum – sie geht auf.",
-  "source": "game/levels/bunker.gd:883"
- },
- {
-  "id": "74d8d8b98dd0",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Kerner, Voss hier. Das ist die alte Versorgungsröhre unter der Spree. Sie endet an der Bunkerschleuse – ab da sind Sie allein.",
-  "source": "game/levels/bunker.gd:893"
- },
- {
-  "id": "fe7afc80ac34",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ich bin in der Haustechnik. Die Schleusen hängen am Notstromnetz. Ich krieg sie auf, aber nicht leise.",
-  "source": "game/levels/bunker.gd:894"
- },
- {
-  "id": "f83d8688abff",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Bin an der Schleuse.",
-  "source": "game/levels/bunker.gd:898"
- },
- {
-  "id": "2127a22e3e9a",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Druckausgleich läuft … drei Sekunden. Dahinter liegt die Technikebene.",
-  "source": "game/levels/bunker.gd:899"
- },
- {
-  "id": "de6c8ec61e20",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Gepanzerter hinten bei den Generatoren. Kopf und Gelenke, Jonas.",
-  "source": "game/levels/bunker.gd:908"
- },
- {
-  "id": "a26dbe6f914a",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Der Kontrollraum liegt ganz am Ende, hinter dem Lagezentrum. Die Lüftung zeigt zwei Wärmequellen da drin.",
-  "source": "game/levels/bunker.gd:920"
- },
- {
-  "id": "85b2996c7c4c",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Kerner, oben kommen wir nicht durch die Panzertür. Was jetzt passiert, liegt bei Ihnen.",
-  "source": "game/levels/bunker.gd:925"
- },
- {
-  "id": "3824dfef111f",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Das ist Falk – im schweren Anzug! Erst das Visier, dann der Tornister auf dem Rücken.",
-  "source": "game/levels/bunker.gd:933"
+  "source": "game/levels/berlin_level.gd:1261"
  },
  {
   "id": "966ce24a4bd9",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Hände auf den Kopf, General. Langsam.",
-  "source": "game/levels/bunker.gd:963"
+  "source": "game/levels/bunker.gd:1371"
  },
  {
   "id": "c6e766b0f054",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Weber. Sie haben auf mich geschossen.",
-  "source": "game/levels/bunker.gd:969"
+  "source": "game/levels/bunker.gd:1377"
  },
  {
   "id": "275a78eed55b",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Auf Ihre Weste. Ich wusste, dass Sie sie tragen.",
-  "source": "game/levels/bunker.gd:970"
+  "source": "game/levels/bunker.gd:1378"
  },
  {
   "id": "b5c1b0f8a33b",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Die Protokolle im Funkturm. Die Spur durch die Kanalisation. Das waren Sie.",
-  "source": "game/levels/bunker.gd:971"
+  "source": "game/levels/bunker.gd:1379"
  },
  {
   "id": "847efb6605ab",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Ich wollte, dass ihr sie findet. Allein wäre ich nie an ihn herangekommen.",
-  "source": "game/levels/bunker.gd:972"
+  "source": "game/levels/bunker.gd:1380"
  },
  {
   "id": "57a8cbae5e18",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Das ist die Akte Nordlicht. Wer Riedhammer bezahlt hat, Konto für Konto. Damit fallen nicht nur Uniformen.",
-  "source": "game/levels/bunker.gd:973"
+  "source": "game/levels/bunker.gd:1381"
  },
  {
   "id": "70af28ca1ad3",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas, er hat Leute verraten. Unsere Leute. Vergiss das nicht.",
-  "source": "game/levels/bunker.gd:974"
+  "source": "game/levels/bunker.gd:1382"
  },
  {
   "id": "d19a2c35e81a",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Nehmen Sie mich fest, und ich sage vor Gericht aus. Lassen Sie mich gehen, und ich erledige den Rest auf meine Art.",
-  "source": "game/levels/bunker.gd:975"
+  "source": "game/levels/bunker.gd:1383"
  },
  {
   "id": "dc246876f2fd",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Kerner, meine Leute sind im Lagezentrum. Die Garde legt die Waffen nieder.",
-  "source": "game/levels/bunker.gd:993"
+  "source": "game/levels/bunker.gd:1401"
  },
  {
   "id": "a77e3c3fbab9",
   "speaker": "General von Riedhammer",
   "character": "riedhammer",
   "text": "Keinen Schritt weiter, Kerner. Ein Knopfdruck, und der Spreebogen fliegt in die Luft.",
-  "source": "game/levels/bunker.gd:994"
+  "source": "game/levels/bunker.gd:1402"
  },
  {
   "id": "29a6787e3981",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Die Zündleitung ist tot, Herr General. Ich habe sie vor einer Stunde selbst gekappt.",
-  "source": "game/levels/bunker.gd:999"
+  "source": "game/levels/bunker.gd:1407"
  },
  {
   "id": "4929ebb84c38",
   "speaker": "General von Riedhammer",
   "character": "riedhammer",
   "text": "Weber … Sie Verräter.",
-  "source": "game/levels/bunker.gd:1003"
+  "source": "game/levels/bunker.gd:1411"
  },
  {
   "id": "d16994e487de",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Ich wollte nie, dass diese Stadt brennt. Das war immer der Unterschied zwischen uns.",
-  "source": "game/levels/bunker.gd:1007"
+  "source": "game/levels/bunker.gd:1415"
  },
  {
   "id": "0e2abee3d574",
   "speaker": "General von Riedhammer",
   "character": "riedhammer",
   "text": "Dann ist es vorbei.",
-  "source": "game/levels/bunker.gd:1008"
+  "source": "game/levels/bunker.gd:1416"
  },
  {
   "id": "05f0b58aa4fb",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Sie sind festgenommen, Weber. Die Akte geht ans Gericht – und Sie auch.",
-  "source": "game/levels/bunker.gd:1083"
+  "source": "game/levels/bunker.gd:1491"
  },
  {
   "id": "a41a6d5aa3b1",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Wie Sie meinen. Passen Sie gut auf sie auf. Es gibt Leute, die dafür töten würden.",
-  "source": "game/levels/bunker.gd:1084"
+  "source": "game/levels/bunker.gd:1492"
  },
  {
   "id": "63dfb0377231",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Voss' Leute kommen runter. Es ist vorbei, Jonas.",
-  "source": "game/levels/bunker.gd:1085"
+  "source": "game/levels/bunker.gd:1493"
  },
  {
   "id": "acb131a7b583",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Gehen Sie, Weber. Bevor ich es mir anders überlege.",
-  "source": "game/levels/bunker.gd:1095"
+  "source": "game/levels/bunker.gd:1503"
  },
  {
   "id": "2ccd76450138",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Sie werden von mir hören, Kerner. Oder von denen, die auf der Liste stehen.",
-  "source": "game/levels/bunker.gd:1096"
+  "source": "game/levels/bunker.gd:1504"
  },
  {
   "id": "5d535cd311f2",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Du hast ihn laufen lassen? Jonas …",
-  "source": "game/levels/bunker.gd:1097"
+  "source": "game/levels/bunker.gd:1505"
  },
  {
   "id": "fac48262ac47",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Hoffentlich war es das Richtige.",
-  "source": "game/levels/bunker.gd:1098"
+  "source": "game/levels/bunker.gd:1506"
  },
  {
   "id": "5c94089f7468",
   "speaker": "General von Riedhammer",
   "character": "riedhammer",
   "text": "Vor Gericht, Kerner? Damit Leute wie Sie über mich urteilen?",
-  "source": "game/levels/bunker.gd:1131"
+  "source": "game/levels/bunker.gd:1539"
  },
  {
   "id": "43aa67b87dc5",
   "speaker": "General von Riedhammer",
   "character": "riedhammer",
   "text": "Nein. Ich bleibe auf meinem Posten.",
-  "source": "game/levels/bunker.gd:1133"
+  "source": "game/levels/bunker.gd:1541"
  },
  {
   "id": "6d9d893e9fcb",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Granate! Raus, raus!",
-  "source": "game/levels/bunker.gd:1142"
+  "source": "game/levels/bunker.gd:1571"
  },
  {
   "id": "c967de6ca875",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas, lauf!",
-  "source": "game/levels/bunker.gd:1146"
+  "source": "game/levels/bunker.gd:1581"
  },
  {
   "id": "b518f93a7c97",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas? Jonas, hörst du mich? Sag was!",
-  "source": "game/levels/bunker.gd:1159"
+  "source": "game/levels/bunker.gd:1600"
  },
  {
   "id": "fe2b5ed81dd0",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "… Ich bin da. Riedhammer ist tot. Der Kontrollraum ist weg.",
-  "source": "game/levels/bunker.gd:1160"
+  "source": "game/levels/bunker.gd:1601"
  },
  {
   "id": "5f0613c851db",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Komm nach oben, Jonas. Die Sonne geht auf.",
-  "source": "game/levels/bunker.gd:1161"
- },
- {
-  "id": "212bfc021853",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Mann am Boden! Alle Posten: Sperrgebiet absuchen!",
-  "source": "game/levels/curfew.gd:1187"
- },
- {
-  "id": "f49dc518207d",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Drohne meldet Kontakt. Eindringling im Sperrgebiet!",
-  "source": "game/levels/curfew.gd:1189"
- },
- {
-  "id": "3a2801b33057",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Scheinwerfer hat ihn! Alarm, Alarm!",
-  "source": "game/levels/curfew.gd:1191"
- },
- {
-  "id": "0019af22d4e1",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Schüsse! Alle Einheiten, Alarmstufe Rot!",
-  "source": "game/levels/curfew.gd:1193"
- },
- {
-  "id": "11b5364bdf37",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Eindringling gesichtet! Alarm!",
-  "source": "game/levels/curfew.gd:1195"
- },
- {
-  "id": "b1fee1854f70",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Jonas, sie haben dich! Raus aus dem Licht – lauf, versteck dich, warte, bis sie aufgeben.",
-  "source": "game/levels/curfew.gd:1198"
- },
- {
-  "id": "0acd6d1e9c07",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Suche ergebnislos. Alle Posten zurück auf Streife.",
-  "source": "game/levels/curfew.gd:1203"
- },
- {
-  "id": "e9cbd835c6b3",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Sie geben auf. Atme durch – und dann weiter.",
-  "source": "game/levels/curfew.gd:1204"
- },
- {
-  "id": "b39c757a9e6e",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Verstärkung rückt an. Sektor abriegeln!",
-  "source": "game/levels/curfew.gd:1269"
+  "source": "game/levels/bunker.gd:1602"
  },
  {
   "id": "555da2faf82f",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Eindringling in der Fernmeldestelle! Server löschen – sofort!",
-  "source": "game/levels/curfew.gd:1276"
+  "source": "game/levels/curfew.gd:1732"
  },
  {
   "id": "458da059acfd",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Sie haben gelöscht – aber der Nachtlauf spielt die Sicherung zurück. Noch ein Versuch, Jonas. Leiser.",
-  "source": "game/levels/curfew.gd:1296"
- },
- {
-  "id": "8dedcda64b75",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Die Übertragung läuft. Bleib in der Nähe des Terminals, bis sie durch ist.",
-  "source": "game/levels/curfew.gd:1367"
- },
- {
-  "id": "3de0c0dffa77",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Hab sie. Alles drauf.",
-  "source": "game/levels/curfew.gd:1373"
- },
- {
-  "id": "cd85c3f88988",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Das Gitter zum Notausgang ist offen – die Zeitschaltung hat es mit der Übertragung entriegelt. Runter in den Schacht, Voss wartet unten.",
-  "source": "game/levels/curfew.gd:1374"
- },
- {
-  "id": "56918bba2b87",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Zentrale an Anbau B: unautorisierter Zugriff auf Fernmeldestelle 4. Streife, nachsehen.",
-  "source": "game/levels/curfew.gd:1375"
- },
- {
-  "id": "bd8c41be1cb7",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Kerner. Konrad Voss. Willkommen im Untergrund – Lena hat nicht übertrieben.",
-  "source": "game/levels/curfew.gd:1396"
- },
- {
-  "id": "eff9ed7a6618",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Geben Sie mir die Protokolle. Wenn stimmt, was Weber vermutet hat, bricht Riedhammers Lüge heute Nacht zusammen.",
-  "source": "game/levels/curfew.gd:1397"
- },
- {
-  "id": "86d2af4d95fc",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Das war der Letzte. Atme, Jonas. Dann weiter.",
-  "source": "game/levels/ep_lena.gd:466"
- },
- {
-  "id": "9ecff4b74c86",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Einer schaut zu dir rüber. Nicht bewegen, Jonas.",
-  "source": "game/levels/ep_lena.gd:523"
- },
- {
-  "id": "344f0d052573",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Der andere hat ihn fallen sehen – schnell!",
-  "source": "game/levels/ep_lena.gd:585"
- },
- {
-  "id": "ad970f1591b9",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Sie sind am Tor! Lena!",
-  "source": "game/levels/ep_lena.gd:650"
- },
- {
-  "id": "a4ec5686ab39",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Kontakt! Sie haben mich – Lena, ich brauch dich!",
-  "source": "game/levels/ep_lena.gd:713"
- },
- {
-  "id": "c7229c2e416a",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Warte, Jonas. Draußen sind noch zwei.",
-  "source": "game/levels/ep_lena.gd:777"
- },
- {
-  "id": "e35dc5e9c7ec",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Streife liegt. Geh, Jonas – an der rechten Hauswand entlang.",
-  "source": "game/levels/ep_lena.gd:884"
- },
- {
-  "id": "35d726d6f04b",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Unterwegs.",
-  "source": "game/levels/ep_lena.gd:885"
- },
- {
-  "id": "5d8c73903b81",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Kontrollpunkt ist frei. Durch die Schranke, Jonas, und nicht stehen bleiben.",
-  "source": "game/levels/ep_lena.gd:887"
- },
- {
-  "id": "53a86105dfde",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Weg ist frei. Bis zum Platz – dort muss ich umziehen.",
-  "source": "game/levels/ep_lena.gd:889"
- },
- {
-  "id": "99898bbbe37e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Platz ist sauber. Rüber zur Lieferzufahrt, Jonas – an der Hausecke warten.",
-  "source": "game/levels/ep_lena.gd:891"
- },
- {
-  "id": "5b36e83e8e07",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Verstanden. Ich nehm sie mir leise.",
-  "source": "game/levels/ep_lena.gd:893"
- },
- {
-  "id": "af6790a1e823",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Raus jetzt. Notausgang, runter in den Schacht – Voss wartet unten.",
-  "source": "game/levels/ep_lena.gd:895"
- },
- {
-  "id": "74a16dbe31cf",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Stopp. Kontrollpunkt vor dir – ein Offizier am Häuschen, ein Posten an der Schranke. Ich nehme beide, kurz hintereinander.",
-  "source": "game/levels/ep_lena.gd:928"
- },
- {
-  "id": "43c0909a941b",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Halt. Einer kommt dir entgegen, Taschenlampe. Duck dich in den Hauseingang.",
-  "source": "game/levels/ep_lena.gd:930"
- },
- {
-  "id": "bf4fb61926f3",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Lena, Blitzen auf dem Regierungsbau! Da drüben liegt einer!",
-  "source": "game/levels/ep_lena.gd:935"
- },
- {
-  "id": "48e4d99174f7",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Gesehen. Gegenscharfschütze, Dachkante. Wenn er blitzt, geh ich runter.",
-  "source": "game/levels/ep_lena.gd:936"
- },
- {
-  "id": "6a1fe6c32047",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Gasse sauber. Ich geh rein.",
-  "source": "game/levels/ep_lena.gd:968"
- },
- {
-  "id": "318cc0d68f18",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Einer weniger.",
-  "source": "game/levels/ep_lena.gd:984"
- },
- {
-  "id": "2015c62b287f",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Jonas! – Nein. Nicht so. Nicht heute Nacht.",
-  "source": "game/levels/ep_lena.gd:1004"
- },
- {
-  "id": "d05c31750c60",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Bleib unten, bis ich die Straße frei habe. Ich hab dich im Glas.",
-  "source": "game/levels/ep_lena.gd:1016"
- },
- {
-  "id": "a503f8dcd8aa",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Von hier seh ich den Platz nicht. Ich wechsle aufs Ministerium – zwei Minuten, Jonas. Rühr dich nicht.",
-  "source": "game/levels/ep_lena.gd:1026"
- },
- {
-  "id": "b9cded5436f8",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Ich warte. Beeil dich.",
-  "source": "game/levels/ep_lena.gd:1027"
- },
- {
-  "id": "1a52d26237fd",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Bin oben. Aufzugshaus, Ministeriumsdach. Ich seh den ganzen Platz.",
-  "source": "game/levels/ep_lena.gd:1050"
- },
- {
-  "id": "8b1385440a62",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Der Scheinwerfer auf dem Anbau streicht über den Platz. Ein Schuss ins Glas, und er ist blind.",
-  "source": "game/levels/ep_lena.gd:1053"
- },
- {
-  "id": "693166229b3b",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Anbau B an Zentrale: Scheinwerfer ausgefallen. Vermutlich der Regen.",
-  "source": "game/levels/ep_lena.gd:1057"
- },
- {
-  "id": "cb4cfb6ef2a4",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Der Regen hat heute Nacht gute Augen.",
-  "source": "game/levels/ep_lena.gd:1058"
- },
- {
-  "id": "aeb475696215",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ab jetzt bist du für mich unsichtbar, Jonas. Ich halte dir den Rücken frei.",
-  "source": "game/levels/ep_lena.gd:1066"
- },
- {
-  "id": "0b0fee249036",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Terminal gefunden. Übertragung läuft – zweiundzwanzig Sekunden.",
-  "source": "game/levels/ep_lena.gd:1067"
- },
- {
-  "id": "a894b0f3af9f",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Zentrale an Streife Platz: Zwei Mann zur Anlieferung B, Sichtkontrolle.",
-  "source": "game/levels/ep_lena.gd:1079"
- },
- {
-  "id": "591dc5fb4df5",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Zwei kommen über den Platz, Richtung Anlieferung. Die erreichen das Tor nicht.",
-  "source": "game/levels/ep_lena.gd:1080"
- },
- {
-  "id": "596872116e36",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er ist unten. Funk aus, Gewehr runter.",
-  "source": "game/levels/ep_lena.gd:1096"
- },
- {
-  "id": "6fc64821c4e0",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Jonas weiß nicht, dass ich Höhenangst habe. Seit ich denken kann.",
-  "source": "game/levels/ep_lena.gd:1097"
- },
- {
-  "id": "322d1a916d0a",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Mein Vater war Schornsteinfeger in Mitte. Er hat gesagt: Man lernt nicht, keine Angst zu haben – man lernt nur, wohin man schaut.",
-  "source": "game/levels/ep_lena.gd:1098"
- },
- {
-  "id": "998a4212f7d0",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Heute Nacht hab ich nur durchs Glas geschaut. Auf Jonas. Hat funktioniert, Papa.",
-  "source": "game/levels/ep_lena.gd:1099"
- },
- {
-  "id": "a9ccc893ba05",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er hat mich! Runter – die Brüstung deckt nur liegend.",
-  "source": "game/levels/ep_lena.gd:1356"
- },
- {
-  "id": "568e146190e9",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Gegenscharfschütze erledigt.",
-  "source": "game/levels/ep_lena.gd:1394"
- },
- {
-  "id": "333ab4e9bfff",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Die Gasse seh ich nicht ein. Schick die Drohne, Lena.",
-  "source": "game/levels/ep_lena.gd:1397"
- },
- {
-  "id": "57d112fe4c05",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Markiert. Einer in der Gasse – er läuft auf und ab.",
-  "source": "game/levels/ep_lena.gd:1468"
- },
- {
-  "id": "8d6aaec8032d",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Zweiter am Rolltor. Steht still und schaut zur Straße.",
-  "source": "game/levels/ep_lena.gd:1470"
- },
- {
-  "id": "3e58ea187f79",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Beide markiert, Jonas. Ich sag dir, wann sie wegsehen.",
-  "source": "game/levels/ep_lena.gd:1473"
- },
- {
-  "id": "e6fb3f9a1be7",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Lena! Das war ich! Ich bin getroffen!",
-  "source": "game/levels/ep_lena.gd:1615"
+  "source": "game/levels/curfew.gd:1752"
  },
  {
   "id": "b5a1d77fec42",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Garde-Leitstelle an alle: Eindringlinge am Turmfuß. Haltet den Sender.",
-  "source": "game/levels/funkturm.gd:217"
+  "source": "game/levels/funkturm.gd:235"
  },
  {
   "id": "6c1a287fa2fc",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas, das ist er. Der Funkturm. Von da oben spricht Riedhammer heute Nacht zu ganz Berlin.",
-  "source": "game/levels/funkturm.gd:344"
+  "source": "game/levels/funkturm.gd:381"
  },
  {
   "id": "12574ed082bc",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Dann reden wir ihm rein. Ich geh über die Messe, du hältst den Lkw an der Ostseite warm.",
-  "source": "game/levels/funkturm.gd:353"
+  "source": "game/levels/funkturm.gd:390"
  },
  {
   "id": "e4f00272dcc6",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Scheinwerfer auf der Plaza, Garde in Stellung, mindestens ein Gepanzerter. Bleib aus den Lichtkegeln.",
-  "source": "game/levels/funkturm.gd:354"
+  "source": "game/levels/funkturm.gd:391"
  },
  {
   "id": "6614dce728a9",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Aufzug ist tot. Ich nehm die Treppe.",
-  "source": "game/levels/funkturm.gd:364"
+  "source": "game/levels/funkturm.gd:401"
  },
  {
   "id": "f721c650cfad",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Ich hab den Garde-Kanal. Hör mal.",
-  "source": "game/levels/funkturm.gd:365"
+  "source": "game/levels/funkturm.gd:402"
  },
  {
   "id": "fcd3a6a23719",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Falk, Weber hier. Planquadrat Gustav-Sieben, Sammelpunkt der Loyalen an der Heerstraße. Zwei Kompanien, ab Mitternacht.",
-  "source": "game/levels/funkturm.gd:366"
+  "source": "game/levels/funkturm.gd:403"
  },
  {
   "id": "1be29ff580f3",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Notiert. Und Weber – Sie sind ein nützlicher Mann. Noch.",
-  "source": "game/levels/funkturm.gd:367"
+  "source": "game/levels/funkturm.gd:404"
  },
  {
   "id": "52d26032b034",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Das war Weber. Vor sechs Tagen ist er uns am Traunsee entwischt – und jetzt gibt er Falk Koordinaten?",
-  "source": "game/levels/funkturm.gd:368"
+  "source": "game/levels/funkturm.gd:405"
  },
  {
   "id": "25d5001fc222",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Falk hat Jäger auf ihn gehetzt. Jetzt reden sie miteinander. Später. Erst der Sender.",
-  "source": "game/levels/funkturm.gd:369"
- },
- {
-  "id": "8d9123ec6bcc",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Du bist draußen am Gitter, ich seh dich vom Lkw aus. Nicht nach unten schauen, Jonas.",
-  "source": "game/levels/funkturm.gd:378"
- },
- {
-  "id": "d65d104ad404",
-  "speaker": "General von Riedhammer",
-  "character": "riedhammer",
-  "text": "Bürger Berlins. Die Ordnung kehrt zurück. Wer heute Nacht seine Tür verschlossen hält, hat nichts zu fürchten.",
-  "source": "game/levels/funkturm.gd:381"
- },
- {
-  "id": "ccbd2ec1b230",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er ist auf allen Frequenzen. Radio, Lautsprecherwagen, sogar die Straßenbahnanzeigen.",
-  "source": "game/levels/funkturm.gd:384"
+  "source": "game/levels/funkturm.gd:406"
  },
  {
   "id": "6935dae93874",
   "speaker": "General von Riedhammer",
   "character": "riedhammer",
   "text": "Die sogenannten Loyalen sind Söldner einer fremden Macht. Meldet sie. Die Garde schützt euch.",
-  "source": "game/levels/funkturm.gd:393"
- },
- {
-  "id": "642f3e791a2a",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Das Pult im Sendesaal. Halt den Schalter, bis ich seine Leitung überschrieben hab.",
-  "source": "game/levels/funkturm.gd:394"
- },
- {
-  "id": "53034f82f71e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ich bin drin. Halt durch, das dauert. Die merken das sofort.",
-  "source": "game/levels/funkturm.gd:401"
- },
- {
-  "id": "c789d171e8f7",
-  "speaker": "General von Riedhammer",
-  "character": "riedhammer",
-  "text": "Ab Mitternacht gilt das Standrecht. Wer sich der Garde widersetzt –",
-  "source": "game/levels/funkturm.gd:402"
- },
- {
-  "id": "a95a69e4aa4e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Halbe Strecke. Von der Terrasse kommen noch mehr!",
-  "source": "game/levels/funkturm.gd:427"
- },
- {
-  "id": "05a05ffadd06",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Kappt die Leitung im Sendesaal! Sofort!",
-  "source": "game/levels/funkturm.gd:430"
+  "source": "game/levels/funkturm.gd:433"
  },
  {
   "id": "fdb7974f51ab",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Sendung ist tot.",
-  "source": "game/levels/funkturm.gd:443"
+  "source": "game/levels/funkturm.gd:487"
  },
  {
   "id": "5198f530f0ec",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Meine Leitung steht. Ich geh auf Sendung.",
-  "source": "game/levels/funkturm.gd:444"
+  "source": "game/levels/funkturm.gd:488"
  },
  {
   "id": "d5993c11c049",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Berlin, hier spricht Obergefreite Lena Aksoy. Die Ordnungsfront hat euch belogen. Bleibt in den Häusern, nicht aus Angst – sondern bis wir euch holen. Die Loyalen kommen.",
-  "source": "game/levels/funkturm.gd:445"
- },
- {
-  "id": "b0eaf6d54aac",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Jonas, Hubschrauber von Westen! Im Sendesaal liegt eine Panzerfaust, Kisten daneben.",
-  "source": "game/levels/funkturm.gd:450"
+  "source": "game/levels/funkturm.gd:489"
  },
  {
   "id": "51c06cae150a",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Kerner. Ich hab mir gedacht, dass Sie das sind. Schöne Aussicht da oben, nicht? Genießen Sie sie.",
-  "source": "game/levels/funkturm.gd:451"
- },
- {
-  "id": "ae6e7da82efe",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er ist runter! Er brennt!",
   "source": "game/levels/funkturm.gd:495"
  },
  {
@@ -1579,188 +949,139 @@
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Alle Einheiten zum Funkturm. Riegelt den Fuß ab. Niemand kommt da runter.",
-  "source": "game/levels/funkturm.gd:510"
- },
- {
-  "id": "b3437bea26f6",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Fassadenlift an der Ostseite! Neunzig Sekunden, Jonas, dann ist unten zu.",
-  "source": "game/levels/funkturm.gd:511"
+  "source": "game/levels/funkturm.gd:554"
  },
  {
   "id": "c86002794c90",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Zu spät, Kerner.",
-  "source": "game/levels/funkturm.gd:524"
- },
- {
-  "id": "dad2e4ce9d68",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Bin im Lift. Runter!",
-  "source": "game/levels/funkturm.gd:541"
- },
- {
-  "id": "38b9a58b25d5",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Falks Vorhut am Fuß, Lkw von Süden! Ich geb dir Deckung!",
-  "source": "game/levels/funkturm.gd:559"
- },
- {
-  "id": "d90f7735c20b",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Unten! Raus und zu mir – Lkw steht vorn links, ich blink dich an!",
-  "source": "game/levels/funkturm.gd:564"
- },
- {
-  "id": "5a9c820a57bc",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Drin! Halt dich fest!",
-  "source": "game/levels/funkturm.gd:652"
+  "source": "game/levels/funkturm.gd:569"
  },
  {
   "id": "18d8b54b54da",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Fahr. Und Lena – gute Sendung.",
-  "source": "game/levels/funkturm.gd:653"
- },
- {
-  "id": "1ef1693b13f4",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Noch mal, Jonas. Der Lift ist wieder oben.",
-  "source": "game/levels/funkturm.gd:672"
+  "source": "game/levels/funkturm.gd:698"
  },
  {
   "id": "7766ade4937b",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Wächter auf Station. Zweieinhalbtausend Fuß, Linkskurve über Lindenau. Kerner, die Optik gehört Ihnen.",
-  "source": "game/levels/gunship_level.gd:294"
+  "source": "game/levels/gunship_level.gd:303"
  },
  {
   "id": "e64f87aa5f00",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Hier Lena. Wir liegen am Waldrand vor dem Südtor. Seht ihr die Blinker?",
-  "source": "game/levels/gunship_level.gd:295"
+  "source": "game/levels/gunship_level.gd:304"
  },
  {
   "id": "4124ea3323ab",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Sechs Blinker, Waldrand Süd. Ich hab euch.",
-  "source": "game/levels/gunship_level.gd:296"
+  "source": "game/levels/gunship_level.gd:305"
  },
  {
   "id": "7c5d05725815",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Eigene Verluste! Kerner, du hast uns getroffen!",
-  "source": "game/levels/gunship_level.gd:307"
+  "source": "game/levels/gunship_level.gd:316"
  },
  {
   "id": "0f5f23e03c8d",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Wir werden überrannt! Rückzug, sofort!",
-  "source": "game/levels/gunship_level.gd:309"
+  "source": "game/levels/gunship_level.gd:318"
  },
  {
   "id": "83be00dadf6d",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Triebwerk drei brennt, wir verlieren Höhe! Wir müssen abdrehen!",
-  "source": "game/levels/gunship_level.gd:311"
+  "source": "game/levels/gunship_level.gd:320"
  },
  {
   "id": "d45f59f05b9c",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Der Konvoi ist durch. Verdammt.",
-  "source": "game/levels/gunship_level.gd:313"
+  "source": "game/levels/gunship_level.gd:322"
  },
  {
   "id": "e78a64c1285f",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Der Jet ist in der Luft! Er dreht auf Leipzig!",
-  "source": "game/levels/gunship_level.gd:315"
+  "source": "game/levels/gunship_level.gd:324"
  },
  {
   "id": "2c4dd712b0b3",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Neu ansetzen. Wir fliegen die Kurve noch einmal.",
-  "source": "game/levels/gunship_level.gd:327"
+  "source": "game/levels/gunship_level.gd:336"
  },
  {
   "id": "8ebf4841b154",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Alles, was nicht blinkt, gehört Riedhammer. Räumen Sie den Zaun ab.",
-  "source": "game/levels/gunship_level.gd:356"
+  "source": "game/levels/gunship_level.gd:365"
  },
  {
   "id": "7648fe086c7e",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Leuchtspur links unten – Flak! Die schießen nach Gehör. Nehmen Sie sie raus.",
-  "source": "game/levels/gunship_level.gd:363"
+  "source": "game/levels/gunship_level.gd:372"
  },
  {
   "id": "a8536a8cb90f",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Wache Süd an Platz: Beschuss aus der Luft! Wir sehen nichts!",
-  "source": "game/levels/gunship_level.gd:364"
+  "source": "game/levels/gunship_level.gd:373"
  },
  {
   "id": "cf05213439dd",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Zaun ist frei. Wir fahren rein – haltet uns den Weg zum Hangar offen.",
-  "source": "game/levels/gunship_level.gd:368"
+  "source": "game/levels/gunship_level.gd:377"
  },
  {
   "id": "86e8f6c447f8",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Alarm, Alarm! Fahrzeug durchbricht das Südtor! Alle Kräfte zu den Hangars!",
-  "source": "game/levels/gunship_level.gd:386"
+  "source": "game/levels/gunship_level.gd:395"
  },
  {
   "id": "72a3bf0df97d",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Absitzen! Hangar zwei, los, los!",
-  "source": "game/levels/gunship_level.gd:393"
+  "source": "game/levels/gunship_level.gd:402"
  },
  {
   "id": "11f6e17265b0",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Schützenpanzer kommt aus dem Fahrzeugpark. Den knacken nur die Hundertfünfer.",
-  "source": "game/levels/gunship_level.gd:399"
+  "source": "game/levels/gunship_level.gd:408"
  },
  {
   "id": "27fc5164df4e",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Hangar gesichert. Wir gehen rüber zum Tower.",
-  "source": "game/levels/gunship_level.gd:402"
- },
- {
-  "id": "5e1051155d49",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Tower an Wache: Sie kommen über das Vorfeld! Haltet die Treppe!",
   "source": "game/levels/gunship_level.gd:411"
  },
  {
@@ -1768,1875 +1089,1308 @@
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Tower ist unser. Und der Platzkommandant hat sich abgesetzt – Konvoi Richtung Nordtor!",
-  "source": "game/levels/gunship_level.gd:416"
+  "source": "game/levels/gunship_level.gd:426"
  },
  {
   "id": "a7b1551ebf4f",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Ich ziehe die Kurve nach Norden. Der Konvoi darf das Dorf nicht verlassen.",
-  "source": "game/levels/gunship_level.gd:440"
+  "source": "game/levels/gunship_level.gd:450"
  },
  {
   "id": "8484e862ebc3",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Konvoi auf der Straße nach Norden. Ich bleibe von den Häusern weg.",
-  "source": "game/levels/gunship_level.gd:453"
+  "source": "game/levels/gunship_level.gd:463"
  },
  {
   "id": "d059d7647e82",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Konvoi steht. Saubere Arbeit, Kerner.",
-  "source": "game/levels/gunship_level.gd:458"
+  "source": "game/levels/gunship_level.gd:468"
  },
  {
   "id": "6a7c97557e4e",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Moment – Feuerleitradar! Wir sind aufgeschaltet!",
-  "source": "game/levels/gunship_level.gd:475"
+  "source": "game/levels/gunship_level.gd:485"
  },
  {
   "id": "c45ba4fc99bc",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Das war knapp. Nehmen Sie die Stellungen und das Radar raus, sonst kommt die nächste.",
-  "source": "game/levels/gunship_level.gd:484"
+  "source": "game/levels/gunship_level.gd:494"
  },
  {
   "id": "c54f32031495",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Feuerleitung Lindenau: Ziel erfasst, Start!",
-  "source": "game/levels/gunship_level.gd:498"
+  "source": "game/levels/gunship_level.gd:508"
  },
  {
   "id": "f470c4bc510d",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Radar ausgefallen! Optisch nachführen, Start!",
-  "source": "game/levels/gunship_level.gd:501"
+  "source": "game/levels/gunship_level.gd:511"
  },
  {
   "id": "c64f56037369",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Luftraum sauber. Danke, Kerner.",
-  "source": "game/levels/gunship_level.gd:505"
+  "source": "game/levels/gunship_level.gd:515"
  },
  {
   "id": "eee99506767b",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Vom Tower sehen wir das Betankungsvorfeld. Vier Jets, voll bewaffnet – die sollen heute Nacht Leipzig angreifen.",
-  "source": "game/levels/gunship_level.gd:522"
+  "source": "game/levels/gunship_level.gd:532"
  },
  {
   "id": "c645ca2c9c62",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Ein Jet rollt! Er will zur Bahn!",
-  "source": "game/levels/gunship_level.gd:536"
+  "source": "game/levels/gunship_level.gd:546"
  },
  {
   "id": "ef15c4abd654",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Der darf nicht abheben. Vierzig Millimeter, aufs Fahrwerk!",
-  "source": "game/levels/gunship_level.gd:537"
+  "source": "game/levels/gunship_level.gd:547"
  },
  {
   "id": "06baea16bbd9",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Tanklager brennt … Lindenau, bitte kommen … Lindenau?",
-  "source": "game/levels/gunship_level.gd:551"
+  "source": "game/levels/gunship_level.gd:561"
  },
  {
   "id": "ed618aea978f",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jetzt der Sender. Wir fahren zum Funkbunker – Webers Protokolle gehen auf allen Frequenzen raus.",
-  "source": "game/levels/gunship_level.gd:561"
+  "source": "game/levels/gunship_level.gd:571"
  },
  {
   "id": "8877348dd309",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Kaserne Nord: LKW auf der Ringstraße! Sperre errichten, sofort!",
-  "source": "game/levels/gunship_level.gd:573"
+  "source": "game/levels/gunship_level.gd:583"
  },
  {
   "id": "269bff5c9529",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Wir sind drin. Einspeisung läuft. Haltet sie uns vom Leib!",
-  "source": "game/levels/gunship_level.gd:578"
+  "source": "game/levels/gunship_level.gd:588"
  },
  {
   "id": "6fb19925b0df",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "Alle Einheiten zum Sendemast! Der Mast darf nicht fallen!",
-  "source": "game/levels/gunship_level.gd:596"
+  "source": "game/levels/gunship_level.gd:606"
  },
  {
   "id": "3d07e8ffd2f7",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Kampfpanzer aus dem Fahrzeugpark, Richtung Bunker. Hundertfünf bereithalten.",
-  "source": "game/levels/gunship_level.gd:608"
- },
- {
-  "id": "64cd2779a1d3",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Schulterrakete vom Kasernendach! Täuschkörper!",
-  "source": "game/levels/gunship_level.gd:611"
+  "source": "game/levels/gunship_level.gd:618"
  },
  {
   "id": "356d3a815b98",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Wir sind auf Sendung. Landesweit.",
-  "source": "game/levels/gunship_level.gd:621"
+  "source": "game/levels/gunship_level.gd:631"
  },
  {
   "id": "6f9aad3667f6",
   "speaker": "Ordnungsfront-Funk",
   "character": "riedhammer",
   "text": "An alle Einheiten: Empfang auf allen Frequenzen sofort einstellen! Das ist Feindpropaganda!",
-  "source": "game/levels/gunship_level.gd:622"
+  "source": "game/levels/gunship_level.gd:632"
  },
  {
   "id": "a0de4c7cc351",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Zu spät. Das ganze Land hört Weber zu – mit seiner eigenen Stimme.",
-  "source": "game/levels/gunship_level.gd:623"
+  "source": "game/levels/gunship_level.gd:633"
  },
  {
   "id": "67409b88b954",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Wächter dreht ab. Kerner, Feuerleitung sichern. Gute Jagd.",
-  "source": "game/levels/gunship_level.gd:624"
+  "source": "game/levels/gunship_level.gd:634"
  },
  {
   "id": "959e854dabc0",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Feuer einstellen! Das sind wir!",
-  "source": "game/levels/gunship_level.gd:641"
+  "source": "game/levels/gunship_level.gd:651"
  },
  {
-  "id": "84b955e9a337",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Mein Türschütze übernimmt. Köpfe runter!",
-  "source": "game/levels/hafen.gd:330"
+  "id": "3d46bd027401",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Ich bin hier festgenagelt, Jonas. So kommen wir nicht durch!",
+  "source": "game/levels/hafen.gd:409"
+ },
+ {
+  "id": "9329185ff0ee",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Er ist weg! Wir haben ihn verloren!",
+  "source": "game/levels/hafen.gd:411"
  },
  {
   "id": "0288555226cf",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Hier Brandt. Ich kreise über der Warnow, Lichter aus. Offiziell ist das ein Werkstattflug.",
-  "source": "game/levels/hafen.gd:499"
+  "source": "game/levels/hafen.gd:612"
  },
  {
   "id": "65dbc556341b",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Stellung auf dem Portalkran. Ich hab die ganze Hauptgasse im Glas.",
-  "source": "game/levels/hafen.gd:500"
+  "source": "game/levels/hafen.gd:613"
  },
  {
   "id": "937e8453b624",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Ich geh unten durch die Gasse. Weber soll heute Nacht an Liegeplatz sieben ablegen, mit der Akte Nordlicht.",
-  "source": "game/levels/hafen.gd:501"
+  "source": "game/levels/hafen.gd:614"
  },
  {
   "id": "d6519f3fe286",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Seewind aus Westsüd, böig. Die Wimpel an den Lichtmasten zeigen dir, wohin er drückt.",
-  "source": "game/levels/hafen.gd:502"
+  "source": "game/levels/hafen.gd:615"
  },
  {
   "id": "5d8e75b94c2d",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Abbruch! Lena, zurück in die letzte Deckung. Wir setzen neu an.",
-  "source": "game/levels/hafen.gd:510"
+  "source": "game/levels/hafen.gd:623"
  },
  {
   "id": "4e9bdbe4bf61",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Wir laufen voll! Brandt, zieh uns raus!",
-  "source": "game/levels/hafen.gd:533"
+  "source": "game/levels/hafen.gd:648"
+ },
+ {
+  "id": "a85bd1ba63d7",
+  "speaker": "Oberstlt. Brandt",
+  "character": "brandt",
+  "text": "Zurück auf Position, wir setzen neu an. Diesmal schneller, Kerner.",
+  "source": "game/levels/hafen.gd:667"
  },
  {
   "id": "123f658beac2",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Neues Boot, gleicher Kurs. Ich bleib über euch.",
-  "source": "game/levels/hafen.gd:548"
- },
- {
-  "id": "8a7e2ce9f6ab",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Zwei Hafenwachen am Wachhäuschen. Die haben mich gesehen!",
-  "source": "game/levels/hafen.gd:588"
- },
- {
-  "id": "1b4197ae70ad",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Ich hab sie. Bleib unten.",
-  "source": "game/levels/hafen.gd:589"
+  "source": "game/levels/hafen.gd:669"
  },
  {
   "id": "08c43a32193b",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Danke. Weiter zur nächsten Querreihe.",
-  "source": "game/levels/hafen.gd:596"
- },
- {
-  "id": "4b670a097ac3",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Graue Mäntel an den Betonsperren. Das ist keine Hafenwache, Jonas. Das sind Garde-Jäger.",
-  "source": "game/levels/hafen.gd:613"
+  "source": "game/levels/hafen.gd:740"
  },
  {
   "id": "c91ae7c3dc2b",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Kerner. Sie suchen Weber, ich suche Weber. Bleiben Sie mir aus dem Weg.",
-  "source": "game/levels/hafen.gd:622"
- },
- {
-  "id": "773cdd0101d0",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Lichtmast im Süden, oben auf der Plattform. Da blitzt ein Zielfernrohr!",
-  "source": "game/levels/hafen.gd:623"
+  "source": "game/levels/hafen.gd:801"
  },
  {
   "id": "d35c03b5e7ff",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Sperre ist frei. Ich geh außen um die Blöcke.",
-  "source": "game/levels/hafen.gd:630"
+  "source": "game/levels/hafen.gd:809"
  },
  {
   "id": "8fa26a6b0083",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Da! Querreihe zweihundertfünfunddreißig, von Westen. Das ist Weber!",
-  "source": "game/levels/hafen.gd:649"
- },
- {
-  "id": "cf9093cb7480",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Ich seh ihn. Dunkler Mantel, Aktenkoffer. Die Akte Nordlicht.",
-  "source": "game/levels/hafen.gd:650"
+  "source": "game/levels/hafen.gd:852"
  },
  {
   "id": "37653e90962f",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Nicht auf Weber schießen! Wir brauchen ihn lebend, und die Akte auch.",
-  "source": "game/levels/hafen.gd:651"
+  "source": "game/levels/hafen.gd:853"
+ },
+ {
+  "id": "cf9093cb7480",
+  "speaker": "Kerner",
+  "character": "kerner",
+  "text": "Ich seh ihn. Dunkler Mantel, Aktenkoffer. Die Akte Nordlicht.",
+  "source": "game/levels/hafen.gd:855"
  },
  {
   "id": "9793435674c2",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Runter zum Wasser, beide. Am Zollsteg liegt ein Schnellboot. Ich bleib über euch.",
-  "source": "game/levels/hafen.gd:659"
+  "source": "game/levels/hafen.gd:865"
  },
  {
   "id": "0d986b2069d7",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Er springt in ein Boot! Liegeplatz sieben!",
-  "source": "game/levels/hafen.gd:676"
+  "source": "game/levels/hafen.gd:882"
  },
  {
   "id": "ca637529e980",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Treffer auf Weber! Feuer einstellen, verdammt. Den brauchen wir lebend!",
-  "source": "game/levels/hafen.gd:688"
+  "source": "game/levels/hafen.gd:895"
  },
  {
   "id": "2f2ca8c7a95f",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Weber ist getroffen. Das war's, Abbruch!",
-  "source": "game/levels/hafen.gd:690"
+  "source": "game/levels/hafen.gd:897"
  },
  {
   "id": "8024a2b0cac1",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas! Das war ich! Schau durchs Glas, bevor du abdrückst!",
-  "source": "game/levels/hafen.gd:699"
+  "source": "game/levels/hafen.gd:906"
  },
  {
   "id": "d2658922890c",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Ich bin getroffen! Abbruch!",
-  "source": "game/levels/hafen.gd:701"
+  "source": "game/levels/hafen.gd:908"
  },
  {
   "id": "d22c4f3bc3d9",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Der Schuss kam vom Lichtmast! Wenn es dort oben blitzt, geh in Deckung!",
-  "source": "game/levels/hafen.gd:837"
+  "source": "game/levels/hafen.gd:1121"
  },
  {
   "id": "e4b5d48ac7c6",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Ich fahre. Kerner, nimm das MG am Bug.",
-  "source": "game/levels/hafen.gd:916"
+  "source": "game/levels/hafen.gd:1201"
  },
  {
   "id": "994884aa3c3b",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Weber hält auf die Warnow zu. Die Garde hat Boote im Becken, Falk will ihn auch.",
-  "source": "game/levels/hafen.gd:917"
+  "source": "game/levels/hafen.gd:1202"
  },
  {
   "id": "0663776c787b",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Kerner? Ihr seid hartnäckig. Aber Nordlicht ist größer als ihr alle.",
-  "source": "game/levels/hafen.gd:918"
+  "source": "game/levels/hafen.gd:1211"
+ },
+ {
+  "id": "86e576910da4",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "MG-Schütze ist weg, das Boot dreht ab!",
+  "source": "game/levels/hafen.gd:1385"
  },
  {
   "id": "543e38dd3528",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Nicht auf Webers Boot! Wir brauchen ihn und die Akte, nicht ein Wrack.",
-  "source": "game/levels/hafen.gd:1017"
+  "source": "game/levels/hafen.gd:1446"
  },
  {
   "id": "ed65ccfe12c4",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Ihr versenkt ihn! Abbruch!",
-  "source": "game/levels/hafen.gd:1019"
+  "source": "game/levels/hafen.gd:1448"
  },
  {
   "id": "0d4f5899a7f3",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Becken ist frei. Weiter zur Hubbrücke!",
-  "source": "game/levels/hafen.gd:1040"
- },
- {
-  "id": "46fee5cc9c05",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Schützen auf der Hubbrücke! Lena, halt davor an, sonst schießen sie euch von oben in den Kahn.",
-  "source": "game/levels/hafen.gd:1051"
+  "source": "game/levels/hafen.gd:1488"
  },
  {
   "id": "ffd5a372a101",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Weber gehört der Garde, Kerner. Drehen Sie um, solange Sie noch ein Boot haben.",
-  "source": "game/levels/hafen.gd:1056"
+  "source": "game/levels/hafen.gd:1544"
  },
  {
   "id": "1eec85ffe5b7",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Brücke ist frei. Festhalten!",
-  "source": "game/levels/hafen.gd:1063"
- },
- {
-  "id": "3e8341efc42a",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Hubschrauber aus Richtung Warnemünde, Garde-Kennung! Der ist schwerer bewaffnet als ich.",
-  "source": "game/levels/hafen.gd:1076"
- },
- {
-  "id": "600a5e1a5fd1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Boote an beiden Seiten! Kerner, erst den Vogel!",
-  "source": "game/levels/hafen.gd:1077"
+  "source": "game/levels/hafen.gd:1557"
  },
  {
   "id": "97d2098fae7a",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Hubschrauber ist unten. Wo ist Weber?",
-  "source": "game/levels/hafen.gd:1085"
+  "source": "game/levels/hafen.gd:1627"
  },
  {
   "id": "d91aa1ed317a",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Er hält auf den Frachter zu! Die Aurelia!",
-  "source": "game/levels/hafen.gd:1135"
+  "source": "game/levels/hafen.gd:1698"
+ },
+ {
+  "id": "35c839bd39e9",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Feuer einstellen, Kerner. An der Gangway stehen Matrosen, und Weber brauchen wir lebend.",
+  "source": "game/levels/hafen.gd:1699"
  },
  {
   "id": "465751bfc53a",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Er ist an der Gangway. Ich hab keinen Schuss, ohne ihn umzubringen.",
-  "source": "game/levels/hafen.gd:1140"
+  "source": "game/levels/hafen.gd:1704"
  },
  {
   "id": "9f54eab5a248",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Sagen Sie Voss, er soll mich in den Bergen suchen. Wenn er sich traut.",
-  "source": "game/levels/hafen.gd:1143"
+  "source": "game/levels/hafen.gd:1708"
  },
  {
   "id": "b63af11e2e58",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Die Aurelia hat Ausfahrt Richtung Süden angemeldet. Weiterreise über Land, in die Alpen.",
-  "source": "game/levels/hafen.gd:1144"
+  "source": "game/levels/hafen.gd:1709"
  },
  {
   "id": "c250a1089565",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Dann gehen wir nach Süden. Bis auf den Alpenpass, wenn es sein muss.",
-  "source": "game/levels/hafen.gd:1145"
+  "source": "game/levels/hafen.gd:1710"
  },
  {
   "id": "eac35b5a38bb",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Bis hier hab ich dich gebracht, Jonas. Der Schacht am Ende führt in den alten Sammler unter dem Reichstag – da unten ist es stockfinster.",
-  "source": "game/levels/kanalisation.gd:1046"
- },
- {
-  "id": "5de09146985c",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Nimm das Nachtsichtgerät. Die Lampe siehst du besser – aber jeder Gardist sieht dich auch.",
-  "source": "game/levels/kanalisation.gd:1048"
- },
- {
-  "id": "0da4d88743ce",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Ich bleibe am Einstieg und halte den Funk. Unten keine Hast. Wasser trägt jedes Geräusch.",
-  "source": "game/levels/kanalisation.gd:1050"
- },
- {
-  "id": "c573640c250f",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Jonas, die Pfeiler – da hängen Ladungen dran. Mit Lichtschranken quer über den Gang.",
-  "source": "game/levels/kanalisation.gd:1064"
- },
- {
-  "id": "bcd05a4f1834",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Das sind die Fundamente des Plenarsaals. Falk will alles hinter sich zusprengen, wenn der Ring sich schließt.",
-  "source": "game/levels/kanalisation.gd:1066"
- },
- {
-  "id": "ca59db2dcdd6",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Entschärf sie, wenn du rankommst. Oder geh durchs Becken außen herum – nass und laut, aber an den Strahlen vorbei.",
-  "source": "game/levels/kanalisation.gd:1068"
- },
- {
-  "id": "99e7863bbf22",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Bin oben. Keller ist leer.",
-  "source": "game/levels/kanalisation.gd:1086"
+  "source": "game/levels/kanalisation.gd:1285"
  },
  {
   "id": "042258cc1ab4",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Wer auch immer da unten war: Ich weiß, wohin der Schacht führt. Oben warte ich.",
-  "source": "game/levels/kanalisation.gd:1088"
- },
- {
-  "id": "89d1570bdebe",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Mann am Boden im Sammler! Alle Streifen absuchen – jeden Winkel!",
-  "source": "game/levels/kanalisation.gd:1099"
- },
- {
-  "id": "a6cb66089495",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Schüsse unter Achse B! Alarm. Riegelt die Durchgänge ab!",
-  "source": "game/levels/kanalisation.gd:1101"
- },
- {
-  "id": "8b5dd9895b50",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Kontakt im Sammler. Er ist allein – holt ihn mir!",
-  "source": "game/levels/kanalisation.gd:1103"
- },
- {
-  "id": "23426d0aca02",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Sie haben dich! Lampe aus, raus aus ihrem Licht – oder kämpf dich durch.",
-  "source": "game/levels/kanalisation.gd:1106"
- },
- {
-  "id": "d6951894abb6",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "… Nichts? Streifen zurück auf ihre Posten. Und haltet die Augen offen.",
-  "source": "game/levels/kanalisation.gd:1111"
- },
- {
-  "id": "7aa23c74c1f5",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Zweiter Zug runter in den Sammler. Von beiden Seiten.",
-  "source": "game/levels/kanalisation.gd:1157"
- },
- {
-  "id": "696c46cdc91f",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Schickt die Gepanzerten. Ich will das erledigt haben.",
-  "source": "game/levels/kanalisation.gd:1159"
- },
- {
-  "id": "47aab01d755b",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Da drin zählt einer laut runter, Jonas. Die machen ernst – geh rein, jetzt!",
-  "source": "game/levels/kanzleramt.gd:920"
- },
- {
-  "id": "b995e4a9d22c",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Feuer einstellen! Das war eine Geisel! Kerner – Abbruch, zurück auf Position.",
-  "source": "game/levels/kanzleramt.gd:929"
- },
- {
-  "id": "5bd71c3468f2",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Schuss im Raum – sie haben eine Geisel erschossen. Zu langsam, Jonas. Zurück, noch mal.",
-  "source": "game/levels/kanzleramt.gd:931"
- },
- {
-  "id": "da53d2ffbfbe",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Neuer Versuch. Ladung, Deckung, rein – und schieß nur, wenn die Linie frei ist.",
-  "source": "game/levels/kanzleramt.gd:957"
+  "source": "game/levels/kanalisation.gd:1334"
  },
  {
   "id": "ddb6a99f7112",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Kerner, hier Voss. Der Versorgungsgang endet unter der Lobby. Meine Leute sind direkt hinter Ihnen.",
-  "source": "game/levels/kanzleramt.gd:963"
+  "source": "game/levels/kanzleramt.gd:1566"
  },
  {
   "id": "b6a9d05b49e0",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Die Garde hat die Säulen verdrahtet. Weber hatte recht – Riedhammer sprengt lieber das Viertel, als aufzugeben.",
-  "source": "game/levels/kanzleramt.gd:964"
- },
- {
-  "id": "45ff5b155f46",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Kerner. Ich hatte gehofft, dass Sie es sind. Hinter jeder Tür hier steht einer meiner Männer mit einer Pistole. Klopfen Sie ruhig an.",
-  "source": "game/levels/kanzleramt.gd:968"
- },
- {
-  "id": "8c0f942db50d",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Kabinettssaal: drei Geiseln, drei Wachen. [E] halten für die Ladung, [F] tritt die Tür ein, [B] nimmt eine Blendgranate mit. Danach hast du zwei Sekunden – triff nur die Wachen.",
-  "source": "game/levels/kanzleramt.gd:972"
- },
- {
-  "id": "cd71ed251832",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Saal gesichert! Meine Leute holen die Abgeordneten raus. Weiter, Kerner – erst das Ostbüro, dann der Westflügel.",
-  "source": "game/levels/kanzleramt.gd:977"
+  "source": "game/levels/kanzleramt.gd:1567"
  },
  {
   "id": "928ef7e5da61",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Zwei mehr in Sicherheit. Hartmann ist oben im Saal unterm Dach. Das Treppenhaus ist dicht – Garde und Gepanzerte.",
-  "source": "game/levels/kanzleramt.gd:984"
- },
- {
-  "id": "a89a1db8c40a",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Meine Garde weicht nicht, Kerner. Sie hat keinen Ort mehr, an den sie gehen könnte. Genau wie Sie.",
-  "source": "game/levels/kanzleramt.gd:988"
- },
- {
-  "id": "6875286ee1dc",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Gepanzerte! Zieh auf Kopf und Gelenke, nicht auf die Platten.",
-  "source": "game/levels/kanzleramt.gd:992"
- },
- {
-  "id": "fa7e807a961d",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Letzte Tür. Die Präsidentin und zwei Abgeordnete, drei Wachen. Das muss sitzen, Jonas.",
-  "source": "game/levels/kanzleramt.gd:997"
- },
- {
-  "id": "76586661426b",
-  "speaker": "Präsidentin Hartmann",
-  "character": "hartmann",
-  "text": "Nicht schießen! Ich bin Hartmann … Sie sind Voss' Leute?",
-  "source": "game/levels/kanzleramt.gd:1003"
+  "source": "game/levels/kanzleramt.gd:1592"
  },
  {
   "id": "436dada786fe",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Kerner. Wir bringen Sie raus, Frau Präsidentin.",
-  "source": "game/levels/kanzleramt.gd:1004"
+  "source": "game/levels/kanzleramt.gd:1612"
  },
  {
   "id": "d61a945b9df6",
   "speaker": "Präsidentin Hartmann",
   "character": "hartmann",
   "text": "Riedhammer war eben noch hier – er will in den Bunker! Da, hinter dem Glas!",
-  "source": "game/levels/kanzleramt.gd:1005"
- },
- {
-  "id": "6d4ee71e8d13",
-  "speaker": "General von Riedhammer",
-  "character": "riedhammer",
-  "text": "Falk! Die Tür – schließen Sie die verdammte Tür!",
-  "source": "game/levels/kanzleramt.gd:1043"
+  "source": "game/levels/kanzleramt.gd:1613"
  },
  {
   "id": "0f3095bc6c8d",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Zu spät, Kerner. Der General ist dort, wo Sie ihn nie erreichen. Und unter Ihren Füßen liegt genug Sprengstoff für den ganzen Spreebogen.",
-  "source": "game/levels/kanzleramt.gd:1068"
- },
- {
-  "id": "2ad8ab4225eb",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Hartmann ist bei uns, Kerner. Der Bunker hat einen zweiten Zugang – unter der Spree. Lena hat die Haustechnik: Tür Nordost ist offen. Zur Panzertür!",
-  "source": "game/levels/kanzleramt.gd:1069"
- },
- {
-  "id": "4a7c72bdde57",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Riedhammer ist hinter der Panzertür. Er hat sich eingemauert.",
-  "source": "game/levels/kanzleramt.gd:1083"
+  "source": "game/levels/kanzleramt.gd:1676"
  },
  {
   "id": "7ffdc5179c78",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Dann gehen wir von unten rein. Gute Arbeit, Kerner – heute Nacht holen wir uns den General.",
-  "source": "game/levels/kanzleramt.gd:1084"
+  "source": "game/levels/kanzleramt.gd:1693"
  },
  {
   "id": "6ff5fd938979",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Ich hab sie im Visier. Bleib unten!",
-  "source": "game/levels/nachtzug.gd:345"
+  "source": "game/levels/nachtzug.gd:439"
  },
  {
   "id": "303a32ea1cc7",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Wir sind drin. Weber reist als ‚Herr Brenner‘, Schlafwagen, Abteil neun. Sieben Wagen bis vorn.",
-  "source": "game/levels/nachtzug.gd:593"
+  "source": "game/levels/nachtzug.gd:727"
  },
  {
   "id": "3eebf4b5f293",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Und Falks Leute?",
-  "source": "game/levels/nachtzug.gd:594"
+  "source": "game/levels/nachtzug.gd:728"
  },
  {
   "id": "d45304284bd5",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Graue Mäntel, mindestens zwei pro Wagen. Und überall Reisende. Pass auf, wohin du schießt.",
-  "source": "game/levels/nachtzug.gd:595"
+  "source": "game/levels/nachtzug.gd:729"
  },
  {
   "id": "5a25c301449b",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Die Tür ist zerschossen, weg da!",
-  "source": "game/levels/nachtzug.gd:605"
+  "source": "game/levels/nachtzug.gd:743"
  },
  {
   "id": "979aea9f732a",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Zurück. Wir versuchen es noch mal, sauber diesmal.",
-  "source": "game/levels/nachtzug.gd:619"
+  "source": "game/levels/nachtzug.gd:757"
  },
  {
   "id": "9e7873fa94f5",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Graue Mäntel im Gang! Sie haben uns erkannt!",
-  "source": "game/levels/nachtzug.gd:658"
+  "source": "game/levels/nachtzug.gd:808"
  },
  {
   "id": "92094af29741",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Wagen eins ist frei. Weiter zum Speisewagen.",
-  "source": "game/levels/nachtzug.gd:663"
+  "source": "game/levels/nachtzug.gd:814"
  },
  {
   "id": "8696b03112b3",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Werte Fahrgäste, hier spricht Oberst Falk. Bleiben Sie in Ihren Abteilen. Es befinden sich zwei bewaffnete Terroristen im Zug.",
-  "source": "game/levels/nachtzug.gd:675"
+  "source": "game/levels/nachtzug.gd:832"
  },
  {
   "id": "e1f9367f7508",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Speisewagen. Die verschanzen sich hinter den Tischen.",
-  "source": "game/levels/nachtzug.gd:684"
+  "source": "game/levels/nachtzug.gd:841"
  },
  {
   "id": "6fd116ddeacf",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Speisewagen sauber. Der Gepäckwagen ist als Nächstes.",
-  "source": "game/levels/nachtzug.gd:688"
+  "source": "game/levels/nachtzug.gd:846"
  },
  {
   "id": "2369c469276f",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Gepäckwagen. Vorsicht, die haben einen Schweren dabei.",
-  "source": "game/levels/nachtzug.gd:703"
- },
- {
-  "id": "877f107bba5d",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Hörst du das? Rotoren. Die Garde hat einen Hubschrauber.",
-  "source": "game/levels/nachtzug.gd:713"
- },
- {
-  "id": "2195da69f4e1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ich mach die Ladetür auf. Da hängt ein MG an der Halterung – nimm es!",
-  "source": "game/levels/nachtzug.gd:714"
- },
- {
-  "id": "5d686c68a965",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Kerner, Sie fahren nicht bis Wien. Das garantiere ich Ihnen.",
-  "source": "game/levels/nachtzug.gd:726"
- },
- {
-  "id": "76ee71d448e1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ich hab noch die Panzerfaust! Deckung!",
-  "source": "game/levels/nachtzug.gd:731"
- },
- {
-  "id": "6f6bdd051966",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Hubschrauber ist unten.",
-  "source": "game/levels/nachtzug.gd:740"
- },
- {
-  "id": "6697d80a7c36",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Wagen vier und fünf sind Postwagen ohne Durchgang. Wir müssen übers Dach.",
-  "source": "game/levels/nachtzug.gd:840"
- },
- {
-  "id": "f681919af055",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Oben ist Fahrtwind ohne Ende. Und achte auf die Tunnel – wer steht, wird abgeräumt.",
-  "source": "game/levels/nachtzug.gd:853"
+  "source": "game/levels/nachtzug.gd:873"
  },
  {
   "id": "5ffd3aabbc83",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Mehr von denen, vorn auf dem nächsten Wagen!",
-  "source": "game/levels/nachtzug.gd:868"
+  "source": "game/levels/nachtzug.gd:887"
  },
  {
-  "id": "adc5bf858fd7",
+  "id": "877f107bba5d",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Da vorn ist eine Dachluke. Rein in den Schlafwagen!",
-  "source": "game/levels/nachtzug.gd:883"
+  "text": "Hörst du das? Rotoren. Die Garde hat einen Hubschrauber.",
+  "source": "game/levels/nachtzug.gd:924"
  },
  {
-  "id": "5d1960653827",
+  "id": "2195da69f4e1",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Tunnel voraus! Runter, sofort!",
-  "source": "game/levels/nachtzug.gd:935"
+  "text": "Ich mach die Ladetür auf. Da hängt ein MG an der Halterung – nimm es!",
+  "source": "game/levels/nachtzug.gd:925"
  },
  {
-  "id": "28c3c0ff8daa",
+  "id": "5d686c68a965",
+  "speaker": "Oberst Falk",
+  "character": "falk",
+  "text": "Kerner, Sie fahren nicht bis Wien. Das garantiere ich Ihnen.",
+  "source": "game/levels/nachtzug.gd:937"
+ },
+ {
+  "id": "76ee71d448e1",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Das war knapp.",
-  "source": "game/levels/nachtzug.gd:964"
+  "text": "Ich hab noch die Panzerfaust! Deckung!",
+  "source": "game/levels/nachtzug.gd:943"
  },
  {
-  "id": "59e6ecbc0d98",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Schlafwagen. Hier liegen Leute in den Betten – kein einziger Fehlschuss!",
-  "source": "game/levels/nachtzug.gd:976"
- },
- {
-  "id": "7fb1f8f844eb",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Abteil neun ist leer! Er ist nach vorn, zur Lok!",
-  "source": "game/levels/nachtzug.gd:990"
- },
- {
-  "id": "acc1b18ad70d",
+  "id": "6f6bdd051966",
   "speaker": "Kerner",
   "character": "kerner",
-  "text": "Verdammt. Wir rollen aus.",
-  "source": "game/levels/nachtzug.gd:1008"
+  "text": "Hubschrauber ist unten.",
+  "source": "game/levels/nachtzug.gd:952"
  },
  {
-  "id": "4a9ecdd548cf",
+  "id": "7246c72e6504",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Moment. In seinem Abteil – ein Gepäckschein. Zustellung an ‚Villa Seeblick, Altmünster am Traunsee‘.",
-  "source": "game/levels/nachtzug.gd:1010"
- },
- {
-  "id": "3aff30faae4b",
-  "speaker": "Kerner",
-  "character": "kerner",
-  "text": "Traunsee. Dann holen wir ihn dort.",
-  "source": "game/levels/nachtzug.gd:1011"
- },
- {
-  "id": "fc5b20e5f74c",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Kerner. Sie geben nicht auf, was? Ich auch nicht.",
-  "source": "game/levels/nachtzug.gd:1028"
- },
- {
-  "id": "e66269196d40",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Grüßen Sie Voss. Und sagen Sie ihm, er soll nicht nach mir suchen.",
-  "source": "game/levels/nachtzug.gd:1032"
- },
- {
-  "id": "d9083f4ef98a",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er kuppelt ab! Der vordere Zugteil fährt weg!",
-  "source": "game/levels/nachtzug.gd:1037"
- },
- {
-  "id": "4a95bf15524e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Nicht auf die Reisenden! Noch einmal, und wir brechen ab!",
-  "source": "game/levels/nachtzug.gd:1054"
- },
- {
-  "id": "7e9cac587f3e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ein Unbeteiligter ist getroffen. Abbruch!",
-  "source": "game/levels/nachtzug.gd:1057"
- },
- {
-  "id": "fa5d94943345",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Nicht schießen! Wir brauchen ihn lebend!",
-  "source": "game/levels/nachtzug.gd:1063"
- },
- {
-  "id": "1e7758303f60",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Kerner! Das war ich!",
-  "source": "game/levels/nachtzug.gd:1070"
- },
- {
-  "id": "2b700f503696",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Kerner, hier Voss. Der Konvoi ist zwanzig Minuten raus. Rauf auf den Übergabeturm, bevor der Nebel sich hebt.",
-  "source": "game/levels/overwatch.gd:297"
- },
- {
-  "id": "be179891bd71",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ich lieg am Bahndamm, Jonas. Unsere Leute tragen hellblaue Binden – präg sie dir ein.",
-  "source": "game/levels/overwatch.gd:299"
- },
- {
-  "id": "cd6bd1150bcd",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ich seh dich oben. Ich markiere dir die Posten – einer nach dem anderen. Leise, Jonas.",
-  "source": "game/levels/overwatch.gd:413"
- },
- {
-  "id": "f740ab8e34a3",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Siehst du den Windsack am Geländer? Leichter Wind von rechts – auf diese Entfernung kaum eine Handbreit.",
-  "source": "game/levels/overwatch.gd:414"
- },
- {
-  "id": "80b0f50e22c1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Das war der Letzte. Die Straße ist blind. Gute Arbeit, Jonas.",
-  "source": "game/levels/overwatch.gd:476"
- },
- {
-  "id": "7a2116f41ce0",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Den nehmen wir. Messer.",
-  "source": "game/levels/overwatch.gd:493"
- },
- {
-  "id": "7f5f183d2c7c",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Keine Zeit mehr. Den Rest übernehmen wir – der Konvoi ist da.",
-  "source": "game/levels/overwatch.gd:507"
- },
- {
-  "id": "2ab3ad340c42",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Kerner! Das sind unsere Leute – hellblaue Binden! Noch einmal und wir brechen ab.",
-  "source": "game/levels/overwatch.gd:664"
- },
- {
-  "id": "94ebf29884c1",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Feuer einstellen! Kerner, du hast einen von uns getroffen. Abbruch!",
-  "source": "game/levels/overwatch.gd:676"
- },
- {
-  "id": "191d35c55dee",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Panzerglas, Jonas! Die Tür ist gepanzert – spar dir die Munition.",
-  "source": "game/levels/overwatch.gd:684"
- },
- {
-  "id": "310eac0153f1",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Netter Versuch, Kerner.",
-  "source": "game/levels/overwatch.gd:685"
- },
- {
-  "id": "14f15dc1ae6e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Motoren. Der Konvoi kommt – drei Lkw und ein schwarzer Wagen.",
-  "source": "game/levels/overwatch.gd:696"
- },
- {
-  "id": "2b7f7fb8b594",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Alle runter. Wir warten auf die Ladung. Kerner, du nimmst, wer aussteigt.",
-  "source": "game/levels/overwatch.gd:697"
- },
- {
-  "id": "18669888c112",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Kolonne Nord an Leitstelle: Passieren Werkstraße Hennigsdorf, keine Vorkommnisse.",
-  "source": "game/levels/overwatch.gd:698"
- },
- {
-  "id": "884712c67057",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Jetzt! Feuer frei!",
-  "source": "game/levels/overwatch.gd:787"
- },
- {
-  "id": "0f9f1d47f53d",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Sie steigen aus – hinter den Lkw! Jonas, nimm sie runter!",
-  "source": "game/levels/overwatch.gd:788"
- },
- {
-  "id": "60b28c53552b",
-  "speaker": "Ordnungsfront-Funk",
-  "character": "riedhammer",
-  "text": "Kontakt! Kontakt Werkstraße! Hinterhalt von Norden!",
-  "source": "game/levels/overwatch.gd:789"
- },
- {
-  "id": "4c8371013366",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Wir machen den Rest. Kerner, Augen nach oben!",
-  "source": "game/levels/overwatch.gd:889"
- },
- {
-  "id": "f86ae8eff1d0",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Straße ist sauber! Ich hol Brandt aus dem Lkw.",
-  "source": "game/levels/overwatch.gd:895"
- },
- {
-  "id": "8e5efc08fb40",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Scharfschütze! Kühlturm, oben am Rand – achte auf das Blitzen!",
-  "source": "game/levels/overwatch.gd:1014"
- },
- {
-  "id": "af4cb2eb69bb",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Wenn es blitzt, leg dich hin (Z) – die Brüstung deckt dich nur liegend.",
-  "source": "game/levels/overwatch.gd:1015"
- },
- {
-  "id": "9238a42bb7c5",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Kühlturm, rund zweihundertfünfzig Meter. Wind frisch von rechts – halt höher und eine Kopfbreite rechts.",
-  "source": "game/levels/overwatch.gd:1016"
- },
- {
-  "id": "bd945c9876bd",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Jonas, irgendwas blitzt da drüben… links, Richtung Kühlturm.",
-  "source": "game/levels/overwatch.gd:1059"
- },
- {
-  "id": "386b97d38c46",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Kühlturm ist sauber.",
-  "source": "game/levels/overwatch.gd:1063"
- },
- {
-  "id": "5ef433139946",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Schornstein ist frei. Danke, Jonas.",
-  "source": "game/levels/overwatch.gd:1069"
- },
- {
-  "id": "4ff2f08d9689",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Mörser! Die haben dich angepeilt, Kerner!",
-  "source": "game/levels/overwatch.gd:1089"
- },
- {
-  "id": "20c27637548a",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Raus da, Jonas – über die Bandbrücke zur Ofenbühne!",
-  "source": "game/levels/overwatch.gd:1090"
- },
- {
-  "id": "f54d56ec2618",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Gut, du bist drüben. Zweiter Schütze – auf dem Schornstein rechts vom Hochofen!",
-  "source": "game/levels/overwatch.gd:1147"
- },
- {
-  "id": "ccc11d2175de",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Mörserstellung ist unser. Kerner, halt uns den Schornstein vom Hals.",
-  "source": "game/levels/overwatch.gd:1148"
- },
- {
-  "id": "ce676388e3ad",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Der Wind hat gedreht, Jonas – jetzt von links. Schau auf den Dampf am Schornstein.",
-  "source": "game/levels/overwatch.gd:1149"
- },
- {
-  "id": "24ec10b39c26",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Bewegung am schwarzen Wagen. Hintere Tür, Jonas.",
-  "source": "game/levels/overwatch.gd:1157"
- },
- {
-  "id": "0488cebec1f2",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Kerner. Ich hätte wissen müssen, dass Voss dich schickt.",
-  "source": "game/levels/overwatch.gd:1184"
- },
- {
-  "id": "263ee84f07d3",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Du schießt auf Glas, Junge. Wie in Berlin – du siehst nur, was ich dich sehen lasse.",
-  "source": "game/levels/overwatch.gd:1187"
- },
- {
-  "id": "d6aaa09f5657",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er wirft Rauch!",
-  "source": "game/levels/overwatch.gd:1190"
- },
- {
-  "id": "1615a684c195",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Lass ihn. Wir sind wegen Brandt hier.",
-  "source": "game/levels/overwatch.gd:1204"
- },
- {
-  "id": "69f13f1c1890",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Brandt ist raus. Er lebt.",
-  "source": "game/levels/overwatch.gd:1296"
- },
- {
-  "id": "6f358975e995",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Kerner? … Guter Schuss.",
-  "source": "game/levels/overwatch.gd:1297"
- },
- {
-  "id": "c1a7b0b56140",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Schnelle Eingreiftruppe aus Velten, fünf Minuten. Alle zum Transporter am Gleis!",
-  "source": "game/levels/overwatch.gd:1298"
- },
- {
-  "id": "92c6fb2aa031",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Eingreiftruppe im Werk! Vor dir, zwischen den Hallen – kämpf dich durch!",
-  "source": "game/levels/overwatch.gd:1323"
- },
- {
-  "id": "ca1d8e57765e",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Alle drin? Los, los!",
-  "source": "game/levels/overwatch.gd:1347"
- },
- {
-  "id": "49d0e25242e0",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Kontakt am Zug! Die Lok steht unter Dampf – die wollen raus.",
-  "source": "game/levels/rail_yard.gd:308"
- },
- {
-  "id": "0f09759bc476",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Letzte Stellung unter dem Kran. MG und Panzerabwehr.",
-  "source": "game/levels/rail_yard.gd:315"
- },
- {
-  "id": "04a412f313a5",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Güterbahnhof Pskow. Da hinten steht ihr Munitionszug. Der fährt heute nirgendwo mehr hin.",
-  "source": "game/levels/rail_yard.gd:507"
- },
- {
-  "id": "80affc6e58c1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Stellwerk rechts, obere Etage. Da oben sitzt einer.",
-  "source": "game/levels/rail_yard.gd:509"
- },
- {
-  "id": "6b224beba7bd",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Kanal zwei, nur wir, Jonas. Weber funkt seit Tagen verschlüsselt mit Berlin. Nachts.",
-  "source": "game/levels/rail_yard.gd:512"
- },
- {
-  "id": "a4a4ff89dc9f",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Funkdisziplin, Aksoy. Augen nach vorn.",
-  "source": "game/levels/rail_yard.gd:513"
- },
- {
-  "id": "9d5edd88ca2a",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Kesselwagen mit roter Binde – Treibladungen. Ein Treffer und der ganze Zug geht hoch.",
-  "source": "game/levels/rail_yard.gd:518"
- },
- {
-  "id": "1cd1de34457d",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer – nur Munition.",
-  "source": "game/levels/rail_yard.gd:521"
- },
- {
-  "id": "8f5081720a33",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Aksoy! Panzerfaust auf die rote Binde!",
-  "source": "game/levels/rail_yard.gd:528"
- },
- {
-  "id": "7dcf1d484084",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Rakete raus!",
-  "source": "game/levels/rail_yard.gd:533"
- },
- {
-  "id": "59ce3d1f8140",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Heilige ... das ganze Gleis brennt!",
-  "source": "game/levels/rail_yard.gd:551"
- },
- {
-  "id": "2461329fdff7",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Weiter! Lagerhallen und Kranbahn, bevor die sich neu sortieren.",
-  "source": "game/levels/rail_yard.gd:553"
- },
- {
-  "id": "57818f5cda81",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Adler-Staffel im Anflug. Köpfe runter!",
-  "source": "game/levels/rail_yard.gd:562"
- },
- {
-  "id": "bb2749d99485",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Der Kran! Der ganze Kran kommt runter!",
-  "source": "game/levels/rail_yard.gd:600"
- },
- {
-  "id": "0c30c3f914dc",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Sie werfen die Waffen weg ... die rennen!",
-  "source": "game/levels/rail_yard.gd:655"
- },
- {
-  "id": "87d56e69ed5b",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "An alle Einheiten: Moskau hat den Waffenstillstand unterzeichnet. Es ist vorbei.",
-  "source": "game/levels/rail_yard.gd:657"
- },
- {
-  "id": "309f3873564f",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Vorbei. Hörst du, Jonas? Es ist vorbei.",
-  "source": "game/levels/rail_yard.gd:659"
- },
- {
-  "id": "80a83567883b",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Da kommt was Großes aus der Halle – ein Juggernaut! Aufs Visier zielen!",
-  "source": "game/levels/rail_yard.gd:677"
- },
- {
-  "id": "9e45ea75c503",
-  "speaker": "Hauptmann Weber",
-  "character": "weber",
-  "text": "Der Tornister auf dem Rücken ist seine Schwachstelle!",
-  "source": "game/levels/rail_yard.gd:678"
- },
- {
-  "id": "02ebd99c07bd",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Kontakt am Brueckenkopf! Die halten die Auffahrt – Deckung hinter den Wracks!",
-  "source": "game/levels/river_crossing.gd:501"
- },
- {
-  "id": "2be5d160bdd6",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Gut so. Jetzt rueber – bleibt nicht auf dem Stahl stehen!",
-  "source": "game/levels/river_crossing.gd:504"
- },
- {
-  "id": "793940b73e15",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Kerner, hier Weber. Die Bruecke muss bis Sonnenaufgang stehen – und in unserer Hand sein. Pioniere folgen euch.",
-  "source": "game/levels/river_crossing.gd:537"
- },
- {
-  "id": "3a579101f54e",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Graeben links und rechts der Strasse. Bleib auf dem Asphalt, Jonas.",
-  "source": "game/levels/river_crossing.gd:539"
- },
- {
-  "id": "aea20fbd1022",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Hubschrauber! Elf Uhr!",
-  "source": "game/levels/river_crossing.gd:549"
- },
- {
-  "id": "c8632e781a50",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Hol ihn runter, Kerner, sonst kommt keiner ueber diese Bruecke!",
-  "source": "game/levels/river_crossing.gd:553"
- },
- {
-  "id": "28d8f8aa4ecf",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Halt ihn beschaeftigt – Fliegerfaust ist raus!",
-  "source": "game/levels/river_crossing.gd:585"
- },
- {
-  "id": "64c06e1c4dbe",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Er geht runter! Direkt in den Fluss!",
-  "source": "game/levels/river_crossing.gd:604"
+  "text": "Der Rumpf ist gepanzert! Halt auf die Kanzel oder den Rotorkopf!",
+  "source": "game/levels/nachtzug.gd:1176"
  },
  {
   "id": "0fd258065eed",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Er dreht ab – weiter, weiter!",
-  "source": "game/levels/river_crossing.gd:645"
+  "source": "game/levels/nachtzug.gd:1192"
  },
  {
-  "id": "7533af1dcaf2",
+  "id": "6697d80a7c36",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Die Bruecke! Lauf, Jonas, lauf!",
-  "source": "game/levels/river_crossing.gd:666"
+  "text": "Wagen vier und fünf sind Postwagen ohne Durchgang. Wir müssen übers Dach.",
+  "source": "game/levels/nachtzug.gd:1459"
  },
  {
-  "id": "51e548356d0d",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Das erste Feld ist weg. Kein Weg zurueck, Kerner – nur nach vorn.",
-  "source": "game/levels/river_crossing.gd:703"
- },
- {
-  "id": "9ab65de5afb9",
+  "id": "f681919af055",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Panzer am Brueckenkopf!",
-  "source": "game/levels/river_crossing.gd:743"
+  "text": "Oben ist Fahrtwind ohne Ende. Und achte auf die Tunnel – wer steht, wird abgeräumt.",
+  "source": "game/levels/nachtzug.gd:1472"
  },
  {
-  "id": "2f0bd1a41dad",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Sprengladung an die Wanne, Kerner! Links an ihm vorbei, er sieht dich schlecht!",
-  "source": "game/levels/river_crossing.gd:746"
- },
- {
-  "id": "8a5899c63c09",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Artillerie liegt auf dem Panzer – Kopf runter!",
-  "source": "game/levels/river_crossing.gd:786"
- },
- {
-  "id": "564498f31e43",
-  "speaker": "Hptm. Weber",
-  "character": "weber",
-  "text": "Panzer ist erledigt! Brueckenkopf sichern – bis zur Fabrik!",
-  "source": "game/levels/river_crossing.gd:801"
- },
- {
-  "id": "35718131d121",
+  "id": "adc5bf858fd7",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Unsere Jets! Endlich!",
-  "source": "game/levels/river_crossing.gd:817"
+  "text": "Da vorn ist eine Dachluke. Rein in den Schlafwagen!",
+  "source": "game/levels/nachtzug.gd:1512"
+ },
+ {
+  "id": "5d1960653827",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Tunnel voraus! Runter, sofort!",
+  "source": "game/levels/nachtzug.gd:1566"
+ },
+ {
+  "id": "28c3c0ff8daa",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Das war knapp.",
+  "source": "game/levels/nachtzug.gd:1596"
+ },
+ {
+  "id": "59e6ecbc0d98",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Schlafwagen. Hier liegen Leute in den Betten – kein einziger Fehlschuss!",
+  "source": "game/levels/nachtzug.gd:1613"
+ },
+ {
+  "id": "7fb1f8f844eb",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Abteil neun ist leer! Er ist nach vorn, zur Lok!",
+  "source": "game/levels/nachtzug.gd:1628"
+ },
+ {
+  "id": "acc1b18ad70d",
+  "speaker": "Kerner",
+  "character": "kerner",
+  "text": "Verdammt. Wir rollen aus.",
+  "source": "game/levels/nachtzug.gd:1647"
+ },
+ {
+  "id": "4a9ecdd548cf",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Moment. In seinem Abteil – ein Gepäckschein. Zustellung an ‚Villa Seeblick, Altmünster am Traunsee‘.",
+  "source": "game/levels/nachtzug.gd:1649"
+ },
+ {
+  "id": "3aff30faae4b",
+  "speaker": "Kerner",
+  "character": "kerner",
+  "text": "Traunsee. Dann holen wir ihn dort.",
+  "source": "game/levels/nachtzug.gd:1650"
+ },
+ {
+  "id": "fc5b20e5f74c",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kerner. Sie geben nicht auf, was? Ich auch nicht.",
+  "source": "game/levels/nachtzug.gd:1667"
+ },
+ {
+  "id": "e66269196d40",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Grüßen Sie Voss. Und sagen Sie ihm, er soll nicht nach mir suchen.",
+  "source": "game/levels/nachtzug.gd:1671"
+ },
+ {
+  "id": "d9083f4ef98a",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Er kuppelt ab! Der vordere Zugteil fährt weg!",
+  "source": "game/levels/nachtzug.gd:1676"
+ },
+ {
+  "id": "4a95bf15524e",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Nicht auf die Reisenden! Noch einmal, und wir brechen ab!",
+  "source": "game/levels/nachtzug.gd:1693"
+ },
+ {
+  "id": "7e9cac587f3e",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Ein Unbeteiligter ist getroffen. Abbruch!",
+  "source": "game/levels/nachtzug.gd:1696"
+ },
+ {
+  "id": "fa5d94943345",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Nicht schießen! Wir brauchen ihn lebend!",
+  "source": "game/levels/nachtzug.gd:1702"
+ },
+ {
+  "id": "1e7758303f60",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Kerner! Das war ich!",
+  "source": "game/levels/nachtzug.gd:1709"
+ },
+ {
+  "id": "2b700f503696",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Kerner, hier Voss. Der Konvoi ist zwanzig Minuten raus. Rauf auf den Übergabeturm, bevor der Nebel sich hebt.",
+  "source": "game/levels/overwatch.gd:331"
+ },
+ {
+  "id": "be179891bd71",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Ich lieg am Bahndamm, Jonas. Unsere Leute tragen hellblaue Binden – präg sie dir ein.",
+  "source": "game/levels/overwatch.gd:333"
+ },
+ {
+  "id": "cd6bd1150bcd",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Ich seh dich oben. Ich markiere dir die Posten – einer nach dem anderen. Leise, Jonas.",
+  "source": "game/levels/overwatch.gd:470"
+ },
+ {
+  "id": "f740ab8e34a3",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Siehst du den Windsack am Geländer? Leichter Wind von rechts – auf diese Entfernung kaum eine Handbreit.",
+  "source": "game/levels/overwatch.gd:471"
+ },
+ {
+  "id": "7a2116f41ce0",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Den nehmen wir. Messer.",
+  "source": "game/levels/overwatch.gd:549"
+ },
+ {
+  "id": "7f5f183d2c7c",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Keine Zeit mehr. Den Rest übernehmen wir – der Konvoi ist da.",
+  "source": "game/levels/overwatch.gd:565"
+ },
+ {
+  "id": "2ab3ad340c42",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Kerner! Das sind unsere Leute – hellblaue Binden! Noch einmal und wir brechen ab.",
+  "source": "game/levels/overwatch.gd:724"
+ },
+ {
+  "id": "94ebf29884c1",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Feuer einstellen! Kerner, du hast einen von uns getroffen. Abbruch!",
+  "source": "game/levels/overwatch.gd:736"
+ },
+ {
+  "id": "191d35c55dee",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Panzerglas, Jonas! Die Tür ist gepanzert – spar dir die Munition.",
+  "source": "game/levels/overwatch.gd:744"
+ },
+ {
+  "id": "310eac0153f1",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Netter Versuch, Kerner.",
+  "source": "game/levels/overwatch.gd:745"
+ },
+ {
+  "id": "14f15dc1ae6e",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Motoren. Der Konvoi kommt – drei Lkw und ein schwarzer Wagen.",
+  "source": "game/levels/overwatch.gd:756"
+ },
+ {
+  "id": "18669888c112",
+  "speaker": "Ordnungsfront-Funk",
+  "character": "riedhammer",
+  "text": "Kolonne Nord an Leitstelle: Passieren Werkstraße Hennigsdorf, keine Vorkommnisse.",
+  "source": "game/levels/overwatch.gd:759"
+ },
+ {
+  "id": "60b28c53552b",
+  "speaker": "Ordnungsfront-Funk",
+  "character": "riedhammer",
+  "text": "Kontakt! Kontakt Werkstraße! Hinterhalt von Norden!",
+  "source": "game/levels/overwatch.gd:851"
+ },
+ {
+  "id": "4c8371013366",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Wir machen den Rest. Kerner, Augen nach oben!",
+  "source": "game/levels/overwatch.gd:951"
+ },
+ {
+  "id": "f86ae8eff1d0",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Straße ist sauber! Ich hol Brandt aus dem Lkw.",
+  "source": "game/levels/overwatch.gd:957"
+ },
+ {
+  "id": "af4cb2eb69bb",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Wenn es blitzt, leg dich hin (Z) – die Brüstung deckt dich nur liegend.",
+  "source": "game/levels/overwatch.gd:1103"
+ },
+ {
+  "id": "9238a42bb7c5",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Kühlturm, rund zweihundertfünfzig Meter. Wind frisch von rechts – halt höher und eine Kopfbreite rechts.",
+  "source": "game/levels/overwatch.gd:1104"
+ },
+ {
+  "id": "bd945c9876bd",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Jonas, irgendwas blitzt da drüben… links, Richtung Kühlturm.",
+  "source": "game/levels/overwatch.gd:1147"
+ },
+ {
+  "id": "ce676388e3ad",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Der Wind hat gedreht, Jonas – jetzt von links. Schau auf den Dampf am Schornstein.",
+  "source": "game/levels/overwatch.gd:1235"
+ },
+ {
+  "id": "24ec10b39c26",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Bewegung am schwarzen Wagen. Hintere Tür, Jonas.",
+  "source": "game/levels/overwatch.gd:1243"
+ },
+ {
+  "id": "0488cebec1f2",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kerner. Ich hätte wissen müssen, dass Voss dich schickt.",
+  "source": "game/levels/overwatch.gd:1270"
+ },
+ {
+  "id": "263ee84f07d3",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Du schießt auf Glas, Junge. Wie in Berlin – du siehst nur, was ich dich sehen lasse.",
+  "source": "game/levels/overwatch.gd:1273"
+ },
+ {
+  "id": "d6aaa09f5657",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Er wirft Rauch!",
+  "source": "game/levels/overwatch.gd:1276"
+ },
+ {
+  "id": "1615a684c195",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Lass ihn. Wir sind wegen Brandt hier.",
+  "source": "game/levels/overwatch.gd:1290"
+ },
+ {
+  "id": "69f13f1c1890",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Brandt ist raus. Er lebt.",
+  "source": "game/levels/overwatch.gd:1383"
+ },
+ {
+  "id": "6f358975e995",
+  "speaker": "Oberstlt. Brandt",
+  "character": "brandt",
+  "text": "Kerner? … Guter Schuss.",
+  "source": "game/levels/overwatch.gd:1384"
+ },
+ {
+  "id": "c1a7b0b56140",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Schnelle Eingreiftruppe aus Velten, fünf Minuten. Alle zum Transporter am Gleis!",
+  "source": "game/levels/overwatch.gd:1385"
+ },
+ {
+  "id": "92c6fb2aa031",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Eingreiftruppe im Werk! Vor dir, zwischen den Hallen – kämpf dich durch!",
+  "source": "game/levels/overwatch.gd:1410"
+ },
+ {
+  "id": "ca1d8e57765e",
+  "speaker": "Konrad Voss",
+  "character": "voss",
+  "text": "Alle drin? Los, los!",
+  "source": "game/levels/overwatch.gd:1434"
+ },
+ {
+  "id": "04a412f313a5",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Güterbahnhof Pskow. Da hinten steht ihr Munitionszug. Der fährt heute nirgendwo mehr hin.",
+  "source": "game/levels/rail_yard.gd:643"
+ },
+ {
+  "id": "80affc6e58c1",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Stellwerk rechts, obere Etage. Da oben sitzt einer.",
+  "source": "game/levels/rail_yard.gd:645"
+ },
+ {
+  "id": "6b224beba7bd",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Kanal zwei, nur wir, Jonas. Weber funkt seit Tagen verschlüsselt mit Berlin. Nachts.",
+  "source": "game/levels/rail_yard.gd:648"
+ },
+ {
+  "id": "a4a4ff89dc9f",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Funkdisziplin, Aksoy. Augen nach vorn.",
+  "source": "game/levels/rail_yard.gd:649"
+ },
+ {
+  "id": "9d5edd88ca2a",
+  "speaker": "Hauptmann Weber",
+  "character": "weber",
+  "text": "Kesselwagen mit roter Binde – Treibladungen. Ein Treffer und der ganze Zug geht hoch.",
+  "source": "game/levels/rail_yard.gd:654"
+ },
+ {
+  "id": "02ebd99c07bd",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Kontakt am Brueckenkopf! Die halten die Auffahrt – Deckung hinter den Wracks!",
+  "source": "game/levels/river_crossing.gd:572"
+ },
+ {
+  "id": "2be5d160bdd6",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Gut so. Jetzt rueber – bleibt nicht auf dem Stahl stehen!",
+  "source": "game/levels/river_crossing.gd:575"
+ },
+ {
+  "id": "793940b73e15",
+  "speaker": "Hptm. Weber",
+  "character": "weber",
+  "text": "Kerner, hier Weber. Die Bruecke muss bis Sonnenaufgang stehen – und in unserer Hand sein. Pioniere folgen euch.",
+  "source": "game/levels/river_crossing.gd:613"
+ },
+ {
+  "id": "3a579101f54e",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Graeben links und rechts der Strasse. Bleib auf dem Asphalt, Jonas.",
+  "source": "game/levels/river_crossing.gd:614"
+ },
+ {
+  "id": "aea20fbd1022",
+  "speaker": "Lena Aksoy",
+  "character": "lena",
+  "text": "Hubschrauber! Elf Uhr!",
+  "source": "game/levels/river_crossing.gd:624"
  },
  {
   "id": "ee41e5ee60e2",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Die Sonne geht auf ... und die Bruecke steht. Gute Arbeit, Kerner.",
-  "source": "game/levels/river_crossing.gd:825"
+  "source": "game/levels/river_crossing.gd:902"
  },
  {
   "id": "aa0b2498ba3c",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Mein Trupp nimmt das Haus. Feuer halten!",
-  "source": "game/levels/spreebogen.gd:545"
+  "source": "game/levels/spreebogen.gd:751"
  },
  {
   "id": "6393999acb07",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Rabe an alle: Abmarsch. Voss fährt, Kerner sitzt am Turm. Ziel Moltkebrücke.",
-  "source": "game/levels/spreebogen.gd:666"
- },
- {
-  "id": "691cb8228f3e",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Kaum seid ihr vom Traunsee zurück, schon fahr ich euch wieder durch Berlin.",
-  "source": "game/levels/spreebogen.gd:667"
+  "source": "game/levels/spreebogen.gd:892"
  },
  {
   "id": "d1ea50a9d855",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Weber ist uns entwischt. Dann eben Riedhammer zuerst.",
-  "source": "game/levels/spreebogen.gd:668"
- },
- {
-  "id": "c1459a4da468",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Zwei Wochen nach der Ausstrahlung hält die Garde noch immer den Spreebogen. Wir sind die Spitze, hinter uns kommen drei Bataillone.",
-  "source": "game/levels/spreebogen.gd:669"
+  "source": "game/levels/spreebogen.gd:893"
  },
  {
   "id": "93ea88631dde",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Kanone gegen Fenster und Fahrzeuge, Koax gegen Infanterie. Nebel nur, wenn eine Panzerfaust kommt.",
-  "source": "game/levels/spreebogen.gd:670"
+  "source": "game/levels/spreebogen.gd:894"
  },
  {
   "id": "c3ce0a69f17c",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Wir brennen! Zurücksetzen, sofort!",
-  "source": "game/levels/spreebogen.gd:678"
+  "source": "game/levels/spreebogen.gd:903"
  },
  {
   "id": "b68056d4266a",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Noch einmal. Gleiche Straße, gleiche Fenster.",
-  "source": "game/levels/spreebogen.gd:689"
- },
- {
-  "id": "daf96e01be34",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Sperre voraus! Ich halte an.",
-  "source": "game/levels/spreebogen.gd:707"
- },
- {
-  "id": "e386a0bb1ba1",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Fenster links und rechts, Panzerfaust-Trupps! Erst die Fenster, dann die Sperre.",
-  "source": "game/levels/spreebogen.gd:710"
- },
- {
-  "id": "a4ccc07bb6db",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Treffer am Bug! Wir halten noch.",
-  "source": "game/levels/spreebogen.gd:717"
- },
- {
-  "id": "872d6e08c945",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Panzerfaust! Nebel, Kerner!",
-  "source": "game/levels/spreebogen.gd:723"
+  "source": "game/levels/spreebogen.gd:914"
  },
  {
   "id": "d4580df0905b",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Sperre ist weg. Ich fahre durch.",
-  "source": "game/levels/spreebogen.gd:735"
+  "source": "game/levels/spreebogen.gd:974"
  },
  {
-  "id": "ccb34885b13e",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Kettengeräusche in der Seitenstraße links. Das ist kein Lkw.",
-  "source": "game/levels/spreebogen.gd:752"
- },
- {
-  "id": "c90ea0684d75",
+  "id": "c1459a4da468",
   "speaker": "Lena Aksoy",
   "character": "lena",
-  "text": "Garde-Panzer! Der schluckt mehrere Treffer. Bleib mit der Kanone drauf!",
-  "source": "game/levels/spreebogen.gd:758"
+  "text": "Zwei Wochen nach der Ausstrahlung hält die Garde noch immer den Spreebogen. Wir sind die Spitze, hinter uns kommen drei Bataillone.",
+  "source": "game/levels/spreebogen.gd:975"
  },
  {
   "id": "f666cf4cf5cc",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Kerner. Wir hatten noch nicht das Vergnügen. Nicht direkt.",
-  "source": "game/levels/spreebogen.gd:764"
+  "source": "game/levels/spreebogen.gd:1007"
  },
  {
   "id": "22f086a8e890",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Ich beobachte Sie seit der Ausstrahlung. Rostock, die Alpen, der Traunsee. Beeindruckend, für einen Unteroffizier.",
-  "source": "game/levels/spreebogen.gd:765"
+  "source": "game/levels/spreebogen.gd:1008"
  },
  {
   "id": "37990dcd36dc",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Oberst Falk. Garde. Merken Sie sich den Namen.",
-  "source": "game/levels/spreebogen.gd:766"
+  "source": "game/levels/spreebogen.gd:1009"
  },
  {
-  "id": "16be76b899eb",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ignorier ihn. Panzer zuerst!",
-  "source": "game/levels/spreebogen.gd:767"
- },
- {
-  "id": "d607dd3d301e",
+  "id": "691cb8228f3e",
   "speaker": "Konrad Voss",
   "character": "voss",
-  "text": "Panzer brennt!",
-  "source": "game/levels/spreebogen.gd:773"
- },
- {
-  "id": "1a768958425d",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Hubschrauber über dem Ufer! Hoch mit dem Rohr!",
-  "source": "game/levels/spreebogen.gd:828"
- },
- {
-  "id": "130ae7da84a6",
-  "speaker": "Oberst Falk",
-  "character": "falk",
-  "text": "Sie fahren genau dorthin, wo ich Sie haben will, Kerner.",
-  "source": "game/levels/spreebogen.gd:833"
- },
- {
-  "id": "f2de1eb1438b",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Der Vogel ist unten!",
-  "source": "game/levels/spreebogen.gd:839"
+  "text": "Kaum seid ihr vom Traunsee zurück, schon fahr ich euch wieder durch Berlin.",
+  "source": "game/levels/spreebogen.gd:1060"
  },
  {
   "id": "315707d16a11",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Moltkebrücke voraus. Sieht leer aus. Zu leer.",
-  "source": "game/levels/spreebogen.gd:861"
+  "source": "game/levels/spreebogen.gd:1111"
  },
  {
   "id": "c44bef50c279",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Treffer im Motorraum! Wir brennen! Alle raus!",
-  "source": "game/levels/spreebogen.gd:880"
+  "source": "game/levels/spreebogen.gd:1130"
  },
  {
   "id": "e8bf86a6fbdc",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Kerner! Kerner, melde dich!",
-  "source": "game/levels/spreebogen.gd:889"
+  "source": "game/levels/spreebogen.gd:1139"
  },
  {
   "id": "04bf222a7b2d",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Ich lebe. Der Rabe nicht.",
-  "source": "game/levels/spreebogen.gd:890"
+  "source": "game/levels/spreebogen.gd:1140"
  },
  {
   "id": "80338f3d0e9f",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Aussteigen, Kerner. So ist es ehrlicher.",
-  "source": "game/levels/spreebogen.gd:891"
+  "source": "game/levels/spreebogen.gd:1141"
  },
  {
   "id": "89fa7b97252f",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Panzer am anderen Ufer. Runter vom Präsentierteller, in die Deckung auf der Brücke!",
-  "source": "game/levels/spreebogen.gd:892"
- },
- {
-  "id": "09502d2c24dd",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Ich hab noch eine Panzerfaust aus dem Rabe. Kopf runter!",
-  "source": "game/levels/spreebogen.gd:945"
- },
- {
-  "id": "f4e940afc5d8",
-  "speaker": "Konrad Voss",
-  "character": "voss",
-  "text": "Panzer ist erledigt. Für dich, Rabe.",
-  "source": "game/levels/spreebogen.gd:955"
- },
- {
-  "id": "5b25f5bb6310",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Schwere Panzerung auf der Brücke! Das ist ein Juggernaut. Panzerfaust, Kerner!",
-  "source": "game/levels/spreebogen.gd:961"
+  "source": "game/levels/spreebogen.gd:1142"
  },
  {
   "id": "b214e9484bd0",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Wir sind bei dir! Alles auf den Koloss!",
-  "source": "game/levels/spreebogen.gd:972"
+  "source": "game/levels/spreebogen.gd:1242"
  },
  {
   "id": "f1dd9ace6de8",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Brücke gehalten. Die Bataillone rücken nach. Kerner, wir stehen am Spreebogen.",
-  "source": "game/levels/spreebogen.gd:986"
+  "source": "game/levels/spreebogen.gd:1256"
  },
  {
   "id": "8b46e0f1f3b5",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Ein Brückenkopf. Wie rührend. Wir sehen uns, Kerner.",
-  "source": "game/levels/spreebogen.gd:987"
+  "source": "game/levels/spreebogen.gd:1257"
  },
  {
   "id": "8fe24ea137b5",
   "speaker": "Konrad Voss",
   "character": "voss",
   "text": "Der Rabe hat uns bis hierher gebracht. Den Rest holen wir uns zu Fuß.",
-  "source": "game/levels/spreebogen.gd:988"
- },
- {
-  "id": "eabf18fa64fa",
-  "speaker": "Oberstlt. Brandt",
-  "character": "brandt",
-  "text": "Kerner, Brandt hier. Ich kreise mit dem Hubschrauber drei Kilometer südlich über dem Wald. Die Villa gehört einem Strohmann des Konsortiums – Weber ist seit Mittag drin.",
-  "source": "game/levels/villa.gd:593"
- },
- {
-  "id": "bd252873c20b",
-  "speaker": "Lena Aksoy",
-  "character": "lena",
-  "text": "Ich bin hinter dir am Hang. Schick zuerst die Drohne runter – ich will jede Wache und jede Kamera kennen, bevor du gehst.",
-  "source": "game/levels/villa.gd:595"
+  "source": "game/levels/spreebogen.gd:1258"
  },
  {
   "id": "90a02d770f3f",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Jonas, Fahrzeuge auf der Bundesstraße. Graue Mäntel. Das sind Falks Jäger.",
-  "source": "game/levels/villa.gd:714"
+  "source": "game/levels/villa.gd:844"
  },
  {
   "id": "137ed4634069",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Fragen Sie sich lieber, wie die so schnell hier sein können.",
-  "source": "game/levels/villa.gd:715"
+  "source": "game/levels/villa.gd:845"
  },
  {
   "id": "fc1c8fa015d7",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Riedhammer vertraut seinen Leitungen. Das war immer sein Fehler.",
-  "source": "game/levels/villa.gd:716"
+  "source": "game/levels/villa.gd:846"
  },
  {
   "id": "244c606da61a",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Hier. Die Hälfte der Akte Nordlicht. Konten, Strohmänner, das Konsortium. Die andere Hälfte ist meine Lebensversicherung.",
-  "source": "game/levels/villa.gd:724"
+  "source": "game/levels/villa.gd:847"
  },
  {
   "id": "da65f89e6a23",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Wir sehen uns in Berlin, Kerner.",
-  "source": "game/levels/villa.gd:725"
+  "source": "game/levels/villa.gd:848"
  },
  {
   "id": "3e6d4250949d",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Weber.",
-  "source": "game/levels/villa.gd:753"
+  "source": "game/levels/villa.gd:933"
  },
  {
   "id": "13cb1a063aa4",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Kerner. Pünktlich wie immer. Setzen Sie sich – wir haben weniger Zeit, als Sie glauben.",
-  "source": "game/levels/villa.gd:754"
+  "source": "game/levels/villa.gd:934"
  },
  {
   "id": "100e0e3a4805",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Die Akte. Jetzt.",
-  "source": "game/levels/villa.gd:758"
+  "source": "game/levels/villa.gd:938"
  },
  {
   "id": "91967fcf2959",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Riedhammer … lieber jagt er das Regierungsviertel in die Luft, als vor Gericht zu stehen.",
-  "source": "game/levels/villa.gd:762"
+  "source": "game/levels/villa.gd:942"
  },
  {
   "id": "65f2fe9b84b9",
   "speaker": "Hptm. Weber",
   "character": "weber",
   "text": "Nur ich komme noch an ihn ran.",
-  "source": "game/levels/villa.gd:763"
+  "source": "game/levels/villa.gd:943"
  },
  {
   "id": "a2a3f9fa3686",
   "speaker": "Oberst Falk",
   "character": "falk",
   "text": "Zugriff. Weber gehört mir. Den Mann in der Bibliothek lasst ihr leben – den will ich mir selbst ansehen.",
-  "source": "game/levels/villa.gd:836"
+  "source": "game/levels/villa.gd:1077"
  },
  {
   "id": "38ec7712da0d",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Sie ziehen sich zurück – Jonas, der Steg! Weber will zum Wasserflugzeug!",
-  "source": "game/levels/villa.gd:884"
+  "source": "game/levels/villa.gd:1138"
  },
  {
   "id": "9f4b0bb358f3",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Ich hab ihn im Visier.",
-  "source": "game/levels/villa.gd:920"
+  "source": "game/levels/villa.gd:1194"
  },
  {
   "id": "988d283e92aa",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Lass ihn, Jonas. Wir brauchen ihn lebend.",
-  "source": "game/levels/villa.gd:921"
+  "source": "game/levels/villa.gd:1195"
  },
  {
   "id": "aaf15feaa25c",
   "speaker": "Oberstlt. Brandt",
   "character": "brandt",
   "text": "Wasserflugzeug startet nach Nordosten. Kurs … Berlin. Ich bleib dran, solange der Sprit reicht.",
-  "source": "game/levels/villa.gd:922"
+  "source": "game/levels/villa.gd:1196"
  },
  {
   "id": "a594bf89eb35",
   "speaker": "Kerner",
   "character": "kerner",
   "text": "Er hat uns die halbe Akte dagelassen.",
-  "source": "game/levels/villa.gd:923"
+  "source": "game/levels/villa.gd:1197"
  },
  {
   "id": "ebf6a82efecb",
   "speaker": "Lena Aksoy",
   "character": "lena",
   "text": "Und die andere Hälfte fliegt nach Berlin.",
-  "source": "game/levels/villa.gd:924"
+  "source": "game/levels/villa.gd:1198"
  }
 ]

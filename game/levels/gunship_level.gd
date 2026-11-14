@@ -128,6 +128,12 @@ func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	var d := dur if dur > 0.0 else clampf(1.6 + 0.055 * text.length(), 2.5, 8.0)
 	_radio_end = maxf(_radio_end, _time) + d + 0.65
 
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key, siehe story_ui.gd say()).
+func _say_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+	var d := dur if dur > 0.0 else clampf(1.6 + 0.055 * text.length(), 2.5, 8.0)
+	_radio_end = maxf(_radio_end, _time) + d + 0.65
+
 ## Wartet, bis der Funk (geschaetzt) frei ist – hoechstens max_wait Sekunden.
 func _radio_wait(max_wait: float = 12.0) -> bool:
 	return await _sleep(clampf(_radio_end - _time, 0.0, max_wait))
@@ -164,10 +170,13 @@ func _spawn(kind: String, pos: Vector3, yaw: float = 0.0, p: int = -1, req: bool
 	var u: GSUnit = gw.spawn(kind, "reich", pos, yaw, phase if p < 0 else p, req)
 	return u
 
+## Mehr Gegner: jede Infanterie-Gruppe ist um diesen Faktor groesser (aufgerundet).
+const SQUAD_SCALE := 1.4
+
 ## Infanterie-Gruppe; mit Ziel laeuft sie dorthin (versetzt) und geht dort in Stellung, sonst sofort in Stellung.
 func _squad(center: Vector3, n: int, to: Vector3 = Vector3.INF, spread: float = 5.0, via: Array = []) -> Array:
 	var out: Array = []
-	for i in n:
+	for i in ceili(n * SQUAD_SCALE):
 		var off := Vector3(rng.randf_range(-spread, spread), 0, rng.randf_range(-spread, spread))
 		var u := _spawn("inf", center + off, rng.randf() * TAU)
 		if to != Vector3.INF:
@@ -408,7 +417,8 @@ func _p2() -> bool:
 	jeep.engage_range = 140.0
 	if not await _sleep(3.0):
 		return false
-	_say(SD.ORDNUNG, "Tower an Wache: Sie kommen über das Vorfeld! Haltet die Treppe!")
+	# Feindfunk nur aktuell – liegt er hinter anderen Zeilen, entfaellt er
+	_say_opt(SD.ORDNUNG, "Tower an Wache: Sie kommen über das Vorfeld! Haltet die Treppe!", 0.0, {"max_age": 3.0})
 	if not await _until(func() -> bool: return _cleared(2) and _team_arrived()):
 		return false
 	_counting = false
@@ -608,7 +618,7 @@ func _p6() -> bool:
 			_say(SD.BRANDT, "Kampfpanzer aus dem Fahrzeugpark, Richtung Bunker. Hundertfünf bereithalten.")
 		if not manpads and upload > 0.55:
 			manpads = true
-			_say(SD.BRANDT, "Schulterrakete vom Kasernendach! Täuschkörper!")
+			_say_opt(SD.BRANDT, "Schulterrakete vom Kasernendach! Täuschkörper!", 0.0, {"priority": 2, "cut": true})
 			ctrl.launch_missile(Vector3(60, 12, -345))
 	hud.upload = 1.0
 	_counting = false

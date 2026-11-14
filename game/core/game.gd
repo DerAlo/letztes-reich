@@ -14,6 +14,31 @@ const AUDIO_PREFS_PATH := "res://game/ui/audio_prefs.gd"
 
 func _ready() -> void:
 	_apply_user_config.call_deferred()
+	_start_max_time_watchdog()
+
+## Werkzeug-Notbremse (--max-time=N): beendet Godot spaetestens nach echter Laufzeit, unabhaengig von
+## Pause, Respawn-Schleifen, Time-Scale oder ob --autopilot laeuft. Ohne Autopilot: N echte Sekunden.
+## Mit Autopilot zaehlt dieser weiter Sim-Sekunden; die Notbremse greift dann erst bei 2*N + 120 s echt
+## und laesst den Autopilot noch sauber mit result=timeout_real abschliessen (Telemetrie/Review).
+func _start_max_time_watchdog() -> void:
+	var mt := float(arg("max-time", 0.0))
+	if mt <= 0.0:
+		return
+	var ap := str(arg("autopilot", "")) not in ["", "false", "0"]
+	var limit := (mt * 2.0 + 120.0) if ap else mt
+	var t := get_tree().create_timer(limit, true, false, true)   # process_always, echte Zeit
+	t.timeout.connect(_on_max_time_watchdog.bind(limit))
+
+func _on_max_time_watchdog(limit: float) -> void:
+	print("[game] --max-time Notbremse: %.0f s echte Laufzeit erreicht, beende" % limit)
+	var ap := get_node_or_null("/root/DebugServer/Autopilot")
+	if ap != null and ap.has_method("_finish") and not bool(ap.get("_finished")):
+		ap.call("_finish", "timeout_real")
+	else:
+		var rv := get_node_or_null("/root/DebugServer/Review")
+		if rv != null and rv.has_method("finish"):
+			rv.call("finish", "timeout_real")
+	get_tree().quit()
 
 func _apply_user_config() -> void:
 	InputConfig.apply_saved()

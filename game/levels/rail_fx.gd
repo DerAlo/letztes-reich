@@ -40,13 +40,32 @@ func _build_motes() -> void:
 	pm.color_ramp = VfxLib.ramp([[0.0, Color(1, 1, 1, 0)], [0.2, Color(1, 1, 1, 1)], [0.8, Color(1, 1, 1, 1)], [1.0, Color(1, 1, 1, 0)]])
 	var mesh := QuadMesh.new()
 	mesh.size = Vector2(0.03, 0.03)
+	# Beleuchtet statt unshaded: Staub glitzert nur im (Gegen-)Sonnenlicht (Backlight), im Schatten und in
+	# den Hallen bleibt er unsichtbar. Runde weiche Flocke und Ausblenden nah an der Kamera – vorher
+	# erschien eine Flocke direkt vor der Linse als helles Quadrat.
 	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.vertex_color_use_as_albedo = true
 	m.albedo_color = Color(1.0, 0.78, 0.5, 0.55)
+	m.roughness = 1.0
+	m.backlight_enabled = true
+	m.backlight = Color(1.0, 0.78, 0.5)
+	m.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	m.distance_fade_min_distance = 0.8
+	m.distance_fade_max_distance = 3.0
+	var dot := GradientTexture2D.new()
+	dot.width = 32
+	dot.height = 32
+	dot.fill = GradientTexture2D.FILL_RADIAL
+	dot.fill_from = Vector2(0.5, 0.5)
+	dot.fill_to = Vector2(1.0, 0.5)
+	var dg := Gradient.new()
+	dg.set_color(0, Color(1, 1, 1, 1))
+	dg.set_color(1, Color(1, 1, 1, 0))
+	dot.gradient = dg
+	m.albedo_texture = dot
 	mesh.material = m
 	_motes = GPUParticles3D.new()
 	_motes.name = "DustMotes"

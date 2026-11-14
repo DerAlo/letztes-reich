@@ -215,6 +215,33 @@ func _arr(key: String, def: Array) -> Array:
 func _radio(speaker: String, text: String, dur: float) -> void:
 	Events.story_radio.emit(speaker, text, dur)
 
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _radio_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+## Restdauer laufender + wartender Funkzeilen.
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f ausfuehren, sobald der Funk frei ist (hoechstens max_wait s warten).
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_busy() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
+
+## Phasenwechsel nach t s, aber erst wenn der Funk frei ist (sonst haengt die Ansage der neuen Phase hinterher).
+func _later_phase(t: float, ph: String, f: Callable) -> void:
+	_later(t, func() -> void:
+		if phase == ph:
+			_when_radio_free(func() -> void:
+				if phase == ph:
+					f.call(), 8.0))
+
 var _last_objective: String = ""
 
 func _objective(text: String) -> void:
@@ -227,10 +254,17 @@ func _later(t: float, f: Callable) -> void:
 	get_tree().create_timer(t).timeout.connect(f)
 
 ## Funk nur, solange die Phase noch stimmt (verhindert veraltete Zeilen nach Spruengen).
+## Nach t s, sobald der Funk frei ist (hoechstens 6 s warten) – keine Staus hinter Gefechtsrufen.
 func _later_say(t: float, ph: String, speaker: String, text: String, dur: float) -> void:
-	_later(t, func() -> void:
-		if phase == ph:
-			_radio(speaker, text, dur))
+	_later(t, _say_free.bind(ph, speaker, text, dur, 6.0))
+
+func _say_free(ph: String, speaker: String, text: String, dur: float, wait: float) -> void:
+	if phase != ph:
+		return
+	if _radio_busy() <= 0.3 or wait <= 0.0:
+		_radio_opt(speaker, text, dur, {"max_age": 6.0, "valid": func() -> bool: return phase == ph})
+		return
+	_later(0.25, _say_free.bind(ph, speaker, text, dur, wait - 0.25))
 
 func _set_phase(p: String) -> void:
 	phase = p
@@ -385,6 +419,28 @@ func _physics_process(delta: float) -> void:
 	if _bot != null and bot_drives_player():
 		_bot.call("tick", delta)
 
+## Zielfernrohr: Der Kuehlturm steht knapp neben der tiefen Sonne. Bei 4-8 Grad Sichtfeld fuellte deren
+## Vorwaertsstreuung (Volumennebel, Sun-Scatter) das ganze Glas weiss. Echte Optik hat Sonnenblende/Verguetung:
+## bei kleinem FOV Streulicht der Sonne daempfen, Belichtung leicht senken.
+var _scope_base: Vector3 = Vector3(-1.0, 0.0, 0.0)   # sun vol-energy, fog_sun_scatter, exposure
+var _scope_sky: Vector2 = Vector2.ZERO               # fog_sky_affect, volumetric_fog_sky_affect
+func _scope_light() -> void:
+	if _sun == null or _env == null:
+		return
+	if _scope_base.x < 0.0:
+		_scope_base = Vector3(_sun.light_volumetric_fog_energy, _env.fog_sun_scatter, _env.tonemap_exposure)
+		_scope_sky = Vector2(_env.fog_sky_affect, _env.volumetric_fog_sky_affect)
+	var cam := get_viewport().get_camera_3d()
+	var k := 0.0
+	if cam != null:
+		k = clampf((40.0 - cam.fov) / 25.0, 0.0, 1.0)   # 40 Grad -> 0, <=15 Grad -> 1
+	_sun.light_volumetric_fog_energy = _scope_base.x * lerpf(1.0, 0.3, k)
+	_env.fog_sun_scatter = _scope_base.y * lerpf(1.0, 0.25, k)
+	_env.tonemap_exposure = _scope_base.z * lerpf(1.0, 0.74, k)
+	# Himmel hinter dem Turm: weniger Dunstschleier -> Wolkenzeichnung statt beiger Flaeche
+	_env.fog_sky_affect = _scope_sky.x * lerpf(1.0, 0.35, k)
+	_env.volumetric_fog_sky_affect = _scope_sky.y * lerpf(1.0, 0.35, k)
+
 func _process(_delta: float) -> void:
 	if not _ready_ok:
 		return
@@ -393,6 +449,7 @@ func _process(_delta: float) -> void:
 		_sun.rotation_degrees.x = _sun_x0 - minf(_t / 520.0, 1.0) * 7.0
 	if _env != null and _fog0 > 0.0:
 		_env.fog_density = _fog0 * lerpf(1.0, 0.72, minf(_t / 520.0, 1.0))
+	_scope_light()
 	_update_marker()
 	_update_glints()
 
@@ -473,18 +530,17 @@ func _tick_phase_sentries(delta: float) -> void:
 		_mark_i += 1
 		var left := _sentries_alive()
 		if left == 0:
-			_radio(SD.LENA, "Das war der Letzte. Die Straße ist blind. Gute Arbeit, Jonas.", 4.0)
-			_later(4.5, func() -> void:
-				if phase == "sentries_done":
-					_enter_convoy())
+			_radio_opt(SD.LENA, "Das war der Letzte. Die Straße ist blind. Gute Arbeit, Jonas.", 4.0, {"priority": 1, "cut": true})
+			_later_phase(1.5, "sentries_done", _enter_convoy)
 			_set_phase("sentries_done")
 			return
 		var acks: Array = ["Der liegt. Keiner hat's gehört.", "Sauber.", "Treffer. Weiter.", "Gut. Der Nächste.", "Der ist weg."]
-		_radio(SD.LENA, str(acks[_mark_i % acks.size()]), 2.5)
+		_radio_opt(SD.LENA, str(acks[_mark_i % acks.size()]), 2.5, {"max_age": 1.5, "key": "ow_ack"})
 		_mark_wait = 3.0
 	if _mark == null:
 		_mark_wait -= delta
-		if _mark_wait <= 0.0:
+		# naechsten Posten erst ansagen, wenn der Funk frei ist (hoechstens 6 s Aufschub)
+		if _mark_wait <= 0.0 and (_radio_busy() <= 0.3 or _mark_wait < -6.0):
 			_mark_next()
 	else:
 		_mark_t += delta
@@ -502,7 +558,9 @@ func _tick_phase_sentries(delta: float) -> void:
 			if _miss_lines < 3:
 				_miss_lines += 1
 				var lines: Array = ["Daneben. Er ist unruhig – warte, bis er sich beruhigt.", "Vorbei. Atme aus, dann Shift.", "Knapp. Er sucht – bleib ruhig."]
-				_radio(SD.LENA, str(lines[(_miss_lines - 1) % lines.size()]), 3.0)
+				var mk: Node3D = _mark
+				_radio_opt(SD.LENA, str(lines[(_miss_lines - 1) % lines.size()]), 3.0,
+					{"max_age": 2.0, "key": "ow_miss", "valid": func() -> bool: return _mark == mk and _alive(mk)})
 	if _pt > 260.0:
 		_radio(SD.VOSS, "Keine Zeit mehr. Den Rest übernehmen wir – der Konvoi ist da.", 4.0)
 		_kill_remaining_sentries()
@@ -521,7 +579,9 @@ func _mark_next() -> void:
 		if _alive(a):
 			_mark = a
 			_mark_t = 0.0
-			_radio(SD.LENA, str(s["desc"]), 4.5)
+			# Zielbeschreibung erledigt sich, sobald der Posten liegt (bricht dann ab)
+			_radio_opt(SD.LENA, str(s["desc"]), 4.5,
+				{"priority": 1, "drop_live": true, "valid": func() -> bool: return _alive(a)})
 			return
 
 func _kill_remaining_sentries() -> void:
@@ -694,7 +754,8 @@ func _enter_convoy() -> void:
 	_kill_remaining_sentries()
 	_objective("Deck den Hinterhalt – triff keine eigenen Leute")
 	_radio(SD.LENA, "Motoren. Der Konvoi kommt – drei Lkw und ein schwarzer Wagen.", 4.0)
-	_later_say(4.5, "convoy", SD.VOSS, "Alle runter. Wir warten auf die Ladung. Kerner, du nimmst, wer aussteigt.", 5.0)
+	_radio_opt(SD.VOSS, "Alle runter. Wir warten auf die Ladung. Kerner, du nimmst, wer aussteigt.", 5.0,
+		{"valid": func() -> bool: return phase == "convoy"})
 	_later_say(11.0, "convoy", SD.ORDNUNG, "Kolonne Nord an Leitstelle: Passieren Werkstraße Hennigsdorf, keine Vorkommnisse.", 6.0)
 	_spawn_convoy(false)
 
@@ -784,14 +845,15 @@ func _wreck(node: Node3D, anim: bool) -> void:
 func _enter_ambush() -> void:
 	_set_phase("ambush")
 	_objective("Schalte die Konvoi-Wachen aus – schütze die Leute mit den hellblauen Binden")
-	_radio(SD.VOSS, "Jetzt! Feuer frei!", 2.0)
-	_later_say(2.5, "ambush", SD.LENA, "Sie steigen aus – hinter den Lkw! Jonas, nimm sie runter!", 3.5)
+	_radio_opt(SD.VOSS, "Jetzt! Feuer frei!", 2.0, {"priority": 2, "cut": true})
+	_radio_opt(SD.LENA, "Sie steigen aus – hinter den Lkw! Jonas, nimm sie runter!", 3.5,
+		{"priority": 2, "max_age": 2.0, "valid": func() -> bool: return phase == "ambush"})
 	_later_say(9.0, "ambush", SD.ORDNUNG, "Kontakt! Kontakt Werkstraße! Hinterhalt von Norden!", 4.6)
 	var covs: Array = _arr("enemy_cover", [
 		Vector3(-14, 0, -147), Vector3(-6, 0, -149), Vector3(3, 0, -147), Vector3(9, 0, -150),
 		Vector3(16, 0, -147), Vector3(22, 0, -149), Vector3(29, 0, -147), Vector3(36, 0, -150)])
 	covs = _cover_in_gaps(covs)
-	var n: int = mini(covs.size(), 8)
+	var n: int = mini(covs.size(), 12)
 	for i in n:
 		var v: Dictionary = _vehicles[1 + (i % 2)]
 		var src := Vector3(float(v["x"]) + rng.randf_range(-3.0, 3.0), 0.0, float(v["z"]) - 2.2)
@@ -897,9 +959,7 @@ func _tick_phase_ambush(delta: float) -> void:
 		if _voss != null and _alive(_voss):
 			var pv: Dictionary = _vehicles[1]
 			_voss.call("walk_to", Vector3(float(pv["x"]) + 4.6, 0.0, float(pv["z"]) + 2.4), 3.0, true)
-		_later(4.0, func() -> void:
-			if phase == "ambush_done":
-				_enter_csniper())
+		_later_phase(4.0, "ambush_done", _enter_csniper)
 
 # ---------------------------------------------------------------- Gegenscharfschuetzen
 
@@ -980,6 +1040,33 @@ func _tick_snipers(delta: float) -> void:
 					_sniper_shot(key, s)
 					s["stage"] = "hide"
 					s["t"] = rng.randf_range(2.4, 3.2)
+					if key == "a" and int(s["shots"]) == 1 and phase == "csniper":
+						_sniper_relocate(s, a)
+			"move":
+				# Stellungswechsel am Kuehlturmrand (geduckt, kein Blitzen): Duell statt Ein-Schuss-Ziel
+				a.set("aiming", false)
+				s["glow"] = maxf(0.0, float(s["glow"]) - delta * 3.0)
+				if float(s["t"]) <= 0.0:
+					a.set("crouch", false)
+					s["stage"] = "hide"
+					s["t"] = 1.2
+
+## Gegenscharfschuetze "a" wechselt nach dem Warnschuss die Stellung (ca. 20 Grad den Ringsteg entlang,
+## bleibt zur Spielerseite): der Spieler muss das naechste Blitzen abwarten, Lenas Hinweise (Hinlegen, Wind)
+## haben Zeit zu laufen. Turmmitte wie overwatch_world_far.gd (CT).
+func _sniper_relocate(s: Dictionary, a: Node3D) -> void:
+	var ct := Vector3(-120.0, 0.0, -230.0)
+	var off := a.global_position - ct
+	var r := Vector2(off.x, off.z).length()
+	var ang := atan2(off.z, off.x) - 0.35
+	var dest := Vector3(ct.x + cos(ang) * r, a.global_position.y, ct.z + sin(ang) * r)
+	s["stage"] = "move"
+	s["t"] = 5.0
+	a.set("crouch", true)
+	a.set("aiming", false)
+	var tw := create_tween()
+	tw.tween_property(a, "global_position", dest, 4.6).set_trans(Tween.TRANS_SINE)
+	_objective("Er wechselt die Stellung am Kühlturmrand – auf das nächste Blitzen warten")
 
 func _sniper_shot(key: String, s: Dictionary) -> void:
 	var a: Node3D = _node(s["a"])
@@ -1011,7 +1098,8 @@ func _sniper_shot(key: String, s: Dictionary) -> void:
 			if not r2.is_empty():
 				VFX.spawn_impact(r2.position, r2.normal, str((r2.collider as Node).get_meta("surface", "concrete")) if r2.collider is Node else "concrete"))
 		if key == "a":
-			_radio(SD.LENA, "Scharfschütze! Kühlturm, oben am Rand – achte auf das Blitzen!", 4.0)
+			_radio_opt(SD.LENA, "Scharfschütze! Kühlturm, oben am Rand – achte auf das Blitzen!", 4.0,
+				{"priority": 1, "drop_live": true, "valid": func() -> bool: return phase == "csniper"})
 			_later_say(5.0, "csniper", SD.LENA, "Wenn es blitzt, leg dich hin (Z) – die Brüstung deckt dich nur liegend.", 4.5)
 			_later_say(10.5, "csniper", SD.LENA, "Kühlturm, rund zweihundertfünfzig Meter. Wind frisch von rechts – halt höher und eine Kopfbreite rechts.", 5.0)
 		return
@@ -1060,17 +1148,13 @@ func _enter_csniper() -> void:
 
 func on_sniper_dead(key: String) -> void:
 	if key == "a" and phase == "csniper":
-		_radio(SD.LENA, "Kühlturm ist sauber.", 2.5)
 		_set_phase("csniper_done")
-		_later(2.5, func() -> void:
-			if phase == "csniper_done":
-				_enter_mortar())
+		_radio_opt(SD.LENA, "Kühlturm ist sauber.", 2.5, {"priority": 1, "cut": true})
+		_later_phase(1.0, "csniper_done", _enter_mortar)
 	elif key == "b" and phase == "p2":
-		_radio(SD.LENA, "Schornstein ist frei. Danke, Jonas.", 2.5)
 		_set_phase("p2_done")
-		_later(3.0, func() -> void:
-			if phase == "p2_done":
-				_enter_weber())
+		_radio_opt(SD.LENA, "Schornstein ist frei. Danke, Jonas.", 2.5, {"priority": 1, "cut": true})
+		_later_phase(1.5, "p2_done", _enter_weber)
 
 func _check_sniper_deaths() -> void:
 	for key in _snipers.keys():
@@ -1086,8 +1170,9 @@ func _enter_mortar() -> void:
 	_mortar_t = 2.5
 	_mortar_n = 0
 	_mortar_grace = 16.0
-	_radio(SD.VOSS, "Mörser! Die haben dich angepeilt, Kerner!", 3.0)
-	_later_say(3.2, "mortar", SD.LENA, "Raus da, Jonas – über die Bandbrücke zur Ofenbühne!", 3.5)
+	_radio_opt(SD.VOSS, "Mörser! Die haben dich angepeilt, Kerner!", 3.0, {"priority": 2, "cut": true})
+	_radio_opt(SD.LENA, "Raus da, Jonas – über die Bandbrücke zur Ofenbühne!", 3.5,
+		{"priority": 2, "valid": func() -> bool: return phase == "mortar"})
 	_objective("Über die Bandbrücke zur Ofenbühne – zweite Stellung")
 
 func _tick_mortar(delta: float) -> void:
@@ -1144,8 +1229,9 @@ func _fire_mortar() -> void:
 func _enter_p2() -> void:
 	_set_phase("p2")
 	_spawn_sniper("b", _p("sniper_b", Vector3(100, 30, -210.5)))
-	_radio(SD.LENA, "Gut, du bist drüben. Zweiter Schütze – auf dem Schornstein rechts vom Hochofen!", 4.5)
-	_later_say(5.0, "p2", SD.VOSS, "Mörserstellung ist unser. Kerner, halt uns den Schornstein vom Hals.", 4.0)
+	_radio_opt(SD.LENA, "Gut, du bist drüben. Zweiter Schütze – auf dem Schornstein rechts vom Hochofen!", 4.5, {"priority": 1, "cut": true})
+	_radio_opt(SD.VOSS, "Mörserstellung ist unser. Kerner, halt uns den Schornstein vom Hals.", 4.0,
+		{"priority": 1, "drop_live": true, "valid": func() -> bool: return phase == "p2"})
 	_later_say(10.0, "p2", SD.LENA, "Der Wind hat gedreht, Jonas – jetzt von links. Schau auf den Dampf am Schornstein.", 4.5)
 	_objective("Schalte den Schützen auf dem Schornstein aus")
 
@@ -1293,9 +1379,10 @@ func _enter_brandt() -> void:
 		_voss.set("crouch", false)
 		_voss.set("aiming", false)
 		_voss.call("walk_to", van + Vector3(3.5, 0, 0.5), 1.7, true)
+	# Gespraech im selben Frame: jede Zeile direkt nach der vorigen
 	_radio(SD.VOSS, "Brandt ist raus. Er lebt.", 3.0)
-	_later_say(4.0, "brandt", SD.BRANDT, "Kerner? … Guter Schuss.", 3.0)
-	_later_say(8.0, "brandt", SD.VOSS, "Schnelle Eingreiftruppe aus Velten, fünf Minuten. Alle zum Transporter am Gleis!", 4.5)
+	_radio(SD.BRANDT, "Kerner? … Guter Schuss.", 3.0)
+	_radio(SD.VOSS, "Schnelle Eingreiftruppe aus Velten, fünf Minuten. Alle zum Transporter am Gleis!", 4.5)
 
 func _enter_extract() -> void:
 	_set_phase("extract")
@@ -1432,6 +1519,7 @@ func _bot_sniper_task(key: String, pos: Vector3) -> Dictionary:
 		if _alive(a):
 			face = a.global_position + Vector3.UP
 			face = a.global_position + Vector3.UP * 1.5
-			if str(s["stage"]) == "aim" and _visible_from_cam(a, 1.5):
+			# Erst nach dem Warnschuss zielen (Duell: Blitzen, Warnschuss, Stellungswechsel, zweites Blitzen)
+			if str(s["stage"]) == "aim" and int(s["shots"]) > 0 and _visible_from_cam(a, 1.5):
 				tg.append(a)
 	return {"kind": "snipe", "pos": pos, "targets": tg, "face": face, "preaim": true, "aim_h": 1.5}

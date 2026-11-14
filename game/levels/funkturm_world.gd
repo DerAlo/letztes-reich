@@ -6,6 +6,10 @@ extends RefCounted
 
 const Geo = preload("res://game/levels/level_geo.gd")
 const Props = preload("res://game/levels/level_props.gd")
+const City = preload("res://game/levels/funkturm_city.gd")
+const FacadeKit = preload("res://game/levels/facade_kit.gd")
+const FT_TEX := "res://assets/environment/funkturm/textures/"
+const VEH_TEX := "res://assets/vehicles/textures/"
 
 const CORE := 5.3          # Kern aussen
 const CORE_IN := 5.0       # Kern innen
@@ -104,6 +108,36 @@ static func _block(lv: Node3D, lo: Vector3, hi: Vector3) -> void:
 static func _emit(c: Color, e: float) -> StandardMaterial3D:
 	return Geo.flat(c, 0.6, 0.0, c, e)
 
+## PBR-Material (diffuse/normal/arm, triplanar in Weltkoordinaten) aus einem beliebigen Texturordner.
+static var _pbr_cache: Dictionary = {}
+static func _pbr(dir: String, tint: Color, scale: float, rough_mul: float = 1.0, metallic: float = 0.0, normal_scale: float = 1.0) -> StandardMaterial3D:
+	var key := "%s|%s|%s|%s|%s|%s" % [dir, tint.to_html(), scale, rough_mul, metallic, normal_scale]
+	if _pbr_cache.has(key):
+		return _pbr_cache[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(dir + "/diffuse.jpg")
+	m.albedo_color = tint
+	m.normal_enabled = true
+	m.normal_texture = load(dir + "/normal.jpg")
+	m.normal_scale = normal_scale
+	var arm: Texture2D = load(dir + "/arm.jpg")
+	m.roughness_texture = arm
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+	m.roughness = rough_mul
+	m.ao_enabled = true
+	m.ao_texture = arm
+	m.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	m.metallic = metallic
+	if metallic > 0.0:
+		m.metallic_texture = arm
+		m.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_BLUE
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * scale
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_pbr_cache[key] = m
+	return m
+
 static func _add_mesh(parent: Node, bb: Geo.BoxBatch, m: Material, shadows: bool = true) -> MeshInstance3D:
 	var mesh := bb.build()
 	if mesh == null:
@@ -151,29 +185,47 @@ static func messe(lv: Node3D) -> Dictionary:
 	var rng: RandomNumberGenerator = lv.get("rng")
 	var out: Dictionary = {}
 	# Messehallen links/rechts (Stahlbeton, lange Fensterbaender)
-	var hall_m := Geo.mat("concrete_wall_008", Color(0.36, 0.35, 0.36), 0.12, 1.0)
+	# Hallenwaende: Betonfertigteile (Poly Haven concrete_panels) mit durchlaufendem Fensterband (Shader, einzelne
+	# Scheiben unterschiedlich hell/dunkel statt einer leuchtenden Flaeche), Lisenen, Attika und Vordach.
+	var hall_m := City.hall_mat(Color(0.62, 0.6, 0.57), 6.4, 8.6, 0.31, 0.34)
+	var entry_m := City.hall_mat(Color(0.55, 0.54, 0.52), 4.7, 6.3, 0.77, 0.4)
+	var fin_m := FacadeKit.facade_mat("concrete", Color(0.58, 0.57, 0.55), {"grime_amount": 0.7, "streaks": 0.6})
+	var cap_m := Geo.flat(Color(0.11, 0.11, 0.12), 0.45, 0.6)
 	var roof_m := Geo.mat("rusty_metal_02", Color(0.32, 0.3, 0.3), 0.15, 1.0, 0.4)
 	var hb := Geo.batch()
+	var eb := Geo.batch()
+	var fb := Geo.batch()
+	var capb := Geo.batch()
 	var rb := Geo.batch()
-	var win := Geo.batch()
 	var hall := _body(lv)
 	for sx in [-1.0, 1.0]:
 		_aabb(hall, hb, Vector3(minf(sx * 22.0, sx * 46.0), 0, 40.0), Vector3(maxf(sx * 22.0, sx * 46.0), 13.0, 116.0))
 		rb.add(Vector3(sx * 34.0, 13.4, 78.0), Vector3(25.0, 0.8, 77.0))
-		for i in 9:
-			var z := 46.0 + i * 8.0
-			win.add(Vector3(sx * 21.95, 7.5, z), Vector3(0.1, 2.2, 5.6))
+		# Lisenen (vorgesetzte Betonpfeiler) an der Plazaseite und an der Stirnseite zum Turm
+		for i in 11:
+			fb.add(Vector3(sx * 21.8, 6.5, 42.0 + i * 7.2), Vector3(0.45, 13.0, 0.7))
+		for i in 4:
+			fb.add(Vector3(sx * (24.0 + i * 7.0), 6.5, 39.8), Vector3(0.7, 13.0, 0.45))
+		# Attika: Blechkante rundum ueber der Dachkante
+		capb.add(Vector3(sx * 21.9, 13.55, 78.0), Vector3(0.35, 1.1, 76.4))
+		capb.add(Vector3(sx * 46.1, 13.55, 78.0), Vector3(0.35, 1.1, 76.4))
+		capb.add(Vector3(sx * 34.0, 13.55, 39.9), Vector3(24.5, 1.1, 0.35))
+		capb.add(Vector3(sx * 34.0, 13.55, 116.1), Vector3(24.5, 1.1, 0.35))
 		# Vordach zur Plaza
 		rb.add(Vector3(sx * 20.5, 5.2, 78.0), Vector3(3.2, 0.25, 70.0))
+		capb.add(Vector3(sx * 18.92, 5.2, 78.0), Vector3(0.06, 0.4, 70.0))
 		for i in 8:
-			hb.add(Vector3(sx * 19.2, 2.6, 46.0 + i * 9.5), Vector3(0.35, 5.2, 0.35))
+			fb.add(Vector3(sx * 19.2, 2.6, 46.0 + i * 9.5), Vector3(0.35, 5.2, 0.35))
 	# Eingangsbau hinten (Spawn), Kopfbau am Turm
-	_aabb(hall, hb, Vector3(-22, 0, 118.0), Vector3(22, 9.0, 124.0))
-	win.add(Vector3(0, 5.5, 117.95), Vector3(30.0, 1.6, 0.1))
+	_aabb(hall, eb, Vector3(-22, 0, 118.0), Vector3(22, 9.0, 124.0))
+	capb.add(Vector3(0, 9.45, 117.9), Vector3(44.4, 0.9, 0.3))
+	for i in 7:
+		fb.add(Vector3(-18.0 + i * 6.0, 4.5, 117.8), Vector3(0.6, 9.0, 0.4))
 	_add_mesh(w, hb, hall_m)
+	_add_mesh(w, eb, entry_m)
+	_add_mesh(w, fb, fin_m)
+	_add_mesh(w, capb, cap_m)
 	_add_mesh(w, rb, roof_m)
-	var win_mat := _emit(Color(1.0, 0.72, 0.38), 1.6)
-	_add_mesh(w, win, win_mat, false)
 	# Fahnenmasten der Ordnungsfront (stilisierte Flaggen: Grau mit Querbalken, keine realen Symbole)
 	var pole_m := Geo.flat(Color(0.5, 0.5, 0.52), 0.4, 0.8)
 	var flag_m := Geo.flat(Color(0.22, 0.24, 0.27), 0.9)
@@ -206,7 +258,7 @@ static func messe(lv: Node3D) -> Dictionary:
 		Props.lamp(w, Vector3(8.0, 0, z - 9.0), -90.0, i != 3, 0.0, true)
 	# Suchscheinwerfer-Tuerme (drehen sich, siehe funkturm.gd)
 	var spots: Array = []
-	var tower_m := Geo.flat(Color(0.18, 0.19, 0.2), 0.6, 0.7)
+	var tower_m := _pbr(VEH_TEX + "rusty_painted_metal", Color(0.4, 0.41, 0.42), 0.6, 1.0, 0.4)
 	for p in [Vector3(-16.0, 0, 64.0), Vector3(16.0, 0, 88.0), Vector3(-15.0, 0, 22.0), Vector3(15.0, 0, 16.0)]:
 		var tb := Geo.batch()
 		var tp: Vector3 = p
@@ -221,7 +273,7 @@ static func messe(lv: Node3D) -> Dictionary:
 		lv.add_child(pivot)
 		var head := Geo.cylinder_node(0.45, 0.7, tower_m, Vector3(0, 0, -0.1), Vector3(90, 0, 0))
 		pivot.add_child(head)
-		var lens := Geo.cylinder_node(0.4, 0.04, _emit(Color(0.9, 0.95, 1.0), 8.0), Vector3(0, 0, -0.46), Vector3(90, 0, 0))
+		var lens := Geo.cylinder_node(0.4, 0.04, _emit(Color(0.9, 0.95, 1.0), 3.0), Vector3(0, 0, -0.46), Vector3(90, 0, 0))
 		pivot.add_child(lens)
 		var sl := SpotLight3D.new()
 		sl.light_color = Color(0.9, 0.94, 1.0)
@@ -229,7 +281,7 @@ static func messe(lv: Node3D) -> Dictionary:
 		sl.spot_range = 70.0
 		sl.spot_angle = 8.0
 		sl.spot_attenuation = 0.7
-		sl.light_volumetric_fog_energy = 3.0
+		sl.light_volumetric_fog_energy = 1.6
 		sl.shadow_enabled = false
 		sl.position = Vector3(0, 0, -0.5)
 		pivot.add_child(sl)
@@ -247,24 +299,31 @@ static func messe(lv: Node3D) -> Dictionary:
 static func tower(lv: Node3D) -> Dictionary:
 	var w: Node3D = lv.get("world")
 	var out: Dictionary = {}
-	var concrete := Geo.mat("concrete_wall_008", Color(0.5, 0.49, 0.47), 0.2, 1.0)
-	var steel := Geo.mat("rusty_metal_02", Color(0.42, 0.42, 0.44), 0.25, 0.9, 0.6)
-	var grate := Geo.mat("rusty_metal_02", Color(0.3, 0.31, 0.32), 0.4, 1.0, 0.5)
-	var red_steel := Geo.flat(Color(0.42, 0.12, 0.1), 0.6, 0.5)
+	# Sichtbeton mit Schmutzfahnen und Russ (Fassaden-Shader), verzinkter/lackierter Stahl mit Rostfahnen,
+	# rostige Gitterroste (Poly Haven metal_grate_rusty), Gelaender und Mast in verwittertem Signalrot.
+	var concrete := FacadeKit.facade_mat("concrete_old", Color(0.6, 0.59, 0.57),
+		{"grime_amount": 0.85, "streaks": 0.8, "soot": 0.25, "wetness": 0.25})
+	var steel := _pbr(VEH_TEX + "rusty_painted_metal", Color(0.78, 0.78, 0.8), 0.5, 1.0, 0.35, 1.2)
+	var grate := _pbr(FT_TEX + "metal_grate_rusty", Color(0.75, 0.72, 0.7), 0.7, 1.0, 0.5, 1.4)
+	var red_steel := _pbr(VEH_TEX + "rusty_painted_metal", Color(0.78, 0.26, 0.2), 0.8, 0.9, 0.3, 1.0)
 	var cb := Geo.batch()       # Beton
+	# Treppenhaus (Kern, Podeste, Laeufe): ruhiger Sichtbeton ohne Schmutzfahnen (Poly Haven concrete_wall_008,
+	# CC0). Die Fahnen des Fassaden-Shaders wirkten unter dem Notlicht wie senkrechte Holzbretter.
+	var ib := Geo.batch()
+	var stair_m := Geo.mat("concrete_wall_008", Color(0.6, 0.59, 0.57), 0.22, 1.0)
 	var sb := Geo.batch()       # Stahlgitter
 	var gb := Geo.batch()       # Gitterroste
 	var rail := Geo.batch()     # Gelaender (rot)
 	var core := _body(lv)
 	# ---------------------------------------------------------- Kern
 	var h := DECK1 - 0.3
-	_aabb(core, cb, Vector3(-CORE, 0, -CORE), Vector3(CORE, h, -CORE_IN))          # -Z
-	_aabb(core, cb, Vector3(-CORE, 0, -CORE_IN), Vector3(-CORE_IN, h, CORE_IN))    # -X
-	_aabb(core, cb, Vector3(CORE_IN, 0, -CORE_IN), Vector3(CORE, h, CORE_IN))      # +X
-	_aabb(core, cb, Vector3(-CORE, 0, CORE_IN), Vector3(2.4, h, CORE))             # +Z links der Tuer
-	_aabb(core, cb, Vector3(4.6, 0, CORE_IN), Vector3(CORE, h, CORE))              # +Z rechts
-	_aabb(core, cb, Vector3(2.4, 2.4, CORE_IN), Vector3(4.6, h, CORE))             # Sturz
-	_aabb(core, cb, Vector3(-SHAFT, 0, -SHAFT), Vector3(SHAFT, h, SHAFT))          # Aufzugsschacht
+	_aabb(core, ib, Vector3(-CORE, 0, -CORE), Vector3(CORE, h, -CORE_IN))          # -Z
+	_aabb(core, ib, Vector3(-CORE, 0, -CORE_IN), Vector3(-CORE_IN, h, CORE_IN))    # -X
+	_aabb(core, ib, Vector3(CORE_IN, 0, -CORE_IN), Vector3(CORE, h, CORE_IN))      # +X
+	_aabb(core, ib, Vector3(-CORE, 0, CORE_IN), Vector3(2.4, h, CORE))             # +Z links der Tuer
+	_aabb(core, ib, Vector3(4.6, 0, CORE_IN), Vector3(CORE, h, CORE))              # +Z rechts
+	_aabb(core, ib, Vector3(2.4, 2.4, CORE_IN), Vector3(4.6, h, CORE))             # Sturz
+	_aabb(core, ib, Vector3(-SHAFT, 0, -SHAFT), Vector3(SHAFT, h, SHAFT))          # Aufzugsschacht
 	# Tuerrahmen + Schild "Aufzug ausser Betrieb"
 	sb.add(Vector3(2.35, 1.2, CORE + 0.05), Vector3(0.12, 2.4, 0.12))
 	sb.add(Vector3(4.65, 1.2, CORE + 0.05), Vector3(0.12, 2.4, 0.12))
@@ -279,24 +338,26 @@ static func tower(lv: Node3D) -> Dictionary:
 	# Innentreppe: Podeste + Laeufe
 	for k in range(1, 12):
 		var c := corner_in(k)
-		_box(core, cb, c + Vector3(0, -0.15, 0), Vector3(3.0, 0.3, 3.0))
+		_box(core, ib, c + Vector3(0, -0.15, 0), Vector3(3.0, 0.3, 3.0))
 	for k in range(0, 12):
 		var c0 := corner_in(k)
 		var c1 := corner_in(k + 1)
 		var dir := Vector3(c1.x - c0.x, 0, c1.z - c0.z).normalized()
 		var a := Vector3(c0.x, c0.y, c0.z) + dir * 1.5
 		var e := Vector3(c1.x, c1.y, c1.z) - dir * 1.5
-		_ramp(core, cb, a, e, 3.0)
+		_ramp(core, ib, a, e, 3.0)
 		# Trittkanten (nur Optik)
 		for s in 6:
 			var t := (s + 0.5) / 6.0
 			var p := a.lerp(e, t)
 			rail.add(p + Vector3(0, 0.02, 0), Vector3(3.0 if absf(dir.z) > 0.5 else 0.06, 0.04, 0.06 if absf(dir.z) > 0.5 else 3.0))
-	# Notbeleuchtung im Treppenhaus
+	# Notbeleuchtung im Treppenhaus: kuehles, schwaches Notlicht + neutrales Grundlicht je Podest
 	for k in [1, 4, 7, 10]:
 		var c := corner_in(k)
-		_omni(lv, c + Vector3(0, 2.2, 0), Color(1.0, 0.35, 0.22), 1.2, 7.5)
+		_omni(lv, c + Vector3(0, 2.2, 0), Color(0.78, 0.86, 1.0), 0.5, 6.5)
 		gb.add(c + Vector3(signf(c.x) * 1.4, 2.2, 0), Vector3(0.1, 0.12, 0.3))
+	for k in range(1, 12):
+		_omni(lv, corner_in(k) + Vector3(0, 1.6, 0), Color(0.95, 0.93, 0.88), 0.3, 5.0)
 	# ---------------------------------------------------------- Plattform 18 m (mit Treppenaustritt)
 	var deck := _body(lv)
 	var y0 := DECK1 - 0.3
@@ -437,7 +498,7 @@ static func tower(lv: Node3D) -> Dictionary:
 	_add_mesh(lv, gate_frame, Geo.flat(Color(0.85, 0.65, 0.1), 0.6, 0.5), false)
 	# Sendesaal: Raum x -8..8, z -9..2; Bruestung 0..1 m, Fensterband 1..2.6 m, Sturz 2.6..4.2 m
 	var room := _body(lv)
-	var rmat := Geo.mat("concrete_wall_008", Color(0.62, 0.6, 0.57), 0.3, 1.0)
+	var rmat := FacadeKit.facade_mat("concrete", Color(0.66, 0.64, 0.6), {"grime_amount": 0.6, "streaks": 0.5})
 	var rbx := Geo.batch()
 	var wall_t := 0.25
 	var walls: Array = [
@@ -520,6 +581,7 @@ static func tower(lv: Node3D) -> Dictionary:
 		blink.append(bl)
 	out["blink"] = blink
 	_add_mesh(w, cb, concrete)
+	_add_mesh(w, ib, stair_m)
 	_add_mesh(w, sb, steel)
 	_add_mesh(w, gb, grate)
 	_add_mesh(w, rail, red_steel)
@@ -575,57 +637,46 @@ static func lift(lv: Node3D) -> Dictionary:
 static func horizon(lv: Node3D) -> void:
 	var srng := RandomNumberGenerator.new()
 	srng.seed = 24062030
-	var bb := Geo.batch()
+	# Stadt: Altbauzeilen, Plattenbauten und Hochhaeuser mit Fassadentextur und Fensterraster (funkturm_city.gd)
+	var city: Dictionary = City.build(lv, 24062030, 340, 105.0, 520.0, Rect2(-66.0, -66.0, 132.0, 206.0))
+	# Flugwarnlichter (rot, schwach) auf den hohen Haeusern
+	var beacons: PackedVector3Array = city.get("beacons", PackedVector3Array())
+	if beacons.size() > 0:
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.5, 0.5, 0.5)
+		var bmat := _emit(Color(1.0, 0.1, 0.05), 2.2)
+		bmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		bm.material = bmat
+		lv.add_child(_multimesh(bm, beacons))
+	# Strassenlicht-Ketten (Natriumdampf) zwischen den Haeusern: kleine Leuchtkoerper, keine Bloom-Kloetze
 	var lights := PackedVector3Array()
-	for i in 260:
-		var a := srng.randf() * TAU
-		var r := srng.randf_range(110.0, 460.0)
-		var c := Vector3(sin(a) * r, 0, cos(a) * r)
-		var wdt := srng.randf_range(12.0, 34.0)
-		var dep := srng.randf_range(12.0, 30.0)
-		var hgt := srng.randf_range(10.0, 30.0) + (srng.randf_range(20.0, 60.0) if srng.randf() < 0.12 else 0.0)
-		var basis := Basis(Vector3.UP, srng.randf() * TAU)
-		bb.add(c + Vector3(0, hgt * 0.5, 0), Vector3(wdt, hgt, dep), basis)
-		# Fenster: wenige, warme Lichter (Ausgangssperre)
-		var nwin := int(srng.randf_range(2.0, 14.0))
-		for j in nwin:
-			var side := srng.randi() % 4
-			var fx := srng.randf_range(-0.45, 0.45)
-			var fy := srng.randf_range(2.0, hgt - 1.0)
-			var local := Vector3.ZERO
-			match side:
-				0: local = Vector3(fx * wdt, fy, dep * 0.5 + 0.1)
-				1: local = Vector3(fx * wdt, fy, -dep * 0.5 - 0.1)
-				2: local = Vector3(wdt * 0.5 + 0.1, fy, fx * dep)
-				_: local = Vector3(-wdt * 0.5 - 0.1, fy, fx * dep)
-			lights.append(c + basis * local)
-	var city := Geo.mesh_node(bb.build(), Geo.mat("concrete_wall_008", Color(0.12, 0.12, 0.13), 0.05, 1.0), Vector3.ZERO, false)
-	lv.add_child(city)
-	# Strassenlicht-Ketten (Natriumdampf) auf dem Boden
 	for i in 40:
 		var a := srng.randf() * TAU
 		var r0 := srng.randf_range(80.0, 200.0)
 		var dirv := Vector3(sin(a), 0, cos(a))
 		for j in 14:
-			lights.append(dirv * (r0 + j * 18.0) + Vector3(0, 0.6, 0) + Vector3(cos(a), 0, -sin(a)) * srng.randf_range(-2.0, 2.0))
+			lights.append(dirv * (r0 + j * 18.0) + Vector3(0, 7.5, 0) + Vector3(cos(a), 0, -sin(a)) * srng.randf_range(-2.0, 2.0))
 	var qm := BoxMesh.new()
-	qm.size = Vector3(1.6, 1.1, 1.6)
-	var lm := _emit(Color(1.0, 0.68, 0.32), 3.5)
+	qm.size = Vector3(0.7, 0.25, 0.7)
+	var lm := _emit(Color(1.0, 0.6, 0.26), 2.2)
 	lm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	qm.material = lm
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = qm
-	mm.instance_count = lights.size()
-	for i in lights.size():
-		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, lights[i]))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	lv.add_child(mmi)
+	lv.add_child(_multimesh(qm, lights))
 	# Rauchsaeulen ueber der Stadt (Brandherde)
 	for p in [Vector3(-260, 0, -180), Vector3(310, 0, -60), Vector3(-120, 0, 380), Vector3(400, 0, 260), Vector3(80, 0, -420)]:
 		Props.fire(lv, p, 4.0, true, 9.0, 40.0)
+
+static func _multimesh(mesh: Mesh, pts: PackedVector3Array) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = pts.size()
+	for i in pts.size():
+		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, pts[i]))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mmi
 
 static func atmosphere(lv: Node3D) -> void:
 	var w: Node3D = lv.get("world")
@@ -633,4 +684,4 @@ static func atmosphere(lv: Node3D) -> void:
 	Props.fire(w, Vector3(-9.0, 0.3, 18.0), 1.2, true, 2.0, 6.0)
 	Props.fire(w, Vector3(13.0, 0.0, 52.0), 0.8, true, 1.5, 5.0)
 	for z in [90.0, 55.0, 15.0]:
-		Props.fog_volume(lv, Vector3(0, 1.5, z), Vector3(46, 5, 34), 0.03, Color(0.5, 0.5, 0.56))
+		Props.fog_volume(lv, Vector3(0, 1.5, z), Vector3(46, 5, 34), 0.014, Color(0.3, 0.31, 0.34))

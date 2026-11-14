@@ -46,7 +46,7 @@ const STAR_GOALS := {
 	"hafen": {"time": 330, "challenge": "prop_zero", "prop": "_weber_hits", "label": "Weber nie getroffen"},
 	"alpenpass": {"time": 360, "challenge": "no_deaths"},
 	"nachtzug": {"time": 330, "challenge": "headshots", "value": 0.25},
-	"villa": {"time": 390, "challenge": "no_deaths"},
+	"villa": {"time": 390, "challenge": "undetected"},
 	"spreebogen": {"time": 330, "challenge": "no_deaths"},
 	"funkturm": {"time": 450, "challenge": "headshots", "value": 0.25},
 	"kanalisation": {"time": 390, "challenge": "undetected"},

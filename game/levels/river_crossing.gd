@@ -8,6 +8,7 @@ extends "res://game/levels/level.gd"
 ## Fahrzeuge aus game/vehicles/ werden optional geladen; ohne sie greifen einfache Ersatzloesungen.
 
 const RP = preload("res://game/levels/river_props.gd")
+const GroundCover = preload("res://game/levels/ground_cover.gd")
 const Bridge = preload("res://game/levels/river_bridge.gd")
 const RiverFx = preload("res://game/levels/river_fx.gd")
 
@@ -40,7 +41,7 @@ const ROUTE: Array = [
 	Vector2(0.0, -262.0), Vector2(0.0, -280.0), Vector2(0.0, -293.0)]
 
 @export var storm_sky_energy: float = 0.42
-@export var storm_fog: float = 0.022
+@export var storm_fog: float = 0.009
 
 var fx: Node3D
 var water_mat: ShaderMaterial
@@ -101,21 +102,24 @@ func _setup_environment() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.3, 0.34, 0.4)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.0035
+	env.fog_density = 0.0024
 	env.fog_sky_affect = 0.75
 	env.fog_aerial_perspective = 0.35
 	env.volumetric_fog_density = storm_fog
 	env.volumetric_fog_albedo = Color(0.66, 0.72, 0.8)
-	env.volumetric_fog_emission = Color(0.018, 0.022, 0.03)
+	env.volumetric_fog_emission = Color(0.007, 0.009, 0.013)
 	env.volumetric_fog_emission_energy = 1.0
 	env.volumetric_fog_anisotropy = 0.3
 	env.volumetric_fog_length = 120.0
-	env.volumetric_fog_sky_affect = 0.6
-	env.glow_hdr_threshold = 1.1
-	env.glow_intensity = 0.6
+	env.volumetric_fog_sky_affect = 0.5
+	# weniger graue Aufhellung des Nebels durch Umgebungs-/GI-Licht: Silhouetten bleiben dunkel gegen den Dunst
+	env.volumetric_fog_ambient_inject = 0.12
+	env.volumetric_fog_gi_inject = 0.35
+	env.glow_hdr_threshold = 1.5
+	env.glow_intensity = 0.45
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 0.78
-	env.adjustment_contrast = 1.08
+	env.adjustment_contrast = 1.16
 	env.adjustment_brightness = 1.0
 	_env = env
 	var we := WorldEnvironment.new()
@@ -342,7 +346,6 @@ func _build_bridge() -> void:
 
 ## Ausgebrannte/verlassene Fahrzeuge und Sperren auf der Bruecke. Feld 1-Objekte haengen am Feld.
 func _build_bridge_props() -> void:
-	var dark := Color(0.2, 0.22, 0.2)
 	# Feld 1 (lokal, Ursprung bei z = BRIDGE_Z0)
 	Props.vehicle(span1, Vector3(-3.3, 0.0, -18.0), 168.0, "car", Color(0.4, 0.1, 0.08), true, false, [])
 	Props.vehicle(span1, Vector3(3.6, 0.0, -31.0), 8.0, "van", Color(0.7, 0.7, 0.68), false, false, [])
@@ -366,7 +369,12 @@ func _build_bridge_props() -> void:
 	m2.rotation_degrees.y = 180.0
 	world.add_child(m2)
 	Props.hedgehog(world, Vector3(-4.2, 0.0, -156.0), 20.0, covers)
-	Props.vehicle(world, Vector3(-4.7, 0.0, -179.0), 12.0, "car", dark, true, true, covers)
+	# Sandsackstellung statt des umgekippten Kisten-Autowracks (las sich als schwarzer Block);
+	# eigener Zufallsgenerator, damit das restliche Layout gleich bleibt
+	var brng := RandomNumberGenerator.new()
+	brng.seed = 179
+	RP.sandbag_wall(world, Vector3(-4.7, 0.0, -179.0), 12.0, 4.2, 4, brng, covers)
+	RP.sandbag_wall(world, Vector3(-6.6, 0.0, -177.6), 102.0, 2.4, 3, brng, covers)
 	RP.model(world, "concrete_road_barrier", Vector3(2.4, 0.0, -184.0), 4.0, 1.0, Vector3(1.55, 0.83, 0.64), covers)
 	# Laternen auf dem Gehweg (Natrium, einige noch an)
 	var lz: Array = [-74.0, -96.0, -116.0, -138.0, -158.0, -180.0]
@@ -449,6 +457,55 @@ func _build_props() -> void:
 		Props.lamp(world, Vector3(-6.3 if z != -224.0 else 6.3, 0, z), 90.0 if z != -224.0 else -90.0, z in [-224.0, -276.0])
 	_build_bridge_props()
 	_build_east_bank(prng)
+	_build_ground_cover()
+
+## Bodenbewuchs (Vegetationspass): Grasbueschel und Unkraut auf den Schlammflaechen am Westufer,
+## Brennnesseln und Unkraut an den Boeschungskanten und auf den Boeschungen. Eigener Zufallsstrom.
+func _build_ground_cover() -> void:
+	var gr := RandomNumberGenerator.new()
+	gr.seed = build_seed + 77
+	var patch := FastNoiseLite.new()
+	patch.seed = 19
+	patch.frequency = 0.08
+	var gc := Node3D.new()
+	gc.name = "GroundCover"
+	add_child(gc)
+	# Westufer: Bankette neben der Strasse, ohne Graeben, nicht unter den Haeusern
+	var west := func(q: Vector3) -> bool:
+		if absf(q.x) < 6.0 or q.z > 15.0 or q.z < BRIDGE_Z0 + 0.8:
+			return false
+		for t: float in TRENCHES:
+			if absf(q.z - t) < TRENCH_HW + 0.5 and absf(q.x) < 18.6:
+				return false
+		if absf(q.x) > 20.5 and q.z > -42.0:
+			return false   # Haeuserzeile ausserhalb der Spielgrenze
+		return patch.get_noise_2d(q.x, q.z) > -0.2
+	var g1 := GroundCover.points(gr, 14000, -40.0, 40.0, BRIDGE_Z0, 15.0, Vector2(0.7, 1.3), west)
+	GroundCover.scatter(gc, "grass01", g1, {"only": "tall", "mult": 2.4, "fade": Vector2(22, 32), "seed": 25, "tint": Color(0.92, 0.95, 0.85)})
+	var g := GroundCover.points(gr, 3200, -40.0, 40.0, BRIDGE_Z0, 15.0, Vector2(0.75, 1.35), west)
+	GroundCover.scatter(gc, "grass02", g, {"mult": 2.2, "fade": Vector2(32, 48), "seed": 21, "tint": Color(0.92, 0.95, 0.85)})
+	var w := GroundCover.points(gr, 700, -40.0, 40.0, BRIDGE_Z0, 15.0, Vector2(0.7, 1.25), west)
+	GroundCover.scatter(gc, "weed", w, {"mult": 2.0, "fade": Vector2(28, 42), "seed": 22})
+	# Boeschungskanten (oben) beidseits des Flusses: Brennnesseln, Gras
+	var lip := func(q: Vector3) -> bool:
+		return absf(q.x) > 10.5 and patch.get_noise_2d(q.x * 0.6, q.z) > -0.3
+	var edge: Array = []
+	for zb: float in [BRIDGE_Z0 + 1.6, BRIDGE_Z1 - 1.6]:
+		edge.append_array(GroundCover.points(gr, 260, -70.0, 70.0, zb - 1.4, zb + 1.4, Vector2(0.7, 1.3), lip))
+	GroundCover.scatter(gc, "nettle", edge, {"mult": 4.5, "fade": Vector2(30, 46), "seed": 23, "max_tris": 8500})
+	# Boeschungen: Unkraut und Gras auf dem Hang (Hoehe linear, Boeschung faellt BANK_DROP auf BANK_RUN)
+	var slope: Array = []
+	for west_side: bool in [true, false]:
+		for i in 700:
+			var x := gr.randf_range(-70.0, 70.0)
+			var t := gr.randf_range(0.04, 0.8)
+			if absf(x) < 11.0 or patch.get_noise_2d(x, t * 40.0 + (0.0 if west_side else 100.0)) < -0.1:
+				continue
+			var z := BRIDGE_Z0 - t * BANK_RUN if west_side else BRIDGE_Z1 + t * BANK_RUN
+			var sc := gr.randf_range(0.7, 1.3)
+			var b := Basis.from_euler(Vector3(0, gr.randf() * TAU, 0)).scaled(Vector3.ONE * sc)
+			slope.append(Transform3D(b, Vector3(x, -t * BANK_DROP - 0.05, z)))
+	GroundCover.scatter(gc, "grass02", slope, {"mult": 2.2, "fade": Vector2(32, 48), "seed": 24, "tint": Color(0.92, 0.95, 0.85)})
 
 func _build_east_bank(prng: RandomNumberGenerator) -> void:
 	# Russische Stellungen am Brueckenkopf
@@ -483,11 +540,15 @@ func _build_markers() -> void:
 	var spawns: Array = [
 		["rifleman", 0, -8.0, 0.05, -49.0], ["rifleman", 0, 8.5, 0.05, -50.5], ["rifleman", 0, 11.0, 0.05, -30.0],
 		["rifleman", 0, -3.0, 0.05, -60.0], ["marksman", 0, 2.6, 0.05, -70.0],
+		["rifleman", 0, -8.0, 0.05, -37.0], ["rifleman", 0, 16.0, 0.05, -55.0], ["rifleman", 0, 7.0, 0.05, -40.0],
 		["rifleman", 1, -3.4, 0.05, -131.0], ["rifleman", 1, 3.6, 0.05, -140.0], ["drone", 1, 0.0, 7.0, -125.0],
+		["rifleman", 1, -5.0, 0.05, -134.0], ["rifleman", 1, 5.0, 0.05, -130.0],
 		["assault", 2, 3.4, 0.05, -171.0], ["rifleman", 2, -3.0, 0.05, -184.0], ["rifleman", 2, 7.0, 0.05, -201.0],
 		["rifleman", 2, -7.0, 0.05, -199.0], ["heavy", 2, 0.5, 0.05, -197.0],
+		["rifleman", 2, 10.0, 0.05, -192.0], ["rifleman", 2, -8.0, 0.05, -204.0], ["assault", 2, 4.0, 0.05, -183.0],
 		["rifleman", 3, -7.0, 0.05, -250.0], ["rifleman", 3, 7.5, 0.05, -256.0], ["officer", 3, -4.0, 0.05, -270.0],
 		["heavy", 3, 3.0, 0.05, -280.0], ["drone", 3, 0.0, 8.0, -262.0], ["rifleman", 3, 8.0, 0.05, -289.0],
+		["rifleman", 3, 10.0, 0.05, -260.0], ["rifleman", 3, -8.0, 0.05, -281.0],
 		["armored", 2, -4.5, 0.05, -192.0], ["armored", 3, 4.5, 0.05, -265.0],   # gepanzerte Soldaten
 	]
 	for i in spawns.size():
@@ -536,6 +597,11 @@ func _build_markers() -> void:
 func _radio(speaker: String, text: String, duration: float) -> void:
 	Events.story_radio.emit(speaker, text, duration)
 
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _radio_opt(speaker: String, text: String, duration: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, duration, opts)
+
 func _objective(text: String) -> void:
 	Events.story_objective.emit(text)
 
@@ -545,8 +611,7 @@ func _later(t: float, f: Callable) -> void:
 func _intro() -> void:
 	_objective("Ueberquere die Bruecke")
 	_radio(StoryData.WEBER, "Kerner, hier Weber. Die Bruecke muss bis Sonnenaufgang stehen – und in unserer Hand sein. Pioniere folgen euch.", 6.5)
-	_later(7.5, func() -> void:
-		_radio(StoryData.LENA, "Graeben links und rechts der Strasse. Bleib auf dem Asphalt, Jonas.", 4.5))
+	_radio(StoryData.LENA, "Graeben links und rechts der Strasse. Bleib auf dem Asphalt, Jonas.", 4.5)
 
 # ------------------------------------------------------------------ Hubschrauber
 
@@ -558,9 +623,8 @@ func _start_heli() -> void:
 	var hover := Vector3(-16.0, 11.0, minf(pl.z, -84.0) - 12.0)
 	_radio(StoryData.LENA, "Hubschrauber! Elf Uhr!", 3.0)
 	_objective("Schiess den Kampfhubschrauber ab")
-	_later(3.2, func() -> void:
-		if not _heli_down:
-			_radio(StoryData.WEBER, "Hol ihn runter, Kerner, sonst kommt keiner ueber diese Bruecke!", 4.0))
+	_radio_opt(StoryData.WEBER, "Hol ihn runter, Kerner, sonst kommt keiner ueber diese Bruecke!", 4.0,
+		{"valid": func() -> bool: return not _heli_down})
 	if ResourceLoader.exists(HELI_PATH):
 		var scene := load(HELI_PATH) as PackedScene
 		if scene != null:
@@ -592,7 +656,8 @@ func _heli_fallback() -> void:
 		return
 	if heli.has_method("is_alive") and not heli.call("is_alive"):
 		return
-	_radio(StoryData.LENA, "Halt ihn beschaeftigt – Fliegerfaust ist raus!", 3.0)
+	_radio_opt(StoryData.LENA, "Halt ihn beschaeftigt – Fliegerfaust ist raus!", 3.0,
+		{"priority": 1, "max_age": 2.0, "key": "heli_ff", "valid": func() -> bool: return not _heli_down})
 	var from := _player_pos() + Vector3(4.0, 1.5, 6.0)
 	var to := heli.global_position
 	var rocket := Geo.box_mesh_node(Vector3(0.15, 0.15, 0.9), Geo.flat(Color(0.2, 0.2, 0.2), 0.5, 0.0, Color(1.0, 0.7, 0.3), 6.0), from)
@@ -611,7 +676,7 @@ func _on_heli_down() -> void:
 		return
 	_heli_down = true
 	print("[river] Hubschrauber abgeschossen")
-	_radio(StoryData.LENA, "Er geht runter! Direkt in den Fluss!", 3.5)
+	_radio_opt(StoryData.LENA, "Er geht runter! Direkt in den Fluss!", 3.5, {"priority": 1, "max_age": 3.0})
 	_objective("Ueberquere die Bruecke")
 
 func _on_heli_crash() -> void:
@@ -652,7 +717,7 @@ func _fake_heli_pass(hover: Vector3) -> void:
 		_later(2.0 + k * 0.25, func() -> void:
 			if fx != null:
 				fx.call("splash", Vector3(randf_range(-30.0, -12.0), WATER_Y, hover.z + randf_range(-6.0, 6.0)), 0.4, k == 0))
-	_later(8.0, func() -> void: _radio(StoryData.LENA, "Er dreht ab – weiter, weiter!", 3.0))
+	_later(8.0, func() -> void: _radio_opt(StoryData.LENA, "Er dreht ab – weiter, weiter!", 3.0, {"priority": 1, "max_age": 3.0}))
 
 # ------------------------------------------------------------------ Brueckeneinsturz
 
@@ -673,7 +738,7 @@ func _collapse() -> void:
 	_shake(0.25)
 	if fx != null:
 		fx.call("strike", true)
-	_radio(StoryData.LENA, "Die Bruecke! Lauf, Jonas, lauf!", 3.0)
+	_radio_opt(StoryData.LENA, "Die Bruecke! Lauf, Jonas, lauf!", 3.0, {"priority": 2, "cut": true})
 	var tw := span1.create_tween()
 	tw.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	# Phase 1: Aechzen und Wackeln
@@ -710,7 +775,9 @@ func _collapse() -> void:
 			fx.call("splash", Vector3(4.0, WATER_Y, BRIDGE_Z0 - 28.0), 2.6, false)
 		_shake(0.3)
 		_later(2.0, func() -> void:
-			_radio(StoryData.WEBER, "Das erste Feld ist weg. Kein Weg zurueck, Kerner – nur nach vorn.", 4.5)))
+			# Nachdenkliche Zeile: weicht dem Panzer-Alarm (bricht ab, sobald der Panzer kommt)
+			_radio_opt(StoryData.WEBER, "Das erste Feld ist weg. Kein Weg zurueck, Kerner – nur nach vorn.", 4.5,
+				{"max_age": 4.0, "drop_live": true, "valid": func() -> bool: return not _tank_started})))
 
 func _shake(amount: float) -> void:
 	var pl := get_tree().get_first_node_in_group("player")
@@ -750,10 +817,10 @@ func _start_tank() -> void:
 		return
 	_tank_started = true
 	_tank_t0 = Time.get_ticks_msec()
-	_radio(StoryData.LENA, "Panzer am Brueckenkopf!", 2.5)
+	_radio_opt(StoryData.LENA, "Panzer am Brueckenkopf!", 2.5, {"priority": 2})
 	_objective("Zerstoere den Panzer")
-	_later(2.8, func() -> void:
-		_radio(StoryData.WEBER, "Sprengladung an die Wanne, Kerner! Links an ihm vorbei, er sieht dich schlecht!", 4.5))
+	_radio_opt(StoryData.WEBER, "Sprengladung an die Wanne, Kerner! Links an ihm vorbei, er sieht dich schlecht!", 4.5,
+		{"priority": 2, "valid": func() -> bool: return not _tank_dead})
 	var scene: PackedScene = load(TANK_PATH) as PackedScene if ResourceLoader.exists(TANK_PATH) else null
 	if scene != null:
 		tank = scene.instantiate() as Node3D
@@ -793,7 +860,7 @@ func _start_tank() -> void:
 	# Rueckfall: Artillerie erledigt den Panzer, falls es zu lange dauert
 	_later(55.0, func() -> void:
 		if not _tank_dead and is_instance_valid(tank):
-			_radio(StoryData.WEBER, "Artillerie liegt auf dem Panzer – Kopf runter!", 3.0)
+			_radio_opt(StoryData.WEBER, "Artillerie liegt auf dem Panzer – Kopf runter!", 3.0, {"priority": 2, "cut": true})
 			_later(2.0, func() -> void:
 				if not _tank_dead and is_instance_valid(tank) and tank.has_method("destroy"):
 					VFX.spawn_explosion(tank.global_position + Vector3(0, 2, 0), 3.0)
@@ -808,7 +875,7 @@ func _on_tank_destroyed() -> void:
 		_gate.queue_free()
 	_shake(0.5)
 	_later(1.5, func() -> void:
-		_radio(StoryData.WEBER, "Panzer ist erledigt! Brueckenkopf sichern – bis zur Fabrik!", 4.0)
+		_radio_opt(StoryData.WEBER, "Panzer ist erledigt! Brueckenkopf sichern – bis zur Fabrik!", 4.0, {"priority": 1, "max_age": 4.0})
 		_objective("Sichere den Brueckenkopf bis zur Fabrik"))
 	_later(2.5, func() -> void: _spawn_wave(3))
 	_later(4.0, _jet_run)
@@ -824,7 +891,7 @@ func _jet_run() -> void:
 	add_child(jet)
 	var targets: Array[Vector3] = [Vector3(-48.0, 0.0, -236.0), Vector3(-58.0, 0.0, -262.0), Vector3(46.0, 0.0, -300.0)]
 	jet.call("run", Vector3(-30.0, 70.0, 400.0), Vector3(30.0, 60.0, -900.0), targets)
-	_later(1.5, func() -> void: _radio(StoryData.LENA, "Unsere Jets! Endlich!", 2.5))
+	_later(1.5, func() -> void: _radio_opt(StoryData.LENA, "Unsere Jets! Endlich!", 2.5, {"max_age": 3.0}))
 
 # ------------------------------------------------------------------ Sonnenaufgang
 
@@ -909,9 +976,9 @@ func _build_atmosphere() -> void:
 	# Brand im Fenster
 	Props.fire(world, Vector3(-11.6, 4.6, -216.0), 0.9, true, 1.2, 6.0)
 	# Dunst ueber dem Wasser und in den Gassen
-	Props.fog_volume(self, Vector3(0, WATER_Y + 2.0, (BRIDGE_Z0 + BRIDGE_Z1) * 0.5), Vector3(260, 7, 110), 0.045, Color(0.7, 0.74, 0.8))
+	Props.fog_volume(self, Vector3(0, WATER_Y + 2.0, (BRIDGE_Z0 + BRIDGE_Z1) * 0.5), Vector3(260, 7, 110), 0.026, Color(0.7, 0.74, 0.8))
 	for z: float in [-30.0, -230.0, -275.0]:
-		Props.fog_volume(self, Vector3(0, 1.5, z), Vector3(26, 5, 30), 0.03, Color(0.55, 0.58, 0.62))
+		Props.fog_volume(self, Vector3(0, 1.5, z), Vector3(26, 4, 30), 0.01, Color(0.55, 0.58, 0.62))
 	_later(1.5, _intro)
 
 # ------------------------------------------------------------------ Navigation / Artillerie

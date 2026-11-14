@@ -15,6 +15,10 @@ const BP = preload("res://game/levels/berlin_props.gd")
 const K = preload("res://game/levels/overwatch_world_kit.gd")
 const RP = preload("res://game/levels/river_props.gd")
 const NP = preload("res://game/levels/night_props.gd")
+const VD = preload("res://game/levels/villa_dressing.gd")
+const VT = preload("res://game/levels/villa_truck.gd")
+const FK = preload("res://game/levels/furniture_kit.gd")
+const VJ = preload("res://game/levels/villa_jetty.gd")
 
 const HDRI := "res://assets/environment/rail/hdri/industrial_sunset_02_puresky_2k.hdr"
 const SUN_AZ := 228.0          ## 180 = aus -Z (Norden); > 180 nach Westen: Sonnenuntergang ueber dem See
@@ -126,7 +130,11 @@ static func materials() -> Dictionary:
 	m["shore_light"] = Geo.flat(Color(0.1, 0.08, 0.05), 0.6, 0.0, Color(1.0, 0.75, 0.45), 9.0)
 	m["fire_glow"] = Geo.flat(Color(0.1, 0.03, 0.0), 0.6, 0.0, Color(1.0, 0.45, 0.12), 6.0)
 	m["paper"] = Geo.flat(Color(0.82, 0.8, 0.72), 0.9)
+	m["fp_brick"] = K.pbr("res://assets/environment/facade/textures/red_brick_03", Color(0.5, 0.4, 0.36), 0.9, 1.0)
+	m["fp_soot"] = Geo.flat(Color(0.03, 0.027, 0.025), 0.95)
+	m["fp_ember"] = Geo.flat(Color(0.06, 0.02, 0.0), 0.8, 0.0, Color(1.0, 0.32, 0.06), 3.5)
 	m["folder"] = Geo.flat(Color(0.55, 0.42, 0.18), 0.8)
+	VD.apply_materials(m)
 	return m
 
 # ------------------------------------------------------------------ Aufbau
@@ -150,6 +158,7 @@ static func build(lv: Node3D, world: Node3D, mats: Dictionary, covers: Array, rn
 	_water(lv)
 	_mountains(lv, mats)
 	_trees(lv, world, rng)
+	_dressing(lv, mats)
 	_lights(lv, mats, pts)
 	_boundaries(lv)
 	pts["back_door"] = _back_door(lv, mats)
@@ -166,6 +175,13 @@ static func build(lv: Node3D, world: Node3D, mats: Dictionary, covers: Array, rn
 static func _sb(bd: BP.Builder, body: StaticBody3D, key: String, c: Vector3, s: Vector3, yaw_deg: float = 0.0) -> void:
 	bd.box(key, c, s, Basis(Vector3.UP, deg_to_rad(yaw_deg)))
 	Geo.add_box_shape(body, c, s, Vector3(0, yaw_deg, 0))
+
+## Moebel: Kollision wie bisher als Box (Deckung/Navmesh unveraendert), Optik als Poly-Haven-Modell
+## (furniture_kit.gd); fehlt das Modell, wird der alte Quader gezeichnet.
+static func _furn(bd: BP.Builder, body: StaticBody3D, key: String, model: String, c: Vector3, s: Vector3, yaw_deg: float = 0.0, opts: Dictionary = {}) -> void:
+	Geo.add_box_shape(body, c, s)
+	if not FK.place(body, model, c, s, yaw_deg, opts):
+		bd.box(key, c, s)
 
 ## Box aus zwei Ecken, mit Kollision.
 static func _mm(bd: BP.Builder, body: StaticBody3D, key: String, a: Vector3, b: Vector3) -> void:
@@ -327,8 +343,7 @@ static func _boathouse(bd: BP.Builder, body: StaticBody3D) -> void:
 	_sb(bd, body, "timber_dark", Vector3(-23.6, 0.45, 26.0), Vector3(0.7, 0.9, 2.6))
 	_sb(bd, body, "red_paint", Vector3(-24.0, 0.25, 31.6), Vector3(0.5, 0.5, 0.35))
 	_sb(bd, body, "timber_dark", Vector3(-25.0, 0.4, 32.8), Vector3(1.6, 0.8, 1.0))
-	# Steg vor dem Bootshaus (kleiner Bootssteg am Westufer, nur Optik)
-	_vis(bd, "planks", Vector3(-38.0, 0.0, 26.0), Vector3(-32.0, 0.18, 30.0))
+	# Steg vor dem Bootshaus (kleiner Bootssteg am Westufer, nur Optik): baut villa_jetty.gd
 
 # ------------------------------------------------------------------ Garten, Terrasse
 
@@ -384,11 +399,11 @@ static func _forecourt(bd: BP.Builder, body: StaticBody3D, world: Node3D, covers
 	body.add_child(cs)
 	# Sicherheitsdienst-Wagen und Limousine (Deckung)
 	Props.vehicle(world, Vector3(24.0, 0.0, 8.0), 0.0, "van", Color(0.07, 0.08, 0.11), false, false, covers)
-	Props.vehicle(world, Vector3(22.5, 0.0, -6.0), 90.0, "truck", Color(0.1, 0.1, 0.11), false, false, covers)
+	# Koffer-Lkw: detailliertes Modell (villa_truck.gd) statt CarModel-Profil, Kollision/Deckung wie zuvor
+	VT.place(world, Vector3(22.5, 0.0, -6.0), 90.0, Color(0.2, 0.21, 0.23), covers)
 	# Pflanzkuebel an der Auffahrt
 	for z: float in [24.0, 16.0, 8.0]:
-		_sb(bd, body, "stone", Vector3(9.6, 0.4, z), Vector3(0.9, 0.8, 0.9))
-		bd.ball("hedge", Vector3(9.6, 1.1, z), Vector3(1.0, 0.9, 1.0))
+		_sb(bd, body, "stone", Vector3(9.6, 0.4, z), Vector3(0.9, 0.8, 0.9))   # Bepflanzung: VD.beds
 	# Hecke vor der Ostmauer
 	_sb(bd, body, "hedge", Vector3(32.0, 0.9, -10.0), Vector3(1.2, 1.8, 30.0))
 
@@ -410,12 +425,7 @@ static func _villa(bd: BP.Builder, body: StaticBody3D) -> void:
 	# Geschossdecke und Dachboden
 	_mm(bd, body, "plaster_dark", Vector3(xa, STOREY, za), Vector3(xb, STOREY + 0.25, zb))
 	_mm(bd, body, "plaster_dark", Vector3(xa - 0.3, EAVE, za - 0.3), Vector3(xb + 0.3, EAVE + 0.2, zb + 0.3))
-	_gable_x(bd, "roof", xa - 0.8, xb + 0.8, za - 0.8, zb + 0.8, EAVE + 0.2, 3.6)
-	# Walmenden angedeutet (gestufte Giebelfuellung)
-	for xx: float in [xa - 0.1, xb + 0.1]:
-		for k in 6:
-			var w := 18.4 * (1.0 - float(k) / 6.0)
-			bd.box("plaster", Vector3(xx, EAVE + 0.5 + k * 0.6, (za + zb) * 0.5), Vector3(0.2, 0.6, w))
+	# Walmdach, Sockel, Fenster, Rinnen: VillaDressing.villa_roof / villa_facade (nur Optik)
 	# Gesimse
 	for y: float in [STOREY + 0.1, EAVE - 0.15]:
 		bd.box("white_paint", Vector3(0.0, y, zb + 0.22), Vector3(24.6, 0.18, 0.12))
@@ -430,114 +440,143 @@ static func _villa(bd: BP.Builder, body: StaticBody3D) -> void:
 		_sb(bd, body, "white_paint", Vector3(sx, 1.5, -11.6), Vector3(0.35, 3.0, 0.35))
 	bd.box("white_paint", Vector3(6.0, 3.1, -12.8), Vector3(4.2, 0.25, 2.8))
 	_mm(bd, body, "stone", Vector3(4.0, 0.0, -13.8), Vector3(8.0, 0.06, -11.0))
-	# Fenster: warm erleuchtet, mit Rahmen (Erdgeschoss und Obergeschoss)
-	var fronts: Array = [
-		# [richtung, fester wert, von, bis, auslassen]
-		["z", zb + 0.2, xa, xb, [6.0]],
-		["z", za - 0.2, xa, xb, [10.0]],
-		["x", xa - 0.2, za, zb, [-22.8]],
-		["x", xb + 0.2, za, zb, []],
-	]
-	for f: Array in fronts:
-		var dir: String = f[0]
-		var fixed: float = f[1]
-		var a: float = f[2]
-		var b: float = f[3]
-		var skip: Array = f[4]
-		var n := int((b - a) / 3.0)
-		for i in n:
-			var u := a + 1.5 + i * 3.0
-			var skip_this := false
-			for s: float in skip:
-				if absf(u - s) < 1.6:
-					skip_this = true
-			for floor_i in 2:
-				if floor_i == 0 and skip_this:
-					continue
-				var y := 1.8 if floor_i == 0 else 5.3
-				var c := Vector3(u, y, fixed) if dir == "z" else Vector3(fixed, y, u)
-				var s_glass := Vector3(1.1, 1.6, 0.06) if dir == "z" else Vector3(0.06, 1.6, 1.1)
-				var s_frame := Vector3(1.35, 1.85, 0.05) if dir == "z" else Vector3(0.05, 1.85, 1.35)
-				var lit := (i + floor_i * 3) % 4 != 1
-				bd.box("white_paint", c, s_frame)
-				var push := Vector3(0, 0, 0.02 * signf(fixed)) if dir == "z" else Vector3(0.02 * signf(fixed), 0, 0)
-				bd.box("win_warm" if lit else "glass", c + push, s_glass)
-				# Fensterlaeden
-				var off := Vector3(0.85, 0, 0) if dir == "z" else Vector3(0, 0, 0.85)
-				var s_sh := Vector3(0.5, 1.8, 0.05) if dir == "z" else Vector3(0.05, 1.8, 0.5)
-				bd.box("timber_dark", c + off, s_sh)
-				bd.box("timber_dark", c - off, s_sh)
+	# Fenster (Faschen, Laeden, Interior-Mapping-Glas): VillaDressing.villa_facade
 
 static func _interior(bd: BP.Builder, body: StaticBody3D) -> void:
 	var y0 := FLOOR_Y
 	var h := STOREY - FLOOR_Y
 	# Trennwand Salon | Halle+Bibliothek (Durchgang bei z -18), Wand Halle | Bibliothek (Durchgang x 6)
-	_wall_z(bd, body, "plaster", 0.0, -32.0, -14.0, y0, h, [[-18.8, -17.2]], 0.25)
-	_wall_x(bd, body, "plaster", -22.0, 0.0, 12.0, y0, h, [[5.1, 6.9]], 0.25)
+	_wall_z(bd, body, "plaster_in", 0.0, -32.0, -14.0, y0, h, [[-18.8, -17.2]], 0.25)
+	_wall_x(bd, body, "plaster_in", -22.0, 0.0, 12.0, y0, h, [[5.1, 6.9]], 0.25)
 	# Teppiche
 	_vis(bd, "rug", Vector3(3.5, y0, -20.5), Vector3(8.5, y0 + 0.02, -15.5))
 	_vis(bd, "rug", Vector3(-9.0, y0, -27.0), Vector3(-3.0, y0 + 0.02, -19.0))
 	_vis(bd, "rug", Vector3(3.0, y0, -30.5), Vector3(9.0, y0 + 0.02, -24.5))
 	# Halle: Konsole, Garderobe, Treppe (verstellt, Absperrung) an der Ostwand
-	_sb(bd, body, "timber_dark", Vector3(1.0, y0 + 0.45, -15.0), Vector3(1.4, 0.9, 0.5))
+	_furn(bd, body, "timber_dark", "ClassicConsole_01", Vector3(1.0, y0 + 0.45, -15.0), Vector3(1.4, 0.9, 0.5), 180.0)
 	for k in 8:
 		_sb(bd, body, "timber", Vector3(11.0, y0 + 0.11 + k * 0.22, -20.6 + k * 0.32), Vector3(1.6, 0.22, 0.32 + (7 - k) * 0.0))
-	_sb(bd, body, "timber_dark", Vector3(11.0, y0 + 1.05, -17.9), Vector3(1.8, 2.1, 0.6))
+	_furn(bd, body, "timber_dark", "GothicCabinet_01", Vector3(11.0, y0 + 1.05, -17.9), Vector3(1.8, 2.1, 0.6))
 	_sb(bd, body, "timber_dark", Vector3(10.1, y0 + 0.5, -18.4), Vector3(0.08, 1.0, 4.4))
 	# Salon: Sofas, Fluegel, Kamin, Couchtisch
-	_sb(bd, body, "sofa", Vector3(-8.5, y0 + 0.4, -23.0), Vector3(0.9, 0.8, 2.6))
-	_sb(bd, body, "sofa", Vector3(-4.0, y0 + 0.4, -23.0), Vector3(0.9, 0.8, 2.6))
-	_sb(bd, body, "timber_dark", Vector3(-6.25, y0 + 0.22, -23.0), Vector3(1.6, 0.44, 1.0))
+	_furn(bd, body, "sofa", "sofa_03", Vector3(-8.5, y0 + 0.4, -23.0), Vector3(0.9, 0.8, 2.6), 90.0)
+	_furn(bd, body, "sofa", "sofa_03", Vector3(-4.0, y0 + 0.4, -23.0), Vector3(0.9, 0.8, 2.6), -90.0)
+	_furn(bd, body, "timber_dark", "gothic_coffee_table", Vector3(-6.25, y0 + 0.22, -23.0), Vector3(1.6, 0.44, 1.0))
 	_sb(bd, body, "black", Vector3(-8.5, y0 + 0.5, -29.6), Vector3(2.0, 1.0, 1.6))
 	bd.box("black", Vector3(-8.5, y0 + 1.25, -30.3), Vector3(2.0, 0.6, 0.08), Basis(Vector3(1, 0, 0), -0.35))
-	_sb(bd, body, "marble", Vector3(-11.6, y0 + 0.7, -19.0), Vector3(0.5, 1.4, 2.0))
-	bd.box("fire_glow", Vector3(-11.45, y0 + 0.4, -19.0), Vector3(0.1, 0.5, 1.1))
-	_sb(bd, body, "timber_dark", Vector3(-1.0, y0 + 0.9, -30.8), Vector3(1.2, 1.8, 0.5))
+	_fireplace(bd, body, -12.0 + WALL_T * 0.5, -19.0)
+	_furn(bd, body, "timber_dark", "vintage_cabinet_01", Vector3(-1.0, y0 + 0.9, -30.8), Vector3(1.2, 1.8, 0.5))
 	# Bibliothek: Regale (Ostwand, Rueckwand bis zur Hintertuer), Schreibtisch, Kamin, Sessel
-	_sb(bd, body, "timber_dark", Vector3(11.55, y0 + 1.6, -27.0), Vector3(0.6, 3.2, 9.4))
-	_sb(bd, body, "timber_dark", Vector3(4.2, y0 + 1.6, -31.55), Vector3(7.8, 3.2, 0.6))
-	var book_keys: Array[String] = ["books", "books2", "books3"]
-	for row in 5:
-		var yy := y0 + 0.45 + row * 0.6
-		for seg in 6:
-			bd.box(book_keys[(row + seg) % 3], Vector3(11.2, yy, -31.0 + seg * 1.55 + 0.75), Vector3(0.12, 0.42, 1.4))
-		for seg in 5:
-			bd.box(book_keys[(row + seg + 1) % 3], Vector3(0.9 + seg * 1.55 + 0.6, yy, -31.2), Vector3(1.4, 0.42, 0.12))
-	_sb(bd, body, "leather", Vector3(6.0, y0 + 0.39, -29.0), Vector3(1.8, 0.78, 0.9))
-	bd.box("timber_dark", Vector3(6.0, y0 + 0.8, -29.0), Vector3(1.9, 0.05, 1.0))
-	_sb(bd, body, "leather", Vector3(6.0, y0 + 0.5, -30.0), Vector3(0.6, 1.0, 0.6))
+	# Echte Regale mit Buechern (furniture_kit.bookshelves, Poly Haven CC0); Kollision als Box wie bisher
+	# (2.7 m = Regalhoehe). Fehlt das Modell: alte Quader mit Buchklotz-Reihen.
+	var sh_e_c := Vector3(11.55, y0 + 1.35, -27.0)
+	var sh_e_s := Vector3(0.6, 2.7, 9.4)
+	var sh_b_c := Vector3(4.2, y0 + 1.35, -31.55)
+	var sh_b_s := Vector3(7.8, 2.7, 0.6)
+	if FK.has(FK.SHELF):
+		Geo.add_box_shape(body, sh_e_c, sh_e_s)
+		Geo.add_box_shape(body, sh_b_c, sh_b_s)
+		FK.bookshelves(body, sh_e_c, sh_e_s, -90.0, 2.7, 7)
+		FK.bookshelves(body, sh_b_c, sh_b_s, 0.0, 2.7, 11)
+	else:
+		_sb(bd, body, "timber_dark", Vector3(11.55, y0 + 1.6, -27.0), Vector3(0.6, 3.2, 9.4))
+		_sb(bd, body, "timber_dark", Vector3(4.2, y0 + 1.6, -31.55), Vector3(7.8, 3.2, 0.6))
+		var book_keys: Array[String] = ["books", "books2", "books3"]
+		for row in 5:
+			var yy := y0 + 0.45 + row * 0.6
+			for seg in 6:
+				bd.box(book_keys[(row + seg) % 3], Vector3(11.2, yy, -31.0 + seg * 1.55 + 0.75), Vector3(0.12, 0.42, 1.4))
+			for seg in 5:
+				bd.box(book_keys[(row + seg + 1) % 3], Vector3(0.9 + seg * 1.55 + 0.6, yy, -31.2), Vector3(1.4, 0.42, 0.12))
+	# Schreibtisch (Beine leicht gestreckt auf Schreibtischhoehe 0.78 m) und Stuhl
+	if FK.has("WoodenTable_01"):
+		_furn(bd, body, "leather", "WoodenTable_01", Vector3(6.0, y0 + 0.39, -29.0), Vector3(1.8, 0.78, 0.9), 180.0, {"scale": 1.0, "stretch": 1.45})
+	else:
+		_sb(bd, body, "leather", Vector3(6.0, y0 + 0.39, -29.0), Vector3(1.8, 0.78, 0.9))
+		bd.box("timber_dark", Vector3(6.0, y0 + 0.8, -29.0), Vector3(1.9, 0.05, 1.0))
+	_furn(bd, body, "leather", "GreenChair_01", Vector3(6.0, y0 + 0.5, -30.0), Vector3(0.6, 1.0, 0.6), 0.0, {"scale": 1.0, "stretch": 1.0})
 	bd.box("brass", Vector3(6.6, y0 + 1.05, -29.2), Vector3(0.12, 0.45, 0.12))
 	bd.box("lamp_glow", Vector3(6.6, y0 + 1.32, -29.2), Vector3(0.32, 0.16, 0.32))
-	_sb(bd, body, "marble", Vector3(0.45, y0 + 0.7, -27.0), Vector3(0.5, 1.4, 2.0))
-	bd.box("fire_glow", Vector3(0.6, y0 + 0.4, -27.0), Vector3(0.1, 0.5, 1.1))
-	_sb(bd, body, "leather", Vector3(2.0, y0 + 0.4, -25.2), Vector3(0.9, 0.8, 0.9))
-	_sb(bd, body, "leather", Vector3(2.0, y0 + 0.4, -28.8), Vector3(0.9, 0.8, 0.9))
+	_fireplace(bd, body, 0.125, -27.0)
+	_furn(bd, body, "leather", "ArmChair_01", Vector3(2.0, y0 + 0.4, -25.2), Vector3(0.9, 0.8, 0.9), -90.0, {"scale": 1.0, "stretch": 1.0})
+	_furn(bd, body, "leather", "ArmChair_01", Vector3(2.0, y0 + 0.4, -28.8), Vector3(0.9, 0.8, 0.9), -90.0, {"scale": 1.0, "stretch": 1.0})
 	# Globus und Leselampe
 	bd.ball("folder", Vector3(9.5, y0 + 1.0, -24.0), Vector3(0.55, 0.55, 0.55))
 	_sb(bd, body, "timber_dark", Vector3(9.5, y0 + 0.35, -24.0), Vector3(0.4, 0.7, 0.4))
-	# Bilder an den Waenden (Halle, Salon)
-	bd.box("folder", Vector3(0.18, 2.2, -16.0), Vector3(0.05, 1.0, 1.4))
-	bd.box("books2", Vector3(-0.18, 2.2, -26.0), Vector3(0.05, 1.2, 1.8))
-	bd.box("books3", Vector3(-11.8, 2.2, -27.0), Vector3(0.05, 1.0, 1.6))
+	# Bilder, Karten, Wandleuchten, Gebrauchsspuren: VillaDressing.interior
 	# Kronleuchter
 	bd.box("brass", Vector3(6.0, STOREY - 0.6, -18.0), Vector3(0.05, 1.0, 0.05))
 	bd.ball("lamp_glow", Vector3(6.0, STOREY - 1.15, -18.0), Vector3(0.7, 0.35, 0.7))
 	bd.ball("lamp_glow", Vector3(-6.0, STOREY - 1.0, -23.0), Vector3(0.6, 0.3, 0.6))
 
+## Offener Kamin an einer Westwand (Wandflaeche bei x = wx, Front nach +X), ersetzt den frueheren hellen
+## Marmorquader: Kaminvorsprung im Wandputz bis zur Decke mit echter Feueröffnung (Ziegel-Laibung, Russ),
+## Marmor-Einfassung (Pilaster mit Basis/Kapitell, Sturz, profilierter Sims), Herdplatte, Rost mit
+## Holzscheiten und Glut, Spiegel im Goldrahmen darueber.
+static func _fireplace(bd: BP.Builder, body: StaticBody3D, wx: float, z: float) -> void:
+	var y0 := FLOOR_Y
+	var d := 0.48             # Tiefe des Kaminvorsprungs
+	var w := 2.1              # Breite des Vorsprungs
+	var ow := 0.96            # lichte Breite der Feueroeffnung
+	var oh := 0.82            # lichte Hoehe
+	var x0 := wx + d          # Vorderkante Vorsprung
+	var cheek := (w - ow) * 0.5
+	# Vorsprung: Wangen links/rechts, Wand ueber der Oeffnung bis zur Decke
+	for sz: float in [-1.0, 1.0]:
+		_sb(bd, body, "plaster_in", Vector3(wx + d * 0.5, (y0 + STOREY) * 0.5, z + sz * (ow + cheek) * 0.5), Vector3(d, STOREY - y0, cheek))
+	_sb(bd, body, "plaster_in", Vector3(wx + d * 0.5, (y0 + oh + STOREY) * 0.5, z), Vector3(d, STOREY - y0 - oh, ow))
+	# Feuerraum: Ziegel-Rueckwand und -Laibungen (leicht schraeg wirkend durch Versatz), Russdecke, Boden
+	_sb(bd, body, "fp_brick", Vector3(wx + 0.06, y0 + oh * 0.5, z), Vector3(0.12, oh, ow))
+	for sz: float in [-1.0, 1.0]:
+		bd.box("fp_brick", Vector3(wx + d * 0.5 + 0.03, y0 + oh * 0.5, z + sz * (ow * 0.5 - 0.04)), Vector3(d - 0.06, oh, 0.08))
+	bd.box("fp_soot", Vector3(wx + d * 0.5, y0 + oh - 0.03, z), Vector3(d, 0.06, ow))
+	bd.box("fp_soot", Vector3(wx + d * 0.5, y0 + 0.015, z), Vector3(d, 0.03, ow))
+	# Rost, Scheite, Glut
+	for k in 4:
+		bd.box("iron", Vector3(wx + 0.2 + k * 0.07, y0 + 0.1, z), Vector3(0.025, 0.025, ow * 0.62))
+	for sz: float in [-1.0, 1.0]:
+		bd.box("iron", Vector3(wx + 0.3, y0 + 0.06, z + sz * ow * 0.3), Vector3(0.3, 0.12, 0.03))
+	bd.cyl("bark", Vector3(wx + 0.24, y0 + 0.17, z - 0.04), 0.055, 0.06, 0.56, 9, Basis(Vector3.RIGHT, PI * 0.5).rotated(Vector3.UP, 0.12))
+	bd.cyl("bark", Vector3(wx + 0.34, y0 + 0.16, z + 0.05), 0.05, 0.055, 0.5, 9, Basis(Vector3.RIGHT, PI * 0.5).rotated(Vector3.UP, -0.2))
+	bd.cyl("bark", Vector3(wx + 0.29, y0 + 0.26, z), 0.045, 0.05, 0.44, 9, Basis(Vector3.RIGHT, PI * 0.5).rotated(Vector3.UP, 0.05))
+	bd.box("fp_ember", Vector3(wx + 0.29, y0 + 0.1, z), Vector3(0.2, 0.05, ow * 0.5))
+	bd.box("fire_glow", Vector3(wx + 0.27, y0 + 0.24, z), Vector3(0.05, 0.16, ow * 0.34))
+	# Marmor-Einfassung vor dem Vorsprung
+	var pw := 0.2             # Pilasterbreite
+	var ph := 1.12            # Pilasterhoehe
+	for sz: float in [-1.0, 1.0]:
+		var pz := z + sz * (ow * 0.5 + pw * 0.5)
+		bd.box("marble", Vector3(x0 + 0.05, y0 + ph * 0.5, pz), Vector3(0.1, ph, pw))
+		bd.box("marble", Vector3(x0 + 0.07, y0 + 0.06, pz), Vector3(0.14, 0.12, pw + 0.06))       # Basis
+		bd.box("marble", Vector3(x0 + 0.07, y0 + ph - 0.04, pz), Vector3(0.14, 0.08, pw + 0.05))  # Kapitell
+	bd.box("marble", Vector3(x0 + 0.04, y0 + oh + (ph - oh) * 0.5, z), Vector3(0.08, ph - oh, ow))  # Sturz
+	bd.box("fp_soot", Vector3(x0 + 0.002, y0 + oh - 0.01, z), Vector3(0.01, 0.03, ow))             # Russkante
+	var sw := ow + pw * 2.0 + 0.3
+	bd.box("marble", Vector3(x0 + 0.1, y0 + ph + 0.03, z), Vector3(0.2, 0.06, sw - 0.12))           # Profil
+	bd.box("marble", Vector3(x0 + 0.14, y0 + ph + 0.09, z), Vector3(0.28, 0.06, sw))                # Sims
+	# Herdplatte
+	_vis(bd, "marble", Vector3(wx + 0.12, y0, z - sw * 0.5 + 0.05), Vector3(x0 + 0.5, y0 + 0.035, z + sw * 0.5 - 0.05))
+	# Spiegel im Goldrahmen ueber dem Sims, Kaminuhr und Kerzenleuchter auf dem Sims
+	bd.box("gilt", Vector3(x0 + 0.03, y0 + 1.95, z), Vector3(0.05, 0.95, 1.15))
+	bd.box("dusk_glass", Vector3(x0 + 0.055, y0 + 1.95, z), Vector3(0.01, 0.8, 1.0))
+	bd.box("timber_dark", Vector3(x0 + 0.14, y0 + ph + 0.24, z), Vector3(0.14, 0.24, 0.3))
+	bd.box("brass", Vector3(x0 + 0.215, y0 + ph + 0.27, z), Vector3(0.01, 0.12, 0.12))
+	for sz: float in [-1.0, 1.0]:
+		bd.cyl("brass", Vector3(x0 + 0.14, y0 + ph + 0.2, z + sz * 0.62), 0.015, 0.04, 0.16, 8)
+		bd.cyl("paper", Vector3(x0 + 0.14, y0 + ph + 0.36, z + sz * 0.62), 0.012, 0.012, 0.16, 6)
+
 # ------------------------------------------------------------------ See, Steg
 
-static func _jetty(bd: BP.Builder, body: StaticBody3D) -> void:
-	_mm(bd, body, "planks", Vector3(-7.0, 0.0, -72.0), Vector3(-5.0, 0.2, -44.0))
-	for k in 8:
-		var z := -46.0 - k * 3.8
-		for sx: float in [-7.05, -4.95]:
-			bd.cyl("timber_dark", Vector3(sx, -1.2, z), 0.12, 0.12, 3.0, 8)
-	# Querstueck am Ende (Anleger)
-	_mm(bd, body, "planks", Vector3(-7.0, 0.0, -72.0), Vector3(-2.5, 0.2, -69.5))
-	for z: float in [-60.0, -70.5]:
-		_sb(bd, body, "iron", Vector3(-5.1, 0.42, z), Vector3(0.22, 0.45, 0.22))
-	# Ruderboot am Steg (Optik)
-	bd.box("timber", Vector3(-8.6, -0.15, -52.0), Vector3(1.3, 0.5, 4.0))
+static func _jetty(_bd: BP.Builder, body: StaticBody3D) -> void:
+	# Kollision/Laufflaeche wie bisher als Boxen (Deck-Oberkante 0.2); Optik: villa_jetty.gd
+	# (Holzbohlen, Pfaehle, Poller, Seile, Fender, Ruderboot, auch der kleine Steg am Bootshaus)
+	Geo.add_box_shape(body, Vector3(-6.0, 0.1, -58.0), Vector3(2.0, 0.2, 28.0))
+	# Querstueck am Ende nach Westen (Ostseite bleibt frei fuer das Wasserflugzeug)
+	Geo.add_box_shape(body, Vector3(-7.25, 0.1, -70.75), Vector3(4.5, 0.2, 2.5))
+	# Poller fuer die Festmacherleinen des Flugzeugs
+	for z: float in VJ.POLLER_Z:
+		Geo.add_box_shape(body, Vector3(VJ.POLLER_X, 0.42, z), Vector3(0.22, 0.45, 0.22))
+	VJ.build(body)
 
 static func _water(lv: Node3D) -> void:
 	var base := RP.water_mat([])
@@ -576,42 +615,15 @@ static func _road(bd: BP.Builder, world: Node3D, covers: Array) -> void:
 	Props.vehicle(world, Vector3(45.5, 0.0, 30.0), 0.0, "van", Color(0.34, 0.35, 0.36), false, false, covers)
 
 static func _mountains(lv: Node3D, mats: Dictionary) -> void:
-	# Low-Poly-Kegel jenseits des Sees (Norden, Nordosten, Westen) mit Schneekuppen
-	var peaks: Array = [
-		[Vector3(-420.0, -5.0, -620.0), 330.0, 380.0, "mountain_far"],
-		[Vector3(-120.0, -5.0, -700.0), 380.0, 460.0, "mountain_far"],
-		[Vector3(260.0, -5.0, -560.0), 300.0, 420.0, "mountain_far"],
-		[Vector3(170.0, -5.0, -330.0), 150.0, 330.0, "mountain"],
-		[Vector3(-380.0, -5.0, -180.0), 220.0, 240.0, "mountain"],
-		[Vector3(-420.0, -5.0, 160.0), 260.0, 200.0, "mountain"],
-		[Vector3(40.0, -5.0, -420.0), 160.0, 190.0, "mountain"],
-	]
-	for p: Array in peaks:
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.0
-		cm.bottom_radius = float(p[1])
-		cm.height = float(p[2])
-		cm.radial_segments = 7
-		cm.rings = 2
-		var mi := Geo.mesh_node(cm, mats[str(p[3])], (p[0] as Vector3) + Vector3(0, float(p[2]) * 0.5, 0), false)
-		mi.rotation.y = randf() * TAU
-		lv.add_child(mi)
-		var cap := CylinderMesh.new()
-		cap.top_radius = 0.0
-		cap.bottom_radius = float(p[1]) * 0.22
-		cap.height = float(p[2]) * 0.22
-		cap.radial_segments = 7
-		cap.rings = 1
-		var ci := Geo.mesh_node(cap, mats["snow"], (p[0] as Vector3) + Vector3(0, float(p[2]) * 0.89 + 0.5, 0), false)
-		ci.rotation.y = mi.rotation.y
-		lv.add_child(ci)
+	# Hoehenfeld-Berge rund um den Traunsee (Wald, Almen, Fels, Schnee, Dunst)
+	VD.mountains(lv)
 	# Lichter am anderen Ufer
 	var srng := RandomNumberGenerator.new()
 	srng.seed = 1806
 	for i in 40:
 		var a := srng.randf_range(-2.4, -0.4)
 		var r := srng.randf_range(380.0, 520.0)
-		var p := Vector3(cos(a) * r - 60.0, srng.randf_range(0.5, 6.0), sin(a) * r * 0.75 - 60.0)
+		var p := VD.shore_point(Vector3(cos(a) * r - 60.0, srng.randf_range(0.5, 6.0), sin(a) * r * 0.75 - 60.0))
 		lv.add_child(Geo.box_mesh_node(Vector3(0.8, 0.6, 0.8), mats["shore_light"], p))
 
 static func _trees(lv: Node3D, world: Node3D, rng: RandomNumberGenerator) -> void:
@@ -632,13 +644,10 @@ static func _trees(lv: Node3D, world: Node3D, rng: RandomNumberGenerator) -> voi
 		trees_in.append([Vector3(31.5, 0.0, z), rng.randf_range(0.8, 0.95)])
 	NP.forest(lv, trees_in + trees_out, rng)
 	NP.trunk_colliders(world, trees_in)
-	# Laubbaeume im Garten (Ball-Kronen), ohne Kollision der Krone
-	var bd := BP.Builder.new({"bark": Geo.flat(Color(0.2, 0.15, 0.11), 0.95), "leaves": Geo.flat(Color(0.12, 0.2, 0.08), 0.95)})
+	# Laubbaeume im Garten (Stamm/Aeste/Laubkarten in VillaDressing), Kollision nur am Stamm
+	VD.broadleaf_trees(lv)
 	var tb := Geo.static_body()
-	for p: Vector3 in [Vector3(-30.0, 0.0, 16.0), Vector3(-21.0, 0.0, 19.0), Vector3(-30.5, 0.0, -7.0), Vector3(-9.0, 0.0, -6.0), Vector3(-25.0, 0.0, -33.0)]:
-		bd.cyl("bark", p + Vector3(0, 1.8, 0), 0.18, 0.26, 3.6, 8)
-		bd.ball("leaves", p + Vector3(0, 4.6, 0), Vector3(4.2, 3.6, 4.2))
-		bd.ball("leaves", p + Vector3(0.8, 5.6, 0.4), Vector3(2.8, 2.4, 2.8))
+	for p: Vector3 in VD.TREES:
 		var cs := CollisionShape3D.new()
 		var cy := CylinderShape3D.new()
 		cy.radius = 0.3
@@ -646,8 +655,17 @@ static func _trees(lv: Node3D, world: Node3D, rng: RandomNumberGenerator) -> voi
 		cs.shape = cy
 		cs.position = p + Vector3(0, 1.8, 0)
 		tb.add_child(cs)
-	bd.build(lv)
 	world.add_child(tb)
+
+## Ausstattung (nur Optik, keine Kollision): Gras, Hecken-Laub, Beete, Gartenmoebel, Villa aussen/innen.
+static func _dressing(lv: Node3D, mats: Dictionary) -> void:
+	VD.grass(lv)
+	VD.hedges(lv)
+	VD.beds(lv, mats)
+	VD.garden_props(lv, mats)
+	VD.villa_roof(lv, mats)
+	VD.villa_facade(lv, mats)
+	VD.interior(lv, mats)
 
 # ------------------------------------------------------------------ Licht
 
@@ -671,6 +689,16 @@ static func _lights(lv: Node3D, mats: Dictionary, pts: Dictionary) -> void:
 	_omni(lv, Vector3(6.6, 1.5, -29.2), Color(1.0, 0.66, 0.38), 0.9, 3.5)
 	_omni(lv, Vector3(0.9, 0.6, -27.0), Color(1.0, 0.45, 0.15), 1.2, 4.0)
 	_omni(lv, Vector3(-11.0, 0.6, -19.0), Color(1.0, 0.45, 0.15), 1.0, 4.0)
+	# Raumaufhellung (Licht von Lampenschirmen/Waenden zurueckgeworfen): weich, ohne Schatten und ohne
+	# Einfluss auf die Stealth-Lichtwertung (no_stealth) -> Innenraeume lesbar, Nachtstimmung bleibt warm/gedimmt
+	var bounce := Color(1.0, 0.8, 0.6)
+	for fp: Array in [[Vector3(6.0, 2.3, -15.5), 0.75, 7.0], [Vector3(6.0, 2.3, -21.0), 0.75, 7.0],
+			[Vector3(-6.0, 2.3, -18.5), 0.7, 7.5], [Vector3(-6.0, 2.3, -26.5), 0.7, 7.5],
+			[Vector3(4.0, 2.3, -26.0), 0.8, 7.0], [Vector3(8.5, 2.3, -29.5), 0.65, 6.0]]:
+		var fl := _omni(lv, fp[0], bounce, float(fp[1]), float(fp[2]))
+		fl.light_volumetric_fog_energy = 0.0
+		fl.light_specular = 0.15
+		fl.set_meta("no_stealth", true)
 	# Aussen: Torpfeiler, Haustuer, Terrasse, Bootshaus, Steg
 	var lamp_pts: Array = [
 		[Vector3(9.6, 3.6, 30.0), 1.6, 8.0], [Vector3(18.4, 3.6, 30.0), 1.6, 8.0],
@@ -714,39 +742,14 @@ static func _akte(lv: Node3D, mats: Dictionary) -> Node3D:
 	n.visible = false
 	return n
 
-## Wasserflugzeug (Hochdecker auf Schwimmern), Nase nach -Z. Liefert {"root", "prop"}.
-static func _seaplane(lv: Node3D, mats: Dictionary) -> Dictionary:
-	var root := Node3D.new()
+## Wasserflugzeug (Beaver-artiger Hochdecker auf Schwimmern, villa_seaplane.gd), Nase nach -Z.
+## Liegt mit dem linken Schwimmer an der Ostkante des Stegs. Liefert {"root", "prop"}.
+static func _seaplane(lv: Node3D, _mats: Dictionary) -> Dictionary:
+	var root: Node3D = (load("res://game/levels/villa_seaplane.gd") as GDScript).new()
 	root.name = "Wasserflugzeug"
-	root.position = Vector3(-1.5, WATER_Y, -66.0)
+	root.position = Vector3(-3.2, WATER_Y, -60.5)
 	lv.add_child(root)
-	var white: Material = mats["white_paint"]
-	var red: Material = mats["red_paint"]
-	var dark: Material = mats["dark"]
-	for sx: float in [-1.25, 1.25]:
-		root.add_child(Geo.box_mesh_node(Vector3(0.55, 0.45, 5.6), white, Vector3(sx, 0.15, -0.3)))
-		root.add_child(Geo.box_mesh_node(Vector3(0.5, 0.3, 0.8), white, Vector3(sx, 0.25, -3.3), Vector3(-20, 0, 0)))
-		root.add_child(Geo.box_mesh_node(Vector3(0.08, 1.3, 0.08), dark, Vector3(sx * 0.7, 0.95, -1.4), Vector3(0, 0, sx * 18.0)))
-		root.add_child(Geo.box_mesh_node(Vector3(0.08, 1.3, 0.08), dark, Vector3(sx * 0.7, 0.95, 0.6), Vector3(0, 0, sx * 18.0)))
-	root.add_child(Geo.box_mesh_node(Vector3(1.25, 1.4, 4.2), white, Vector3(0, 2.0, -0.8)))
-	root.add_child(Geo.box_mesh_node(Vector3(1.27, 0.2, 4.22), red, Vector3(0, 1.75, -0.8)))
-	root.add_child(Geo.box_mesh_node(Vector3(1.1, 0.5, 0.9), mats["glass"], Vector3(0, 2.45, -2.2)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.7, 0.8, 3.6), white, Vector3(0, 2.25, 3.0)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.08, 1.3, 1.2), red, Vector3(0, 3.1, 4.4)))
-	root.add_child(Geo.box_mesh_node(Vector3(3.2, 0.06, 0.9), white, Vector3(0, 2.4, 4.4)))
-	root.add_child(Geo.box_mesh_node(Vector3(12.0, 0.18, 1.6), white, Vector3(0, 2.85, -1.2)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.6, 0.19, 1.62), red, Vector3(5.7, 2.851, -1.2)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.6, 0.19, 1.62), red, Vector3(-5.7, 2.851, -1.2)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.9, 0.9, 0.5), dark, Vector3(0, 2.0, -3.1)))
-	var prop := Node3D.new()
-	prop.position = Vector3(0, 2.0, -3.4)
-	root.add_child(prop)
-	prop.add_child(Geo.box_mesh_node(Vector3(2.1, 0.16, 0.05), dark, Vector3.ZERO))
-	prop.add_child(Geo.box_mesh_node(Vector3(0.18, 0.18, 0.16), mats["brass"], Vector3.ZERO))
-	# Positionslichter
-	root.add_child(Geo.box_mesh_node(Vector3(0.12, 0.12, 0.12), Geo.flat(Color(0.2, 0, 0), 0.5, 0.0, Color(1, 0.1, 0.05), 6.0), Vector3(-6.0, 2.85, -1.2)))
-	root.add_child(Geo.box_mesh_node(Vector3(0.12, 0.12, 0.12), Geo.flat(Color(0, 0.2, 0), 0.5, 0.0, Color(0.1, 1, 0.2), 6.0), Vector3(6.0, 2.85, -1.2)))
-	return {"root": root, "prop": prop}
+	return {"root": root, "prop": root.get("prop")}
 
 # ------------------------------------------------------------------ Grenzen
 
@@ -758,10 +761,11 @@ static func _boundaries(lv: Node3D) -> void:
 	lv.call("_invisible_wall", Vector3(-19.85, 3.0, -44.35), Vector3(25.3, 8.0, 0.3))
 	lv.call("_invisible_wall", Vector3(16.25, 3.0, -44.35), Vector3(41.5, 8.0, 0.3))
 	# Steg: seitlich und am Ende
-	lv.call("_invisible_wall", Vector3(-7.15, 3.0, -58.0), Vector3(0.3, 8.0, 28.0))
-	lv.call("_invisible_wall", Vector3(-4.85, 3.0, -56.75), Vector3(0.3, 8.0, 25.5))
-	lv.call("_invisible_wall", Vector3(-4.75, 3.0, -72.2), Vector3(5.0, 8.0, 0.3))
-	lv.call("_invisible_wall", Vector3(-2.35, 3.0, -70.75), Vector3(0.3, 8.0, 3.2))
+	lv.call("_invisible_wall", Vector3(-7.15, 3.0, -56.675), Vector3(0.3, 8.0, 25.35))
+	lv.call("_invisible_wall", Vector3(-4.85, 3.0, -58.0), Vector3(0.3, 8.0, 28.0))
+	lv.call("_invisible_wall", Vector3(-7.175, 3.0, -72.2), Vector3(4.95, 8.0, 0.3))
+	lv.call("_invisible_wall", Vector3(-9.65, 3.0, -70.85), Vector3(0.3, 8.0, 3.0))
+	lv.call("_invisible_wall", Vector3(-8.4, 3.0, -69.35), Vector3(2.5, 8.0, 0.3))
 	# Plateau-Kanten (kein Absturz vom Hang)
 	lv.call("_invisible_wall", Vector3(-20.2, 6.5, 86.0), Vector3(0.3, 3.0, 32.0))
 	lv.call("_invisible_wall", Vector3(30.2, 6.5, 86.0), Vector3(0.3, 3.0, 32.0))

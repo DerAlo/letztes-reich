@@ -198,7 +198,23 @@ static func _make_real(kind: String, opts: Dictionary) -> Dictionary:
 		var par := skel.get_bone_parent(bi)
 		var pg := skel.get_bone_global_rest(par).basis if par >= 0 else Basis.IDENTITY
 		drv.links.append({"bone": bi, "node": nodes[key], "s": s_xf.basis.orthonormalized(),
-			"g": skel.get_bone_global_rest(bi).basis, "p": pg.inverse()})
+			"g": skel.get_bone_global_rest(bi).basis, "p": pg.inverse(), "key": key})
+	# Prozeduraler Geh-/Laufzyklus (VipRig misst das Tempo des Roots): Knie, Fuesse, Unterarme, Ruecken
+	drv.root = root
+	drv.holder = holder
+	drv.s_basis = s_xf.basis.orthonormalized()
+	# + Idle-Leben (VipRig.IDLE_BONES: Becken, Ruecken, Hals, Schluesselbeine)
+	var extra_bones: Array = ["calf_l", "calf_r", "foot_l", "foot_r", "lowerarm_l", "lowerarm_r", "spine_01"]
+	for bn: String in VIP_RIG.IDLE_BONES:
+		if not extra_bones.has(bn):
+			extra_bones.append(bn)
+	for bn: String in extra_bones:
+		var bi := skel.find_bone(bn)
+		if bi < 0:
+			continue
+		var par := skel.get_bone_parent(bi)
+		var pg := skel.get_bone_global_rest(par).basis if par >= 0 else Basis.IDENTITY
+		drv.extra[bn] = {"bone": bi, "g": skel.get_bone_global_rest(bi).basis, "p": pg.inverse()}
 	root.add_child(drv)
 	var arms: Array[Node3D] = [nodes["arm_l"], nodes["arm_r"]]
 	var legs: Array[Node3D] = [nodes["leg_l"], nodes["leg_r"]]
@@ -222,8 +238,38 @@ static func _make_real(kind: String, opts: Dictionary) -> Dictionary:
 			if n == 4:
 				p = acc / 4.0
 		grip.append(p - arms[i].position)
-	var hands := _add_hands(arms, grip)
-	return {"root": root, "arms": arms, "hands": hands, "legs": legs, "head": head, "cap": cap, "kind": kind}
+	var hands := _bone_hands(skel, s_xf, arms, grip)
+	return {"root": root, "arms": arms, "hands": hands, "legs": legs, "head": head, "cap": cap, "kind": kind,
+		"skeleton": skel}
+
+## Hand-Nodes des geriggten Modells: Kind eines BoneAttachment3D am Handknochen (hand_l/hand_r), damit
+## Requisiten (Granate, Koffer, Pistole) der tatsaechlichen Hand folgen – Oberarm-Pose, Unterarm-/
+## Armschwung des Geh-Zyklus und Root-Drehung. In der Ruhelage liegt der Node exakt wie der alte
+## Arm-Kind-Node (Griffpunkt, achsparallel zum Root), Requisiten-Offsets der Level bleiben gueltig.
+## Fehlt der Knochen, faellt es auf den Arm-Kind-Node zurueck.
+static func _bone_hands(skel: Skeleton3D, s_xf: Transform3D, arms: Array[Node3D], grip: Array) -> Array[Node3D]:
+	var hands: Array[Node3D] = []
+	for i in 2:
+		var side := "l" if i == 0 else "r"
+		var hb := skel.find_bone("hand_" + side)
+		var h := Node3D.new()
+		h.name = "HandL" if i == 0 else "HandR"
+		if hb < 0:
+			h.position = grip[i]
+			arms[i].add_child(h)
+			hands.append(h)
+			continue
+		var ba := BoneAttachment3D.new()
+		ba.name = "BA_Hand_" + side.to_upper()
+		ba.bone_name = "hand_" + side
+		ba.bone_idx = hb
+		skel.add_child(ba)
+		ba.add_child(h)
+		# Root-Raum-Ziel (Griffpunkt, Root-Achsen) -> Skelettraum -> lokal zum Handknochen (Ruhelage)
+		var want := Transform3D(Basis.IDENTITY, arms[i].position + (grip[i] as Vector3))
+		h.transform = skel.get_bone_global_rest(hb).affine_inverse() * s_xf.affine_inverse() * want
+		hands.append(h)
+	return hands
 
 ## Transform von n relativ zu root (ohne Szenenbaum)
 static func _rel_xform(n: Node, root: Node) -> Transform3D:

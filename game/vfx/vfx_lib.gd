@@ -121,8 +121,8 @@ static func quad(size: float = 1.0) -> QuadMesh:
 
 static func make_particles(amount: int, lifetime: float, pm: ParticleProcessMaterial, mesh: Mesh, mat: Material) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = amount
-	p.lifetime = lifetime
+	p.amount = maxi(1, amount)   # 0 (z. B. skalierte/abgeschaltete Partikel) -> Engine-ERROR
+	p.lifetime = maxf(0.01, lifetime)
 	p.one_shot = true
 	p.emitting = false
 	p.explosiveness = 1.0

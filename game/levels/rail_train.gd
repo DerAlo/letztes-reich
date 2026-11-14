@@ -6,6 +6,7 @@ extends Node3D
 
 const RailProps = preload("res://game/levels/rail_props.gd")
 const Geo = preload("res://game/levels/level_geo.gd")
+const DebrisSettle = preload("res://game/systems/debris_settle.gd")
 
 signal detonated(pos: Vector3)
 signal chain_finished
@@ -196,6 +197,8 @@ func _blow(i: int, primary: bool) -> void:
 		if rb.global_position.y < -4.0:
 			rb.visible = false
 		rb.set_deferred("freeze", true))
+	# Liegender Wagen wird feste Welt (Layer 1): Deckung, Kugeln schlagen ein, kein Hindurchlaufen
+	DebrisSettle.solidify_when_settled(rb, 4.0, 15.0)
 	# verkohlen
 	_char(rb)
 	# Feuer + Rauch an der alten Position

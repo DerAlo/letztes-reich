@@ -12,6 +12,7 @@ const Props = preload("res://game/levels/level_props.gd")
 const VfxEnv = preload("res://game/vfx/vfx_env.gd")
 const PostFx = preload("res://game/vfx/post_fx.gd")
 const StreetKit = preload("res://game/levels/street_kit.gd")
+const DebrisSettle = preload("res://game/systems/debris_settle.gd")
 
 const PLAYER_PATH := "res://game/player/player.tscn"
 const ENEMY_PATH := "res://game/enemies/%s.tscn"
@@ -637,6 +638,7 @@ func _release_block(rb: RigidBody3D, hit: Vector3) -> void:
 	var dir := Vector3(1.0, 0.0, 0.0) * 0.9 + away.normalized() * 0.35 + Vector3.UP * 0.12
 	rb.apply_central_impulse(dir.normalized() * rb.mass * collapse_impulse * rng.randf_range(0.6, 1.2))
 	rb.apply_torque_impulse(Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * rb.mass * 0.9)
+	DebrisSettle.solidify_when_settled(rb, 3.0, 12.0)
 
 func _spawn_chunks(t: Vector3) -> void:
 	var mat := VFX.debris_material()

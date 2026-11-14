@@ -11,6 +11,8 @@ const VF := preload("res://game/vehicles/vehicle_fx.gd")
 const IfvScript := preload("res://game/vehicles/ifv/ifv.gd")
 const IfvRocket := preload("res://game/vehicles/ifv/ifv_rocket.gd")
 const BarricadeScript := preload("res://game/levels/spreebogen_barricade.gd")
+const ShotsScript := preload("res://game/levels/spreebogen_shots.gd")
+const FarCity := preload("res://game/levels/far_city.gd")
 const HDRI := "res://assets/environment/rail/hdri/industrial_sunset_02_puresky_2k.hdr"
 const TANK_SCENE := "res://game/vehicles/tank.tscn"
 const HELI_SCENE := "res://game/vehicles/helicopter.tscn"
@@ -19,6 +21,8 @@ const LANE_X := -1.0
 const START_Z := 22.0
 const HALT_Z: Array[float] = [22.0, -40.0, -118.0, -195.0, -246.0]
 const BRIDGE_Z0 := -258.0
+const RPG_WINDUP := 1.5          ## s zwischen Warnung (Schuetze rot im HUD) und Abschuss
+const BARRICADE_GRACE := 12.0    ## s nach den Fenstern, dann sprengen Lenas Pioniere die Sperre
 const BRIDGE_Z1 := -352.0
 const SUN_AZ := 150.0
 const SUN_EL := 4.0
@@ -43,6 +47,7 @@ var _foot_t: float = 0.0
 var _finale_started: bool = false
 var _assist_done: bool = false
 var _nests: Dictionary = {}          ## id -> [side, zc, floor]
+var _shots: Node = null
 
 func _init() -> void:
 	level_name = "spreebogen"
@@ -73,7 +78,19 @@ func _ready() -> void:
 	await super._ready()
 	if not is_inside_tree():
 		return
+	var shots := str(Game.arg("shots", ""))
+	if shots != "" and shots != "true":
+		_shots = ShotsScript.new()
+		_shots.out_dir = ProjectSettings.globalize_path("res://captures").path_join(shots)
+		_shots.every = float(Game.arg("shot-every", 5.0))
+		_shots.level = self
+		add_child(_shots)
 	_run()
+
+## Debug-Aufnahme (nur mit --shots).
+func _snap(tag: String) -> void:
+	if _shots != null and is_instance_valid(_shots):
+		_shots.snap(tag)
 
 func _process(delta: float) -> void:
 	_time += delta
@@ -99,13 +116,15 @@ func _setup_environment() -> void:
 	env.fog_light_color = Color(0.55, 0.52, 0.58)
 	env.fog_light_energy = 0.8
 	env.fog_density = 0.0022
-	env.fog_sun_scatter = 0.18
+	env.fog_sun_scatter = 0.1   # vorher 0.18/Aniso 0.5/Sonne 0.6: Heli-Phase (Blick schraeg zur Sonne) milchig-orange
 	env.fog_aerial_perspective = 0.4
 	env.fog_sky_affect = 0.3
-	env.volumetric_fog_density = fog_density
-	env.volumetric_fog_albedo = Color(0.78, 0.74, 0.76)
-	env.volumetric_fog_emission = Color(0.03, 0.02, 0.02)
-	env.volumetric_fog_anisotropy = 0.5
+	# Dunst duenner und dunkler: vorher (0.012, Albedo 0.78, Emission 0.03) wurde das Bild milchig und Gegner
+	# in den Fenstern verschwanden im Schleier.
+	env.volumetric_fog_density = fog_density * 0.45
+	env.volumetric_fog_albedo = Color(0.56, 0.53, 0.54)
+	env.volumetric_fog_emission = Color(0.008, 0.005, 0.005)
+	env.volumetric_fog_anisotropy = 0.3
 	env.volumetric_fog_length = 150.0
 	env.volumetric_fog_sky_affect = 0.25
 	env.glow_intensity = 0.7
@@ -121,7 +140,7 @@ func _setup_environment() -> void:
 	var sun := VfxEnv.make_sun()
 	sun.light_color = Color(1.0, 0.6, 0.4)
 	sun.light_energy = 2.1
-	sun.light_volumetric_fog_energy = 1.0
+	sun.light_volumetric_fog_energy = 0.4
 	sun.directional_shadow_max_distance = 170.0
 	var az := deg_to_rad(SUN_AZ)
 	var el := deg_to_rad(SUN_EL)
@@ -141,6 +160,12 @@ func _setup_environment() -> void:
 	add_child(fill)
 	VfxEnv.apply_render_quality(get_viewport())
 	PostFx.apply(self, "day_war")
+	# Nach PostFx (setzt Glow sonst zurueck): nur echte Spitzlichter (Muendungsfeuer, Explosionen) leuchten nach,
+	# keine riesigen Lichthoefe um Feuer, Sonne und Rauch.
+	env.glow_hdr_threshold = 2.2
+	env.glow_intensity = 0.3
+	env.glow_bloom = 0.0
+	env.glow_strength = 0.8
 
 # ================================================================== Boden, Ufer, Bruecke
 
@@ -242,7 +267,7 @@ func _build_street() -> void:
 	var brs := RandomNumberGenerator.new()
 	brs.seed = build_seed + 7
 	for s: Array in specs:
-		var opts := {"brick": s[4], "tint": tints[brs.randi() % tints.size()], "damage": s[5], "lit": 0.05}
+		var opts := {"brick": s[4], "tint": tints[brs.randi() % tints.size()], "damage": s[5], "lit": 0.05, "win": "dusk"}
 		var info := Buildings.build(world, s[0], s[1], s[2], s[3], s[6], opts, brs)
 		var fl: Array = info["floors"]
 		var zc: Array = info["zc"]
@@ -280,15 +305,55 @@ func _build_nest(side: int, zc: float, fl: int, tint: Color) -> void:
 	for k in [1, 2, 3]:
 		var y: float = k * Buildings.FLOOR_H
 		Geo.solid_box(world, Vector3(sx * 14.2, y - 0.15, zc), Vector3(7.4, 0.3, 7.4), dark)
-	# Brandspuren um das Fenster + Glut drinnen
-	world.add_child(Geo.box_mesh_node(Vector3(0.05, 2.6, 4.6), Geo.flat(Color(0.05, 0.045, 0.04), 0.95), Vector3(sx * 9.98, (sill + top) / 2.0 + 0.3, zc)))
+	# Russfahne ueber dem Fenster (Verlauf, nach oben auslaufend) statt einer deckenden Flaeche
+	var soot := StandardMaterial3D.new()
+	var gt := GradientTexture2D.new()
+	var gr := Gradient.new()
+	gr.set_color(0, Color(0.03, 0.028, 0.025, 0.85))
+	gr.set_color(1, Color(0.03, 0.028, 0.025, 0.0))
+	gt.gradient = gr
+	gt.fill_from = Vector2(0.5, 1.0)
+	gt.fill_to = Vector2(0.5, 0.0)
+	soot.albedo_texture = gt
+	soot.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	soot.roughness = 1.0
+	var sq := QuadMesh.new()
+	sq.size = Vector2(hw * 2.0 + 0.8, 2.2)
+	var smi := Geo.mesh_node(sq, soot, Vector3(sx * 9.985, top + 1.0, zc), false)
+	smi.rotation_degrees.y = -90.0 * sx
+	world.add_child(smi)
+	# Innenraum: verputzte Waende, Decke, Moebel, Sandsaecke unter dem Fenster
+	var plaster := Buildings.wall_mat(false, Color(0.78, 0.74, 0.66), 0.35)
+	var room_h := Buildings.FLOOR_H - 0.3
+	Geo.solid_box(world, Vector3(sx * 17.66, fy + room_h / 2.0, zc), Vector3(0.06, room_h, 7.3), plaster, 0.0, false)
+	for dz in [-1.0, 1.0]:
+		Geo.solid_box(world, Vector3(sx * 14.2, fy + room_h / 2.0, zc + dz * 3.67), Vector3(6.9, room_h, 0.06), plaster, 0.0, false)
+	var wood := Geo.flat(Color(0.2, 0.13, 0.08), 0.8)
+	var cloth := Geo.flat(Color(0.25, 0.24, 0.2), 0.95)
+	world.add_child(Geo.box_mesh_node(Vector3(0.6, 2.0, 1.3), wood, Vector3(sx * 17.3, fy + 1.0, zc - 2.2)))
+	world.add_child(Geo.box_mesh_node(Vector3(1.6, 0.06, 0.9), wood, Vector3(sx * 15.6, fy + 0.45, zc + 1.6), Vector3(0, 0, 70.0 * sx)))
+	world.add_child(Geo.box_mesh_node(Vector3(1.0, 0.18, 1.9), cloth, Vector3(sx * 16.4, fy + 0.09, zc + 0.6), Vector3(0, 12, 0)))
+	for i in 3:
+		world.add_child(Geo.box_mesh_node(Vector3(0.45, 0.32, 0.3), Geo.flat(Color(0.24, 0.27, 0.18), 0.9), Vector3(sx * (12.6 + i * 0.5), fy + 0.16, zc - 2.9 + float(i % 2) * 0.35)))
+	var no_cov: Array = []
+	for dz in [-1.0, 1.0]:
+		Props.sandbags(world, Vector3(sx * 10.95, fy, zc + dz * 1.15), 0.0, 1.0, rng, no_cov)
+	# Licht: Glut im hinteren Raum (Gegenlicht -> Schuetze als Silhouette), weiches Fuelllicht am Fenster
+	Props.fire(world, Vector3(sx * 16.9, fy + 0.05, zc + 2.7), 0.45, true, 0.8, 3.5)
 	var l := OmniLight3D.new()
-	l.light_color = Color(1.0, 0.55, 0.25)
-	l.light_energy = 1.4
-	l.omni_range = 6.0
+	l.light_color = Color(1.0, 0.6, 0.32)
+	l.light_energy = 2.2
+	l.omni_range = 7.5
 	l.shadow_enabled = false
-	l.position = Vector3(sx * 15.5, fy + 1.4, zc + 1.5)
+	l.position = Vector3(sx * 14.6, fy + 2.4, zc)
 	world.add_child(l)
+	var f := OmniLight3D.new()
+	f.light_color = Color(0.75, 0.8, 0.9)
+	f.light_energy = 0.9
+	f.omni_range = 3.2
+	f.shadow_enabled = false
+	f.position = Vector3(sx * 9.4, fy + 1.9, zc)
+	world.add_child(f)
 	Props.rubble(world, Vector3(sx * 8.9, 0.0, zc), 1.5, 0.6, rng, false)
 
 # ================================================================== Requisiten
@@ -332,13 +397,15 @@ func _build_props() -> void:
 	Props.vehicle(world, Vector3(-4.2, 0, -270.0), 25.0, "car", Color(0.2, 0.2, 0.2), true, false, covers)
 	Props.jersey(world, Vector3(3.5, 0, -280.0), 10.0, covers)
 	Props.jersey(world, Vector3(-3.0, 0, -292.0), -8.0, covers)
-	Props.vehicle(world, Vector3(4.0, 0, -302.0), -20.0, "van", Color(0.22, 0.22, 0.2), true, false, covers)
+	# Van 1 m zur Bruestung + flacher gedreht: die Spur von wp 3 (-3,-288) nach wp 4 (3,-306) streifte sonst
+	# seine Nordecke (Autopilot STUCK bei 2.2/-299.3). Deckungswert unveraendert.
+	Props.vehicle(world, Vector3(5.0, 0, -302.0), -12.0, "van", Color(0.22, 0.22, 0.2), true, false, covers)
 	Props.sandbags(world, Vector3(-3.5, 0, -314.0), 0.0, 3.0, cr, covers)
 	Props.jersey(world, Vector3(3.0, 0, -326.0), 0.0, covers)
 	Props.vehicle(world, Vector3(-3.8, 0, -334.0), 170.0, "truck", Color(0.2, 0.22, 0.2), true, false, covers)
 	Props.sandbags(world, Vector3(0.0, 0, -344.0), 0.0, 4.0, cr, covers)
 	Props.fire(world, Vector3(-4.2, 1.0, -270.0), 1.1, true, 2.5, 5.0)
-	Props.fire(world, Vector3(4.0, 1.4, -302.0), 1.2, true, 3.0, 5.0)
+	Props.fire(world, Vector3(5.0, 1.4, -302.0), 1.2, true, 3.0, 5.0)
 	# Anderes Ufer: Stellungen vor dem Regierungsviertel
 	Props.sandbags(world, Vector3(-7.0, 0, -360.0), 0.0, 4.0, cr, covers)
 	Props.sandbags(world, Vector3(7.0, 0, -362.0), 0.0, 4.0, cr, covers)
@@ -366,33 +433,139 @@ func _build_set_piece_geometry() -> void:
 	pass
 
 func _build_skyline() -> void:
+	# Fernkulisse mit echten Fassaden (far_city: Wandtextur, Fensterraster mit Laibung/Spiegelung, Gesimse, Daecher)
 	var srng := RandomNumberGenerator.new()
 	srng.seed = build_seed + 31
-	var bb := Geo.batch()
-	for i in 40:
-		var side := -1.0 if i % 2 == 0 else 1.0
-		var z := -srng.randf_range(-30.0, 240.0)
-		var x := side * srng.randf_range(34.0, 110.0)
-		var h := srng.randf_range(14.0, 34.0)
-		bb.add(Vector3(x, h / 2.0, z), Vector3(srng.randf_range(10.0, 26.0), h, srng.randf_range(10.0, 24.0)))
-	# Regierungsviertel jenseits der Spree: lange flache Riegel
-	for i in 9:
-		var w := srng.randf_range(30.0, 70.0)
-		var h := srng.randf_range(16.0, 28.0)
-		bb.add(Vector3(srng.randf_range(-140.0, 140.0), h / 2.0, -420.0 - srng.randf_range(0.0, 160.0)), Vector3(w, h, 22.0))
-	var mi := Geo.mesh_node(bb.build(), Geo.mat("concrete_wall_008", Color(0.24, 0.24, 0.26), 0.08, 1.0))
-	add_child(mi)
-	# Kuppel-Silhouette (Reichstag) im Dunst, rechts voraus
-	var sil := Geo.flat(Color(0.2, 0.2, 0.23), 0.9)
-	add_child(Geo.box_mesh_node(Vector3(90.0, 24.0, 60.0), sil, Vector3(70.0, 12.0, -470.0)))
+	var fb := FarCity.Builder.new()
+	var tints: Array[Color] = [Color(0.86, 0.8, 0.7), Color(0.8, 0.76, 0.7), Color(0.74, 0.66, 0.6), Color(0.9, 0.84, 0.74), Color(0.7, 0.68, 0.66)]
+	var roofs: Array[Color] = [Color(0.32, 0.2, 0.17), Color(0.26, 0.25, 0.25), Color(0.36, 0.24, 0.2)]
+	# Moabiter Blockraender hinter den Strassenhaeusern: geschlossene Zeilen, Bombenluecken, Brandruinen
+	for side: float in [-1.0, 1.0]:
+		for row in 3:
+			var rx: float = [44.0, 80.0, 116.0][row]
+			var dep := srng.randf_range(12.0, 15.0)
+			var z := 36.0 - srng.randf_range(0.0, 10.0)
+			while z > -246.0:
+				var w := srng.randf_range(15.0, 26.0)
+				if srng.randf() < 0.12:
+					z -= srng.randf_range(6.0, 14.0)   # Bauluecke
+					continue
+				var fl := srng.randi_range(4, 6)
+				var h := 4.4 + float(fl - 1) * 3.6
+				var brick := srng.randf() < 0.4
+				var face := Vector3.LEFT if side > 0.0 else Vector3.RIGHT
+				var kind := "altbau"
+				var tex := "brick" if brick else ("plaster_old" if srng.randf() < 0.5 else "plaster")
+				if row > 0 and srng.randf() < 0.15:
+					kind = "platte" if srng.randf() < 0.5 else "office"
+					tex = "panel" if kind == "platte" else "concrete"
+					h = 2.8 * float(srng.randi_range(6, 10)) if kind == "platte" else 3.7 * float(fl)
+				var faces: Array = [face, Vector3.FORWARD, Vector3.BACK]
+				if row > 0:
+					faces.append(-face)
+				fb.block(Vector3(side * rx, 0.0, z - w * 0.5), Vector3(dep, h, w), kind, tex, tints[srng.randi() % tints.size()], {
+					"damage": srng.randf_range(0.15, 0.8), "lit": 1.0,
+					"roof_col": roofs[srng.randi() % roofs.size()], "faces": faces})
+				z -= w
+	_build_government(fb)
+	FarCity.build(fb, self, false, {"lit_ratio": 0.07, "sky_tint": Color(0.66, 0.6, 0.6), "reflect_amt": 0.26})
+
+## Regierungsviertel jenseits der Spree mit Reichstag (Portikus, Ecktuerme, Glaskuppel)
+func _build_government(fb) -> void:
+	var stone := Color(0.84, 0.78, 0.68)
+	var roof := Color(0.3, 0.32, 0.3)
+	# [Mitte x, z, Breite, Traufhoehe, Tiefe, Typ, Textur, Farbton]
+	var specs: Array = [
+		[-62.0, -446.0, 62.0, 22.0, 22.0, "office", "concrete", Color(0.86, 0.84, 0.8)],
+		[-150.0, -470.0, 50.0, 23.0, 30.0, "palace", "sandstone", stone],
+		[-30.0, -530.0, 70.0, 25.0, 26.0, "palace", "tile", Color(0.82, 0.8, 0.76)],
+		[168.0, -452.0, 52.0, 21.0, 24.0, "office", "tile", Color(0.9, 0.88, 0.84)],
+		[200.0, -520.0, 40.0, 20.0, 18.0, "altbau", "plaster", Color(0.86, 0.8, 0.7)],
+		[64.0, -566.0, 84.0, 27.0, 28.0, "palace", "sandstone", stone],
+		[-120.0, -585.0, 60.0, 30.8, 14.0, "platte", "panel", Color(0.8, 0.8, 0.78)],
+		[150.0, -605.0, 60.0, 33.3, 20.0, "office", "concrete", Color(0.8, 0.8, 0.8)],
+		[-225.0, -535.0, 40.0, 18.8, 16.0, "altbau", "brick", Color(0.9, 0.85, 0.8)],
+		[-240.0, -450.0, 44.0, 22.4, 18.0, "altbau", "plaster_old", Color(0.84, 0.78, 0.7)],
+		[240.0, -455.0, 40.0, 22.4, 18.0, "altbau", "brick", Color(0.8, 0.76, 0.72)],
+		[-40.0, -640.0, 90.0, 26.0, 24.0, "office", "tile", Color(0.86, 0.86, 0.84)],
+	]
+	for s: Array in specs:
+		fb.block(Vector3(s[0], 0.0, s[1]), Vector3(s[2], s[3], s[4]), s[5], s[6], s[7], {"damage": 0.25, "lit": 1.0, "roof_col": roof})
+	# Reichstag: Palais 90 x 60, Westportal zur Spree (+z)
+	var rc := Vector3(70.0, 0.0, -470.0)
+	var sd := 0.4123
+	fb.block(rc, Vector3(90.0, 21.0, 60.0), "palace", "sandstone", stone, {"seed": sd, "damage": 0.35, "lit": 0.6, "roof_col": roof, "bits": false})
+	for cx: float in [-1.0, 1.0]:
+		for cz: float in [-1.0, 1.0]:
+			var tc := rc + Vector3(cx * 38.0, 0.0, cz * 23.0)
+			fb.block(tc, Vector3(17.0, 28.0, 17.0), "palace", "sandstone", stone, {"seed": sd + 0.1 * (cx + 2.0 * cz + 3.0), "damage": 0.35, "lit": 0.6, "roof_col": roof, "bits": false, "parapet": 2.2})
+	# Portikus: Podest mit Freitreppe, sechs Saeulen, Gebaelk, Giebel
+	var pz := rc.z + 30.0 + 4.5
+	var tcol := Color(stone.r, stone.g, stone.b, 6.0 / 16.0)
+	fb.plain_box("sandstone", Vector3(rc.x, 2.5, pz + 1.5), Vector3(36.0, 5.0, 12.0), 0.0, tcol, Color(sd, 3.0, 0.2, 0.0))
+	for k in 3:
+		var sh := 1.6 + float(k) * 1.6
+		fb.plain_box("sandstone", Vector3(rc.x, sh * 0.5, pz + 7.5 + float(2 - k) * 1.0 + 0.5), Vector3(30.0, sh, 1.0), 0.0, tcol, Color(sd, 3.0, 0.0, 0.0))
+	for i in 6:
+		var x := rc.x - 13.75 + float(i) * 5.5
+		fb.plain_box("sandstone", Vector3(x, 5.4, pz + 3.0), Vector3(2.4, 0.8, 2.4), 0.0, tcol, Color(sd, 1.0, 0.0, 0.0))
+		fb.tube("sandstone", Vector3(x, 5.8, pz + 3.0), 0.95, 0.82, 13.4, stone, sd, 14)
+		fb.plain_box("sandstone", Vector3(x, 19.5, pz + 3.0), Vector3(2.3, 0.6, 2.3), 0.0, tcol, Color(sd, 1.0, 0.0, 0.0))
+	fb.plain_box("sandstone", Vector3(rc.x, 20.6, pz + 1.5), Vector3(33.0, 1.6, 9.5), 0.0, tcol, Color(sd, 1.0, 0.3, 0.0), Color(-1, 0, 0), true)
+	fb.plain_box("sandstone", Vector3(rc.x, 21.6, pz + 1.7), Vector3(34.4, 0.5, 10.2), 0.0, tcol, Color(sd, 1.0, 0.3, 0.0), Color(-1, 0, 0), true)
+	fb.gable_roof("sandstone", Vector3(rc.x, 21.85, pz + 6.6 - 19.0), 32.0, 38.0, 6.2, stone, roof, sd, 0.5)
+	# Kuppel: Tambour aus Werkstein, Glaskuppel mit Stahlrippen, Spiegelkegel innen
+	var dc := rc + Vector3(0.0, 22.5, 0.0)
+	fb.tube("sandstone", dc - Vector3.UP * 1.0, 15.6, 15.4, 2.2, stone, sd, 32, roof)
 	var dome := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 14.0
-	sm.height = 18.0
-	dome.mesh = sm
-	dome.material_override = sil
-	dome.position = Vector3(70.0, 26.0, -470.0)
+	dome.name = "ReichstagKuppel"
+	dome.mesh = _dome_mesh(13.6, 16.0, 32, 14)
+	var dm := ShaderMaterial.new()
+	dm.shader = preload("res://assets/environment/facade/glass_dome.gdshader")
+	dm.set_shader_parameter("height", 16.0)
+	dome.material_override = dm
+	dome.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	dome.position = dc + Vector3.UP * 1.2
 	add_child(dome)
+	var cone := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 5.5
+	cm.bottom_radius = 0.8
+	cm.height = 11.0
+	cm.radial_segments = 24
+	cone.mesh = cm
+	var mm := StandardMaterial3D.new()
+	mm.albedo_color = Color(0.7, 0.72, 0.74)
+	mm.metallic = 0.95
+	mm.roughness = 0.12
+	cone.material_override = mm
+	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	cone.position = dc + Vector3.UP * 6.8
+	add_child(cone)
+	# Fahnenmast auf dem Westportal
+	add_child(Geo.box_mesh_node(Vector3(0.25, 9.0, 0.25), Geo.flat(Color(0.2, 0.2, 0.2), 0.5, 0.6), Vector3(rc.x, 32.4, pz - 2.0)))
+
+## Kuppel-Halbellipsoid (Ursprung = Fussring), Normalen nach aussen.
+func _dome_mesh(r: float, h: float, segs: int, rings: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for j in rings:
+		var b0 := PI * 0.5 * float(j) / float(rings)
+		var b1 := PI * 0.5 * float(j + 1) / float(rings)
+		for i in segs:
+			var a0 := TAU * float(i) / float(segs)
+			var a1 := TAU * float(i + 1) / float(segs)
+			var q: Array = [Vector2(a0, b0), Vector2(a0, b1), Vector2(a1, b1), Vector2(a1, b0)]
+			var p: Array = []
+			var n: Array = []
+			for v: Vector2 in q:
+				var d := Vector3(sin(v.x) * cos(v.y), sin(v.y), cos(v.x) * cos(v.y))
+				p.append(Vector3(d.x * r, d.y * h, d.z * r))
+				n.append(Vector3(d.x / r, d.y / h, d.z / r).normalized())
+			for k: int in [0, 1, 2, 0, 2, 3]:
+				st.set_normal(n[k])
+				st.add_vertex(p[k])
+	return st.commit()
 
 func _build_atmosphere() -> void:
 	# Rauchsaeulen ueber Moabit und am anderen Ufer
@@ -403,8 +576,9 @@ func _build_atmosphere() -> void:
 	Props.fire(world, Vector3(11.3, 4.5, -160.0), 1.0, true, 1.5, 6.0)
 	# Morgendunst ueber dem Fluss, Rauch in der Strasse
 	for z in [-10.0, -70.0, -140.0, -200.0]:
-		Props.fog_volume(self, Vector3(0, 1.5, z), Vector3(30, 6, 40), 0.03, Color(0.6, 0.58, 0.6))
-	Props.fog_volume(self, Vector3(0, -0.5, -305.0), Vector3(120, 5, 100), 0.04, Color(0.7, 0.7, 0.74))
+		Props.fog_volume(self, Vector3(0, 1.5, z), Vector3(30, 6, 40), 0.012, Color(0.45, 0.44, 0.45))
+	# Flussdunst nur unter der Fahrbahn (vorher bis 2 m ueber dem Deck: Juggernaut im Finale kaum sichtbar)
+	Props.fog_volume(self, Vector3(0, -2.8, -305.0), Vector3(120, 3.0, 100), 0.02, Color(0.55, 0.55, 0.58))
 
 func _bake_nav() -> void:
 	preload("res://game/systems/destructible_placements.gd").place(self)  # zerstoerbare Deckung (systeme-c), vor dem Bake
@@ -431,6 +605,28 @@ func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 
 func _radio_wait(max_wait: float = 12.0) -> bool:
 	return await _sleep(clampf(_radio_end - _time, 0.0, max_wait))
+
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key/drop_live, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _say_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+	var d := dur if dur > 0.0 else clampf(1.6 + 0.055 * text.length(), 2.5, 8.0)
+	_radio_end = maxf(_radio_end, _time) + d + 0.65
+
+## Restdauer laufender + wartender Funkzeilen (echte StoryUI-Schlange).
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## Wartet, bis der Funk wirklich frei ist – hoechstens max_wait Sekunden.
+func _radio_free(max_wait: float = 12.0) -> bool:
+	var end := _time + max_wait
+	while _radio_busy() > 0.3 and _time < end:
+		if not await _sleep(0.25):
+			return false
+	return _failed == "" and is_inside_tree()
 
 func _obj(text: String) -> void:
 	Events.story_objective.emit(text)
@@ -491,6 +687,7 @@ func _nest_enemy(id: String) -> Node3D:
 		"crouch_in_cover": false, "sight_range": 120.0, "fov_degrees": 360.0, "max_health": 70.0, "damage_per_hit": 6.0})
 	e.set_meta("rpg", true)
 	e.name = "Panzerfaust_" + id
+	_mark(e, "PANZERFAUST", Vector3(0, 1.5, 0))
 	_rpg.append({"e": e, "cd": randf_range(4.0, 7.0)})
 	return e
 
@@ -502,7 +699,16 @@ func _barricade(pos: Vector3) -> Node3D:
 	_phase_nodes.append(b)
 	if ifv != null:
 		ifv.extra_targets.append(b)
+	_mark(b, "SPERRE", Vector3(0, 1.4, 0), float(b.get("max_health")))
 	return b
+
+## Zielmarke im Turm-HUD (ifv_hud.gd: Gruppe ifv_marker).
+func _mark(n: Node, label: String, off: Vector3, hp_max: float = 0.0) -> void:
+	n.add_to_group("ifv_marker")
+	n.set_meta("hud_label", label)
+	n.set_meta("hud_off", off)
+	if hp_max > 0.0:
+		n.set_meta("hud_hp_max", hp_max)
 
 func _kill(nv: Variant) -> void:
 	if not _alive(nv):
@@ -598,7 +804,8 @@ func _rpg_tick(delta: float) -> void:
 			continue
 		r["cd"] = randf_range(9.0, 13.0) + 2.0 * float(_fail_count)
 		ifv.warn_rocket(head)
-		get_tree().create_timer(1.0, false).timeout.connect(_launch_rpg.bind(e))
+		e.set_meta("hud_aim", Time.get_ticks_msec() / 1000.0 + RPG_WINDUP)
+		get_tree().create_timer(RPG_WINDUP, false).timeout.connect(_launch_rpg.bind(e))
 
 func _launch_rpg(ev: Variant) -> void:
 	if not _alive(ev) or ifv == null or not is_instance_valid(ifv) or ifv.dead:
@@ -612,7 +819,20 @@ func _launch_rpg(ev: Variant) -> void:
 		tgt += dir.cross(Vector3.UP).normalized() * (6.0 if randf() < 0.5 else -6.0) + Vector3.UP * 2.5
 	var from := head + dir * 1.4
 	VF.play_at(self, "rocket_launch", from, 2.0, 14.0, 300.0)
+	_launch_fx(from, dir)
 	IfvRocket.fire(self, from, tgt, 62.0, e, 9.0)
+
+## Abschuss gut lesbar: Muendungsblitz + Lichtblitz am Fenster, Staubwolke vorn und Rueckstrahl im Raum.
+func _launch_fx(from: Vector3, dir: Vector3) -> void:
+	var holder := Node3D.new()
+	add_child(holder)
+	holder.global_position = from
+	holder.look_at(from + dir, Vector3.UP)
+	var fl := VF.make_muzzle_flash(holder, 1.6, 14.0, 12.0)
+	VF.show_flash(fl, 0.12)
+	get_tree().create_timer(0.6, false).timeout.connect(holder.queue_free)
+	VFX.spawn_dust_cloud(from + dir * 0.6, 2.2)
+	VFX.spawn_dust_cloud(from - dir * 3.0, 3.2)
 
 # ================================================================== Ablauf
 
@@ -631,7 +851,13 @@ func _run() -> void:
 	while phase <= 3 and is_inside_tree():
 		_failed = ""
 		_phase_t = 0.0
-		await _radio_wait(8.0)
+		if phase == 1:
+			await _radio_wait(2.5)
+		else:
+			# Rabe rollt schon langsam an, waehrend Lena noch spricht ("Ich fahre durch" + Stillstand
+			# wirkte wie endloses Warten an der Sperre); _pN gibt danach volle Fahrt
+			ifv.drive_to_z(HALT_Z[phase], 2.5)
+			await _radio_free(14.0)
 		var ok: bool = await _phase(phase)
 		if not is_inside_tree():
 			return
@@ -664,12 +890,11 @@ func _phase(p: int) -> bool:
 func _intro() -> void:
 	ifv.input_enabled = true
 	_say(SD.LENA, "Rabe an alle: Abmarsch. Voss fährt, Kerner sitzt am Turm. Ziel Moltkebrücke.")
-	_say(SD.VOSS, "Kaum seid ihr vom Traunsee zurück, schon fahr ich euch wieder durch Berlin.")
 	_say(SD.KERNER, "Weber ist uns entwischt. Dann eben Riedhammer zuerst.")
-	_say(SD.LENA, "Zwei Wochen nach der Ausstrahlung hält die Garde noch immer den Spreebogen. Wir sind die Spitze, hinter uns kommen drei Bataillone.")
 	_say(SD.LENA, "Kanone gegen Fenster und Fahrzeuge, Koax gegen Infanterie. Nebel nur, wenn eine Panzerfaust kommt.")
 	_obj("Mit dem Rabe zur Moltkebrücke durchbrechen")
-	await _radio_wait(16.0)
+	# Voss faehrt sofort an, der Funk laeuft waehrend der Fahrt weiter
+	await _sleep(2.5)
 
 func _retry() -> void:
 	_fail_count += 1
@@ -702,25 +927,39 @@ func _p1() -> bool:
 	_enemy("rifleman", Vector3(-5.0, 0.05, -67.5))
 	_enemy("rifleman", Vector3(5.5, 0.05, -67.5))
 	_enemy("assault", Vector3(1.0, 0.05, -70.0))
+	_enemy("rifleman", Vector3(-8.0, 0.2, -70.0))
+	_enemy("rifleman", Vector3(7.5, 0.2, -72.0))
 	ifv.drive_to_z(HALT_Z[1])
 	await _sleep(3.0)
-	_say(SD.VOSS, "Sperre voraus! Ich halte an.")
+	_say_opt(SD.VOSS, "Sperre voraus! Ich halte an.", 0.0, {"priority": 1, "max_age": 4.0})
 	if not await _until(func() -> bool: return ifv.arrived(), 30.0):
 		return false
-	_say(SD.LENA, "Fenster links und rechts, Panzerfaust-Trupps! Erst die Fenster, dann die Sperre.")
-	_obj("Panzerfaust-Fenster und Straßensperre ausschalten")
+	_say_opt(SD.LENA, "Fenster links und rechts, Panzerfaust-Trupps! Erst die Fenster, dann die Sperre.", 0.0, {"priority": 1})
+	_obj("Panzerfaust-Fenster links und rechts ausschalten (rot markiert = Abschuss droht, Nebel [F])")
+	var nests_down := [-1.0]
 	var warned := [false]
 	var hit_said := [false]
 	var on_hit := func(d: float, _z: int) -> void:
 		if d >= 5.0 and not hit_said[0]:
 			hit_said[0] = true
-			_say(SD.VOSS, "Treffer am Bug! Wir halten noch.")
+			_say_opt(SD.VOSS, "Treffer am Bug! Wir halten noch.", 0.0, {"priority": 1, "max_age": 2.0})
 	ifv.hit_taken.connect(on_hit)
 	var req: Array = [n1, n2, bar]
 	var watch := func() -> bool:
 		if not warned[0] and ifv.rocket_warn > 0.0:
 			warned[0] = true
-			_say(SD.LENA, "Panzerfaust! Nebel, Kerner!")
+			_say_opt(SD.LENA, "Panzerfaust! Nebel, Kerner!", 0.0, {"priority": 2, "cut": true, "max_age": 1.5})
+		if nests_down[0] < 0.0 and not _alive(n1) and not _alive(n2):
+			nests_down[0] = _time
+			if _alive(bar):
+				_say_opt(SD.VOSS, "Jetzt! Feuer frei!", 0.0, {"priority": 1, "max_age": 3.0, "valid": func() -> bool: return _alive(bar)})
+				_obj("Straßensperre mit der Kanone [1] sprengen, sonst sprengen Lenas Pioniere in %d s" % int(BARRICADE_GRACE))
+		elif nests_down[0] >= 0.0 and _alive(bar) and _time - nests_down[0] > BARRICADE_GRACE:
+			# Spieler zoegert: Pioniere sprengen die Sperre sichtbar (kein Warten auf das Zeitlimit)
+			nests_down[0] = INF
+			print("[spreebogen] Sperre: Pioniere sprengen nach %.0f s" % BARRICADE_GRACE)
+			_obj("Lenas Pioniere sprengen die Sperre")
+			get_tree().create_timer(1.5, false).timeout.connect(func() -> void: _kill(bar))
 		return _all_dead(req)
 	var ok: bool = await _until(watch, 90.0)
 	if ifv.hit_taken.is_connected(on_hit):
@@ -729,10 +968,11 @@ func _p1() -> bool:
 		return false
 	if not await _clear(req, 1.0):
 		return false
-	await _mop_up(8.0)
+	await _mop_up(3.0)
 	if _failed != "":
 		return false
 	_say(SD.VOSS, "Sperre ist weg. Ich fahre durch.")
+	_say(SD.LENA, "Zwei Wochen nach der Ausstrahlung hält die Garde noch immer den Spreebogen. Wir sind die Spitze, hinter uns kommen drei Bataillone.")
 	_after_clear()
 	return true
 
@@ -742,6 +982,9 @@ func _p2() -> bool:
 	_enemy("rifleman", Vector3(-8.5, 0.2, -92.0))
 	_enemy("rifleman", Vector3(8.6, 0.2, -97.0))
 	_enemy("rifleman", Vector3(-8.2, 0.2, -101.0))
+	_enemy("rifleman", Vector3(8.4, 0.2, -104.0))
+	_enemy("rifleman", Vector3(-7.0, 0.05, -121.0))
+	_enemy("assault", Vector3(8.0, 0.05, -130.0))
 	var n3 := _nest_enemy("n3")
 	var n4 := _nest_enemy("n4")
 	_enemy("rifleman", Vector3(-5.5, 0.05, -143.5))
@@ -749,13 +992,13 @@ func _p2() -> bool:
 	_enemy("heavy", Vector3(4.0, 0.05, -152.0))
 	ifv.drive_to_z(HALT_Z[2])
 	await _sleep(5.0)
-	_say(SD.VOSS, "Kettengeräusche in der Seitenstraße links. Das ist kein Lkw.")
+	_say_opt(SD.VOSS, "Kettengeräusche in der Seitenstraße links. Das ist kein Lkw.", 0.0, {"priority": 1, "max_age": 3.0})
 	if not await _until(func() -> bool: return ifv.arrived(), 30.0):
 		return false
 	_tank = _spawn_tank(Vector3(-36.0, 0, -146.0), 260.0)
 	var tpath: Array[Vector3] = [Vector3(-24.0, 0, -146.0), Vector3(-13.0, 0, -146.5)]
 	_tank.call("drive_path", tpath, 3.2)
-	_say(SD.LENA, "Garde-Panzer! Der schluckt mehrere Treffer. Bleib mit der Kanone drauf!")
+	_say_opt(SD.LENA, "Garde-Panzer! Der schluckt mehrere Treffer. Bleib mit der Kanone drauf!", 0.0, {"priority": 1})
 	_obj("Garde-Panzer und Panzerfaust-Fenster ausschalten")
 	get_tree().create_timer(4.0, false).timeout.connect(func() -> void:
 		if _tank != null and is_instance_valid(_tank) and _alive(_tank) and ifv != null and is_instance_valid(ifv):
@@ -764,20 +1007,21 @@ func _p2() -> bool:
 	_say(SD.FALK, "Kerner. Wir hatten noch nicht das Vergnügen. Nicht direkt.")
 	_say(SD.FALK, "Ich beobachte Sie seit der Ausstrahlung. Rostock, die Alpen, der Traunsee. Beeindruckend, für einen Unteroffizier.")
 	_say(SD.FALK, "Oberst Falk. Garde. Merken Sie sich den Namen.")
-	_say(SD.LENA, "Ignorier ihn. Panzer zuerst!")
+	_say_opt(SD.LENA, "Ignorier ihn. Panzer zuerst!", 0.0,
+		{"drop_live": true, "valid": func() -> bool: return _tank != null and is_instance_valid(_tank) and _alive(_tank)})
 	var req: Array = [n3, n4, _tank]
 	var said := [false]
 	var watch := func() -> bool:
 		if not said[0] and not _alive(req[2]):
 			said[0] = true
-			_say(SD.VOSS, "Panzer brennt!")
+			_say_opt(SD.VOSS, "Panzer brennt!", 0.0, {"priority": 1, "max_age": 3.0})
 		return _all_dead(req)
 	var ok: bool = await _until(watch, 90.0)
 	if not ok:
 		return false
 	if not await _clear(req, 1.0):
 		return false
-	await _mop_up(10.0)
+	await _mop_up(4.0)
 	if _failed != "":
 		return false
 	_after_clear()
@@ -799,6 +1043,7 @@ func _spawn_tank(pos: Vector3, hp: float) -> Node3D:
 	_phase_nodes.append(t)
 	if ifv != null:
 		ifv.extra_targets.append(t)
+	_mark(t, "PANZER", Vector3(0, 2.0, 0))
 	return t
 
 # --- Halt 3: Hubschrauber ueber dem Uferplatz
@@ -809,7 +1054,10 @@ func _p3() -> bool:
 	_enemy("rifleman", Vector3(6.5, 0.05, -239.5))
 	_enemy("assault", Vector3(0.0, 0.05, -244.0))
 	_enemy("heavy", Vector3(-4.0, 0.05, -249.0))
+	_enemy("rifleman", Vector3(-8.0, 0.05, -250.0))
+	_enemy("rifleman", Vector3(4.0, 0.05, -236.0))
 	ifv.drive_to_z(HALT_Z[3])
+	_say(SD.VOSS, "Kaum seid ihr vom Traunsee zurück, schon fahr ich euch wieder durch Berlin.")
 	await _sleep(4.0)
 	if not await _until(func() -> bool: return ifv.arrived(), 30.0):
 		return false
@@ -823,27 +1071,29 @@ func _p3() -> bool:
 	_heli.global_position = Vector3(60.0, 34.0, -280.0)
 	_phase_nodes.append(_heli)
 	ifv.extra_targets.append(_heli)
+	_mark(_heli, "HUBSCHRAUBER", Vector3(0, 1.0, 0))
 	var hp: Array[Vector3] = [Vector3(-18.0, 26.0, -232.0), Vector3(16.0, 28.0, -252.0), Vector3(22.0, 30.0, -218.0), Vector3(-22.0, 27.0, -220.0)]
 	_heli.call("fly_path", hp, 13.0, true)
-	_say(SD.LENA, "Hubschrauber über dem Ufer! Hoch mit dem Rohr!")
+	_say_opt(SD.LENA, "Hubschrauber über dem Ufer! Hoch mit dem Rohr!", 0.0, {"priority": 1})
 	_obj("Hubschrauber und letztes Fenster ausschalten")
 	await _sleep(3.0)
 	if _heli != null and is_instance_valid(_heli) and _alive(_heli):
 		_heli.call("attack", true)
-	_say(SD.FALK, "Sie fahren genau dorthin, wo ich Sie haben will, Kerner.")
+	_say_opt(SD.FALK, "Sie fahren genau dorthin, wo ich Sie haben will, Kerner.", 0.0,
+		{"max_age": 4.0, "valid": func() -> bool: return _heli != null and is_instance_valid(_heli) and _alive(_heli)})
 	var req: Array = [n5, _heli]
 	var said := [false]
 	var watch := func() -> bool:
 		if not said[0] and not _alive(req[1]):
 			said[0] = true
-			_say(SD.VOSS, "Der Vogel ist unten!")
+			_say_opt(SD.VOSS, "Der Vogel ist unten!", 0.0, {"priority": 1, "max_age": 3.0})
 		return _all_dead(req)
 	var ok: bool = await _until(watch, 90.0)
 	if not ok:
 		return false
 	if not await _clear(req, 1.0):
 		return false
-	await _mop_up(8.0)
+	await _mop_up(4.0)
 	if _failed != "":
 		return false
 	_after_clear()
@@ -914,6 +1164,7 @@ func _start_foot(debug_start: bool) -> void:
 	_on_foot = true
 	phase = 5
 	_foot_t = 0.0
+	_clear_bridge_air()
 	if debug_start:
 		_far_tank = _spawn_tank(Vector3(8.0, 0, -380.0), 300.0)
 		_far_tank.rotation.y = PI
@@ -934,15 +1185,34 @@ func _start_foot(debug_start: bool) -> void:
 	_enemy("armored", Vector3(2.5, 0.05, -328.0))
 	_enemy("marksman", Vector3(-7.0, 0.05, -361.0))
 	_enemy("rifleman", Vector3(7.0, 0.05, -363.0))
+	_enemy("rifleman", Vector3(6.0, 0.05, -299.0))
+	_enemy("rifleman", Vector3(-6.0, 0.05, -332.0))
+	_enemy("rifleman", Vector3(6.0, 0.05, -320.0))
 	_trigger("SpreeBoss", Vector3(0, 3, -300.0), Vector3(16, 6, 2), _spawn_boss)
-	_trigger("SpreeCheckpoint", Vector3(0, 3, -312.0), Vector3(16, 6, 2), func() -> void: _checkpoint("cp_bridge_mid"))
+	# Checkpoint kurz VOR dem Juggernaut-Ausloeser (vorher hinter der Todeszone: nach jedem Tod 60 m Rueckweg)
+	_trigger("SpreeCheckpoint", Vector3(0, 3, -294.0), Vector3(16, 6, 2), func() -> void: _checkpoint("cp_bridge_mid"))
 	# Voss erledigt den Panzer mit der letzten Panzerfaust
 	get_tree().create_timer(16.0, false).timeout.connect(_voss_rocket)
+
+## Zu Fuss auf der Bruecke: Dunst lichter, damit Garde und Juggernaut auf 40-70 m klar erkennbar sind
+## (aus dem Rabe heraus passt der dichtere Dunst zur Strasse, auf der offenen Bruecke schluckte er die Gegner).
+func _clear_bridge_air() -> void:
+	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if we == null or we.environment == null:
+		return
+	var e := we.environment
+	e.fog_density = 0.0012
+	e.fog_aerial_perspective = 0.25
+	e.volumetric_fog_density = fog_density * 0.2
+	e.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
 
 func _voss_rocket() -> void:
 	if _far_tank == null or not is_instance_valid(_far_tank) or not _alive(_far_tank):
 		return
-	_say(SD.VOSS, "Ich hab noch eine Panzerfaust aus dem Rabe. Kopf runter!")
+	await _radio_free(8.0)
+	if not is_inside_tree() or _far_tank == null or not is_instance_valid(_far_tank) or not _alive(_far_tank):
+		return
+	_say_opt(SD.VOSS, "Ich hab noch eine Panzerfaust aus dem Rabe. Kopf runter!", 0.0, {"priority": 1})
 	await get_tree().create_timer(2.5, false).timeout
 	if not is_instance_valid(_far_tank) or not _alive(_far_tank):
 		return
@@ -952,13 +1222,13 @@ func _voss_rocket() -> void:
 	await get_tree().create_timer(2.0, false).timeout
 	if is_instance_valid(_far_tank) and _alive(_far_tank):
 		_far_tank.call("destroy")
-	_say(SD.VOSS, "Panzer ist erledigt. Für dich, Rabe.")
+	_say_opt(SD.VOSS, "Panzer ist erledigt. Für dich, Rabe.", 0.0, {"priority": 1, "cut": true})
 
 func _spawn_boss() -> void:
 	if _boss != null:
 		return
 	_boss = _enemy("juggernaut", Vector3(0.0, 0.05, -346.0))
-	_say(SD.LENA, "Schwere Panzerung auf der Brücke! Das ist ein Juggernaut. Panzerfaust, Kerner!")
+	_say_opt(SD.LENA, "Schwere Panzerung auf der Brücke! Das ist ein Juggernaut. Panzerfaust, Kerner!", 0.0, {"priority": 1})
 
 func _foot_tick() -> void:
 	if _finale_started:
@@ -986,7 +1256,8 @@ func _finale() -> void:
 	_say(SD.LENA, "Brücke gehalten. Die Bataillone rücken nach. Kerner, wir stehen am Spreebogen.")
 	_say(SD.FALK, "Ein Brückenkopf. Wie rührend. Wir sehen uns, Kerner.")
 	_say(SD.VOSS, "Der Rabe hat uns bis hierher gebracht. Den Rest holen wir uns zu Fuß.")
-	await _sleep(9.0)
+	await _sleep(2.0)
+	await _radio_free(20.0)
 	_on_level_end()
 
 ## Pausenmenue: "Checkpoint laden".

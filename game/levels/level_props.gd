@@ -7,6 +7,7 @@ const Geo = preload("res://game/levels/level_geo.gd")
 const FireScene: PackedScene = preload("res://game/vfx/fire.tscn")
 const TankWreck = preload("res://game/vehicles/models/tank_wreck_model.gd")
 const CarModel = preload("res://game/vehicles/models/car_model.gd")
+const WreckModel = preload("res://game/vehicles/models/wreck_model.gd")
 const PH = preload("res://game/levels/ph_props.gd")
 
 static func _rot(yaw_deg: float) -> Basis:
@@ -80,6 +81,19 @@ static func vehicle(parent: Node3D, pos: Vector3, yaw_deg: float, kind: String, 
 		total_h += cab_h
 	elif kind == "truck":
 		total_h = ride + 2.5
+	if burnt:
+		# ausgebrannt: Loft-Karosserie ohne Scheiben/Reifen auf nackten Felgen, Brandrost/Asche-Shader (WreckModel)
+		var seed_v := fposmod(pos.x * 0.37 + pos.z * 0.71, 10.0)
+		var mh := WreckModel.build_vehicle(root, kind, color, seed_v)
+		root.rotation_degrees.z = roll_deg
+		if flipped:
+			root.rotation_degrees.z = 180.0 + roll_deg
+			root.position.y = mh - 0.03
+		Geo.add_box_shape(b, Vector3(0, total_h / 2.0, 0), Vector3(width, total_h, length))
+		WreckModel.scorch(b, Vector2(width + 1.8, length + 1.6), fposmod(seed_v * 37.0, 30.0) - 15.0)
+		parent.add_child(b)
+		_cover_sides(covers, pos, yaw_deg, width / 2.0, length / 2.0, 1.0, true)
+		return b
 	# Karosserie aus Seitenprofilen mit Radlaeufen, Greenhouse, Saeulen, Raeder/Felgen (CarModel)
 	var glass_m: Material = Geo.flat(Color(0.025, 0.022, 0.02), 0.95) if burnt else _dark_glass()
 	var rim_m: Material = paint if burnt else Geo.flat(Color(0.5, 0.5, 0.52), 0.4, 0.8)
@@ -96,7 +110,7 @@ static func vehicle(parent: Node3D, pos: Vector3, yaw_deg: float, kind: String, 
 
 # --- Panzer -------------------------------------------------------------------
 
-## Ausgebranntes Panzerwrack (detailliertes TankModel, verkohlt/rostig, Turm verdreht, Kette abgeworfen).
+## Ausgebranntes Panzerwrack (verkohlter Marder 1A3, Turm verdreht, Rohr haengt, Heckklappe offen; Fallback TankModel).
 ## snow = Schneeauflage (Winterlevels). Kollision und Deckungspunkte wie bisher.
 static func tank_wreck(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Array, snow: bool = false) -> StaticBody3D:
 	var b := Geo.static_body(pos, yaw_deg)
@@ -105,7 +119,10 @@ static func tank_wreck(parent: Node3D, pos: Vector3, yaw_deg: float, covers: Arr
 	# TankModel: Front = -Z; das alte Wrack hatte die Front bei +Z -> 180 Grad drehen
 	model.rotation_degrees = Vector3(0, 180.0, 0)
 	b.add_child(model)
-	TankWreck.build(model, snow)
+	# verkohlter Marder 1A3 (Scout, CC-BY 4.0); Fallback: prozedurales TankModel-Wrack
+	if not WreckModel.build_marder(model, snow):
+		TankWreck.build(model, snow)
+	WreckModel.scorch(b, Vector2(6.5, 9.5), 8.0)
 	Geo.add_box_shape(b, Vector3(0, 1.05, 0), Vector3(3.0, 1.2, 6.5))
 	Geo.add_box_shape(b, Vector3(1.75, 0.65, 0), Vector3(0.8, 1.3, 7.1))
 	Geo.add_box_shape(b, Vector3(-1.75, 0.65, 0), Vector3(0.8, 1.3, 7.1))

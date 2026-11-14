@@ -66,6 +66,10 @@ var _storm_t: float = 0.0
 var _storm_wave: int = 0
 var _storm_on: bool = false
 var _escape_started: bool = false
+var _weber_speed := 1.0              # Tempo-Faktor der Weber-Tweens (Tween hat keinen Getter)
+var _weber_tw: Tween = null         # laufende Flucht-/Einstiegs-Tween (fuer Tempo-Anpassung am Stegende)
+var _weber_boarded: bool = false     # erst nach dem Einstieg verschwindet Weber (Kabine)
+var _plane_departed: bool = false
 var _end_area: Area3D
 var _finished: bool = false
 var _akte_taken: bool = false
@@ -93,6 +97,8 @@ func _ready() -> void:
 	Events.player_respawned.connect(_on_player_respawned)
 	child_entered_tree.connect(_on_child_entered)
 	_ambience()
+	if str(Game.arg("shots", "")) != "":
+		add_child(load("res://game/levels/tools/villa_shots.gd").new())
 	if _start_phase > 0:
 		_debug_start(_start_phase)
 	else:
@@ -191,6 +197,31 @@ func _later(t: float, f: Callable) -> void:
 
 func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	Events.story_radio.emit(speaker, text, dur)
+
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key/drop_live, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _say_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+func _say_once_opt(key: String, speaker: String, text: String, opts: Dictionary) -> void:
+	if _said.has(key):
+		return
+	_said[key] = true
+	_say_opt(speaker, text, 0.0, opts)
+
+## Restzeit der Funk-Warteschlange (laufende Zeile + Wartende, echte Audiolaengen aus StoryUI).
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f aufrufen, sobald der Funk frei ist (spaetestens nach max_wait s): Zeilen, die nicht unterbrechen sollen.
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_busy() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
 
 func _say_once(key: String, speaker: String, text: String, dur: float = 0.0) -> void:
 	if _said.has(key):
@@ -371,6 +402,12 @@ func _build_markers() -> void:
 	drone.connect("finished", _on_drone_finished)
 	drone.connect("noticed", _on_drone_noticed)
 	drone.connect("target_marked", _on_target_marked)
+	# Waermebild: der spiegelglatte See warf die tiefe Sonne als weissen "heissen" Fleck ins Bild.
+	# Kaltes Wasser ist im Waermebild dunkel und matt -> waehrend Drohnen-Waermebild Spiegelung abschalten.
+	drone.connect("launched", _water_thermal)
+	drone.connect("finished", func(_r: String) -> void: _water_thermal())
+	drone.connect("thermal_toggled", func(_on: bool) -> void: _water_thermal())
+	hud.set("drone", drone)     # Radar + Verdachtsanzeige nur fuer aufgeklaerte Wachen/Kameras
 	# Alarmlampen (rot, erst bei Alarm)
 	for lp: Vector3 in [Vector3(6.0, 3.4, -13.0), Vector3(-12.7, 3.2, -22.8), Vector3(14.0, 3.6, 29.2), Vector3(-23.0, 3.0, 21.6)]:
 		var l := _omni(lp, Color(1.0, 0.12, 0.08), 0.0, 9.0, 0.8)
@@ -421,14 +458,12 @@ func _spawn_wave(index: int) -> void:
 		(cam as Node3D).position = c[0]
 		drone.call("add_target", cam, "camera", "Kamera")
 	# Weber in der Bibliothek, Jaeger an den grauen Wagen hinter der Ostmauer
-	if _start_phase < 4:
+	# --phase=5 (Debug): Weber startet ebenfalls in der Bibliothek und flieht sofort; der Spieler steht
+	# dann VOR ihm am Steg (Test fuer "Stegende vor Weber erreicht").
+	if _start_phase < 4 or _start_phase == 5:
 		_weber = VIP.build(self, "weber", WEBER_POS, 180.0)
 		drone.call("add_target", _weber["root"], "weber", "Weber")
-		for jp: Array in [[Vector3(43.2, 0.0, 18.6), 80.0], [Vector3(43.6, 0.0, 21.8), 110.0], [Vector3(43.0, 0.0, 28.4), 70.0], [Vector3(44.2, 0.0, 32.4), 95.0]]:
-			var f := VIP.build(self, "graumantel", jp[0], float(jp[1]))
-			var r: Node3D = f["root"]
-			_jaeger_figs.append(r)
-			drone.call("add_target", r, "jaeger", "Graumantel")
+		_jaeger_post()
 	if _start_phase >= 3:
 		return
 	var guards: Array = [
@@ -446,9 +481,40 @@ func _spawn_wave(index: int) -> void:
 		["rifleman", false, [_wp(-16.0, 0.12, -27.0, 0.0, 90.0)]],
 		["officer", false, [_wp(6.0, 0.1, -16.0, 0.0, 180.0)]],
 		["rifleman", true, [_wp(-2.0, 0.1, -16.0, 3.0, 180.0), _wp(-2.0, 0.1, -29.0, 3.0, 0.0)]],
+		# Ostrasen und Vorplatz-West
+		["rifleman", true, [_wp(21.0, 0.0, 8.0, 3.0, 180.0), _wp(21.0, 0.0, -4.0, 3.0, 0.0)]],
+		["rifleman", false, [_wp(24.0, 0.0, -10.0, 0.0, 180.0)]],
+		["rifleman", false, [_wp(-6.0, 0.0, -8.0, 0.0, 90.0)]],
 	]
 	for g: Array in guards:
 		_spawn_guard(str(g[0]), bool(g[1]), g[2] as Array)
+
+## Falks Beobachtungsposten an der Bundesstrasse (vor dem Sturm): einer beobachtet die Villa ueber die Ostmauer,
+## einer steht mit Funk an der offenen Hecktuer des Transporters, zwei gehen an der Mauer Streife (echter Gang).
+## Die Drohne kann sie markieren (Lena: "Graue Maentel an der Strasse ..."); beim Sturm sind sie weg - sie sind
+## die Jaeger, die dann ins Haus kommen.
+func _jaeger_post() -> void:
+	var watch := VIP.build(self, "graumantel", Vector3(41.6, 0.0, 22.6), 90.0)       # Blick nach Westen auf die Villa
+	var radio := VIP.build(self, "graumantel", Vector3(45.6, 0.0, 26.9), 200.0)      # am Heck des Transporters
+	_pose(radio, -0.55, 0.1, true)
+	for f: Dictionary in [watch, radio]:
+		_jaeger_figs.append(f["root"])
+		drone.call("add_target", f["root"], "jaeger", "Graumantel (fremder Posten)")
+	# Streife entlang der Mauer, gegenlaeufig
+	for spec: Array in [[Vector3(41.2, 0.0, 12.0), Vector3(41.2, 0.0, 36.0), 0.0], [Vector3(42.4, 0.0, 34.0), Vector3(42.4, 0.0, 14.0), 9.0]]:
+		var f := VIP.build(self, "graumantel", spec[0], 0.0)
+		var r: Node3D = f["root"]
+		_jaeger_figs.append(r)
+		drone.call("add_target", r, "jaeger", "Graumantel (fremder Posten)")
+		var a: Vector3 = spec[0]
+		var b: Vector3 = spec[1]
+		var tw := create_tween().set_loops()
+		tw.tween_interval(0.5 + float(spec[2]) * 0.2)
+		for leg: Array in [[a, b], [b, a]]:
+			tw.tween_callback(_face.bind(r, leg[1]))
+			tw.tween_property(r, "position", leg[1], (leg[0] as Vector3).distance_to(leg[1]) / 1.25).from(leg[0])
+			tw.tween_interval(3.0)
+		r.tree_exiting.connect(tw.kill)
 
 ## Farben vor add_child setzen (eigene Fraktions-Optik), danach Meta zurueck auf "reich" (deutsche Rufe).
 func _dress(e: Enemy, colors: Array, vis_faction: String) -> void:
@@ -528,20 +594,27 @@ func _physics_process(delta: float) -> void:
 		_reinf_t -= delta
 		if _reinf_t < 0.0:
 			_call_reinforcements()
+	_update_alarm_note()
 	if _bot and _phase < 3 and not flying and takedown != null and takedown.get("candidate") != null:
 		takedown.call("try_auto")
 	if director != null and bool(director.get("alarm")):
 		for l in _alarm_lamps:
 			l.light_energy = 2.2 + 1.8 * sin(_t * 8.0)
+	if director != null:
+		# Daemmerung: draussen sehen Wachen weit (ca. 14 m stehend, 8 m geduckt), im Haus zaehlen die Lampen
+		var pp := pl.global_position
+		var inside := pp.x > -12.0 and pp.x < 12.0 and pp.z > -32.0 and pp.z < -14.0
+		director.set("ambient", 0.16 if inside else 0.31)
+	_update_countdown(delta)
 	if _storm_on:
 		_update_storm(delta, pl)
-	if _bot and _phase == 4:
+	if _bot and (_phase == 4 or (_phase == 3 and not _cine)):
 		# Bibliothek halten: Wegpunkt-Ende ist hier gewollt, kein Stillstand
 		_ap_t -= delta
 		if _ap_t <= 0.0:
 			_ap_t = 2.0
 			_ap_reset()
-	if not _akte_taken and _phase >= 4 and pts.has("akte"):
+	if not _akte_taken and _phase >= 3 and not _cine and pts.has("akte") and (pts["akte"] as Node3D).visible:
 		var ak: Node3D = pts["akte"]
 		var d := ak.global_position - pl.global_position
 		if Vector2(d.x, d.z).length() < 2.4:
@@ -590,9 +663,11 @@ func _end_cine() -> void:
 func _intro() -> void:
 	_obj("Aufklärung vom Hang: Drohne startet")
 	_later(1.0, func() -> void:
-		_say(StoryData.BRANDT, "Kerner, Brandt hier. Ich kreise mit dem Hubschrauber drei Kilometer südlich über dem Wald. Die Villa gehört einem Strohmann des Konsortiums – Weber ist seit Mittag drin."))
-	_later(4.0, func() -> void:
-		_say(StoryData.LENA, "Ich bin hinter dir am Hang. Schick zuerst die Drohne runter – ich will jede Wache und jede Kamera kennen, bevor du gehst."))
+		# Prioritaet 1 (Erzaehlzeilen): die Drohnen-Meldungen (Graumaentel, Weber; ebenfalls Prio 1, ohne cut)
+		# warten, bis Lenas Anweisung durch ist, statt sie zu unterbrechen.
+		_say_opt(StoryData.BRANDT, "Kerner, Brandt hier. Ich kreise mit dem Hubschrauber drei Kilometer südlich über dem Wald. Die Villa gehört einem Strohmann des Konsortiums – Weber ist seit Mittag drin.", 0.0, {"priority": 1})
+		# Lena direkt im Anschluss (Gespraech im selben Frame)
+		_say_opt(StoryData.LENA, "Ich bin hinter dir am Hang. Schick zuerst die Drohne runter – ich will jede Wache und jede Kamera kennen, bevor du gehst.", 0.0, {"priority": 1}))
 	_later(9.0, func() -> void:
 		if _phase == 0 and drone != null and not bool(drone.get("active")):
 			_launch_drone())
@@ -616,16 +691,29 @@ func _launch_drone() -> void:
 	if _bot:
 		drone.call("autofly", DRONE_TOUR, 1.2)
 
+func _water_thermal() -> void:
+	var lake := find_child("Traunsee", true, false) as MeshInstance3D
+	if lake == null or not (lake.material_override is ShaderMaterial):
+		return
+	var th := drone != null and bool(drone.get("active")) and bool(drone.get("thermal"))
+	var m := lake.material_override as ShaderMaterial
+	m.set_shader_parameter("roughness_base", 0.85 if th else 0.04)
+	m.set_shader_parameter("normal_strength", 0.2 if th else 0.75)
+
 func _on_drone_launched() -> void:
 	if hud != null:
 		hud.visible = false
-	_obj("Drohne: Wachen, Kameras und Weber markieren – [%s] Wärmebild, [%s] zurück" % [_key("drone_thermal"), _key("drone_toggle")])
+	_obj(_drone_objective())
 
 func _on_drone_finished(_reason: String) -> void:
 	_drone_cd = 0.6
 	_drone_flights += 1
 	if hud != null:
 		hud.visible = _phase < 3
+		# Was die Aufklaerung bringt, direkt nach dem Flug sagen (Markierte: Rauten durch Waende, Radar, Verdachtsauge)
+		var mk := int(drone.call("marked_count", "guard")) + int(drone.call("marked_count", "camera")) if drone != null else 0
+		if mk > 0 and _phase <= 1:
+			hud.call("flash", "%d Ziele markiert: durch Wände sichtbar, auf dem Radar, mit Verdachtsanzeige" % mk, 6.0, Color(0.62, 0.85, 1.0))
 	if _phase == 0:
 		_recon_done()
 	elif _phase <= 2:
@@ -637,23 +725,57 @@ func _recon_done() -> void:
 	_phase = 1
 	_checkpoint("cp_start")
 	_obj(_approach_objective())
+	# Lohn fuers Schleichen vorab ankuendigen (s. _loud(): Sturmgroesse, Nachhut am Steg)
+	if hud != null:
+		_later(6.5, func() -> void:
+			if _phase == 1 and director != null and int(director.get("alarm_count")) == 0:
+				hud.call("flash", "Unentdeckt bis zur Bibliothek: kleinerer Sturm, keine Nachhut am Steg", 7.0))
 	_say_once("routes", StoryData.LENA, "Zwei Wege: übers Bootshaus und den Garten, leise. Oder durch die Einfahrt – da stehen mehr von denen.")
-	_later(5.5, func() -> void:
-		_say_once("go_down", StoryData.KERNER, "Verstanden. Ich geh runter."))
+	# Kerner antwortet direkt (Gespraech im selben Frame); entfaellt, wenn inzwischen Alarm ist
+	_say_once_opt("go_down", StoryData.KERNER, "Verstanden. Ich geh runter.",
+		{"valid": func() -> bool: return not bool(director.get("alarm"))})
 	_ap_reset()
 
 func _approach_objective() -> String:
-	return "Zur Villa: leise über Bootshaus und Garten – oder laut durch die Einfahrt  ([%s] Drohne)" % _key("drone_toggle")
+	return "Zur Villa: leise über Bootshaus und Garten – oder laut durch die Einfahrt  ([%s] Drohne · %s)" % [_key("drone_toggle"), _recon_text()]
+
+## "Aufgeklärt 7/13 Wachen, 2/4 Kameras" (nur Markierte erscheinen auf Radar und Verdachtsanzeige).
+func _recon_text() -> String:
+	if drone == null:
+		return ""
+	var g := int(drone.call("target_count", "guard"))
+	var c := int(drone.call("target_count", "camera"))
+	var mg := int(drone.call("marked_count", "guard"))
+	var mc := int(drone.call("marked_count", "camera"))
+	if mg + mc == 0:
+		return "nicht aufgeklärt"
+	return "aufgeklärt: %d/%d Wachen, %d/%d Kameras" % [mg, g, mc, c]
+
+func _drone_objective() -> String:
+	return "Drohne: Wachen, Kameras und Weber markieren (%s) – [%s] Wärmebild, [%s] zurück" % [_recon_text(), _key("drone_thermal"), _key("drone_toggle")]
+
+## Hat es vor der Bibliothek Alarm gegeben? Dann: mehr Verstaerkung, groesserer Sturm, Nachhut am Steg, kein Stern.
+func _loud() -> bool:
+	return director != null and int(director.get("alarm_count")) > 0
 
 func _on_drone_noticed(_w: Object) -> void:
 	_say_once("drone_noise", StoryData.LENA, "Zu tief, Jonas – die Wache hat den Rotor gehört. Geh höher.")
 
 func _on_target_marked(_node: Node3D, kind: String) -> void:
+	if drone != null and bool(drone.get("active")):
+		_obj(_drone_objective())
+	elif _phase == 1 and not bool(director.get("alarm")):
+		_obj(_approach_objective())
 	match kind:
 		"jaeger":
-			_say_once("jaeger_seen", StoryData.LENA, "Graue Mäntel an der Straße. Das ist nicht Webers Wachdienst.")
+			# Erzaehlzeile Prio 1 (kein max_age, kein cut): wartet hinter Lenas Drohnen-Anweisung (gleiche Prio,
+			# unterbricht sie nicht) und wird auch von Kerners Weber-Zeile nicht mehr abgeschnitten. Verfaellt erst,
+			# wenn Kerner schon im Haus ist.
+			_say_once_opt("jaeger_seen", StoryData.LENA, "Graue Mäntel an der Straße. Das ist nicht Webers Wachdienst.",
+					{"priority": 1, "valid": func() -> bool: return _phase < 2})
 		"weber":
-			_say_once("weber_seen", StoryData.KERNER, "Weber. In der Bibliothek, Erdgeschoss hinten rechts. Allein.")
+			_say_once_opt("weber_seen", StoryData.KERNER, "Weber. In der Bibliothek, Erdgeschoss hinten rechts. Allein.",
+					{"priority": 1, "valid": func() -> bool: return _phase < 2})
 
 func _on_meadow() -> void:
 	if _phase == 0 and drone != null and bool(drone.get("active")):
@@ -702,39 +824,97 @@ func _weber_head() -> Vector3:
 		return WEBER_POS + Vector3(0, 1.6, 0)
 	return (_weber["root"] as Node3D).global_position + Vector3(0.0, 1.65, 0.0)
 
+## Vorwarnzeit zwischen Webers Szene und dem Sturm der Jaeger: Spieler hat die Kontrolle, Countdown oben.
+const STORM_WARN := 24.0
+
 func _library_scene() -> void:
 	_obj("")
 	_begin_cine(_weber_head())
 	# Zwischensequenz (game/cutscene): Kamerafahrt auf Weber in der Bibliothek, Gegenschuss, Nahaufnahme.
-	# Autopilot/--skip-cutscenes: sofort übersprungen; danach läuft das Spieler-Kino wie bisher weiter.
+	# Autopilot/--skip-cutscenes: sofort übersprungen.
 	await _weber_library_cutscene()
-	await _wait_radio(70.0)
 	if not is_inside_tree():
 		return
+	# Danach KEIN Standbild mehr: Kontrolle zurueck, Webers restliche Zeilen laufen als Funk/Untertitel weiter,
+	# waehrend ein Countdown bis zum Zugriff der Jaeger laeuft (Stellung beziehen, nachladen).
+	_end_cine()
+	_obj("Falks Jäger rücken an – Stellung in der Bibliothek beziehen")
+	_start_countdown(STORM_WARN, "ZUGRIFF DER JÄGER IN %d s", _payoff_text())
+	# Alle Zeilen sofort einreihen (Reihenfolge bleibt: Weber verabschiedet sich, bevor Falk "Zugriff" funkt)
 	_say(StoryData.LENA, "Jonas, Fahrzeuge auf der Bundesstraße. Graue Mäntel. Das sind Falks Jäger.")
 	_say(StoryData.WEBER, "Fragen Sie sich lieber, wie die so schnell hier sein können.")
 	_say(StoryData.WEBER, "Riedhammer vertraut seinen Leitungen. Das war immer sein Fehler.")
-	await _wait_radio(40.0)
-	if not is_inside_tree():
-		return
-	if not _weber.is_empty():
-		_pose(_weber, -1.1, 0.6, true)
-	if pts.has("akte"):
-		(pts["akte"] as Node3D).visible = true
 	_say(StoryData.WEBER, "Hier. Die Hälfte der Akte Nordlicht. Konten, Strohmänner, das Konsortium. Die andere Hälfte ist meine Lebensversicherung.")
 	_say(StoryData.WEBER, "Wir sehen uns in Berlin, Kerner.")
-	await _wait_radio(40.0)
-	if not is_inside_tree():
+	# Akte auf den Tisch, wenn Weber "Hier." sagt (ca. 17 s nach Beginn der Zeilen)
+	_later(STORM_WARN - 7.0, func() -> void:
+		if _phase != 3:
+			return
+		if not _weber.is_empty() and not _escape_started:
+			_pose(_weber, -1.1, 0.6, true)
+		if pts.has("akte") and not _akte_taken:
+			(pts["akte"] as Node3D).visible = true)
+	# Countdown aus: Weber geht (waehrend seines Abschieds), die Jaeger stuermen
+	_later(STORM_WARN, func() -> void:
+		if _phase != 3:
+			return
+		if pts.has("akte") and not _akte_taken:
+			(pts["akte"] as Node3D).visible = true
+		if not _weber.is_empty() and not _escape_started:
+			_pose(_weber, 0.0, 0.4)
+			_weber_escape()
+		_start_storm())
+
+## Lohn bzw. Preis der Annaeherung, beim Countdown eingeblendet (Schleichen soll spuerbar etwas bringen).
+func _payoff_text() -> String:
+	if _loud():
+		return "Alarm ausgelöst: Falk schickt mehr Jäger – und eine Nachhut an den Steg"
+	return "Unentdeckt geblieben: kleinerer Sturm, keine Nachhut am Steg"
+
+var _cd_layer: CanvasLayer
+var _cd_label: Label
+var _cd_sub: Label
+var _cd_t: float = -1.0
+var _cd_fmt: String = ""
+
+func _start_countdown(t: float, fmt: String, sub: String) -> void:
+	if _cd_layer == null:
+		_cd_layer = CanvasLayer.new()
+		_cd_layer.layer = 6
+		add_child(_cd_layer)
+		var root := UIStyle.HudRoot.new()
+		_cd_layer.add_child(root)
+		_cd_label = _cd_make_label(root, 26, Color(1.0, 0.62, 0.3), 18.0)
+		_cd_sub = _cd_make_label(root, 17, Color(0.85, 0.9, 0.82), 56.0)
+	_cd_t = t
+	_cd_fmt = fmt
+	_cd_sub.text = sub
+	_cd_sub.add_theme_color_override("font_color", Color(1.0, 0.55, 0.42) if _loud() else Color(0.62, 0.92, 0.7))
+	_cd_layer.visible = true
+
+func _cd_make_label(parent: Control, fs: int, col: Color, y: float) -> Label:
+	var l := Label.new()
+	l.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	l.offset_top = y
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", fs)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	l.add_theme_constant_override("outline_size", 6)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(l)
+	return l
+
+func _update_countdown(delta: float) -> void:
+	if _cd_t < 0.0 or _cd_layer == null:
 		return
-	if not _weber.is_empty():
-		_pose(_weber, 0.0, 0.4)
-		_cine_track = _weber["root"]
-		_weber_escape()
-	await get_tree().create_timer(3.2, false).timeout
-	if not is_inside_tree():
+	_cd_t -= delta
+	if _cd_t <= 0.0 or _phase >= 4:
+		_cd_t = -1.0
+		_cd_layer.visible = false
 		return
-	_end_cine()
-	_start_storm()
+	_cd_label.text = _cd_fmt % ceili(_cd_t)
+	_cd_label.modulate.a = 1.0 if _cd_t > 5.0 or fmod(_cd_t, 0.5) > 0.2 else 0.55
 
 ## Erster Dialogblock der Bibliothek als Kamerafahrt (Zeilen unverändert).
 func _weber_library_cutscene() -> void:
@@ -776,24 +956,85 @@ func _weber_escape() -> void:
 	root.visible = true
 	drone.call("remove_target", root)
 	var tw := create_tween()
+	_weber_tw = tw
 	var prev := root.position
-	var path: Array[Vector3] = [Vector3(8.6, 0.1, -30.4), Vector3(10.0, 0.1, -31.2), Vector3(10.0, 0.1, -34.0),
-		Vector3(-3.0, 0.03, -36.5), Vector3(-6.0, 0.03, -40.0), Vector3(-6.0, 0.2, -69.0), Vector3(-3.4, 0.2, -70.6)]
-	for i in path.size():
-		var p := path[i]
-		var speed := 1.5 if i < 3 else 2.4
+	# Wegpunkte = Fusspunkte auf echter Bodenhoehe: Parkett 0.1, Wiese/Plattenweg 0.0/0.03, Kaimauer 0.12,
+	# Steg 0.2. Hoehenwechsel nur auf kurzen Stufen-Segmenten; Tempo unter der Lauf-Schwelle des Gangzyklus
+	# (VipRig: Laufen ab ~2.3 m/s), damit Schrittlaenge und Bodenkontakt passen.
+	# [Punkt, Tempo m/s, Aktion]
+	var steps: Array = [
+		[Vector3(4.5, 0.1, -27.6), 1.1, ""],            # vom Schreibtisch weg (nicht hindurch)
+		[Vector3(7.8, 0.1, -27.5), 1.35, ""],
+		[Vector3(9.7, 0.1, -29.7), 1.35, ""],
+		[Vector3(10.0, 0.1, -31.1), 1.1, "door_open"],
+		[Vector3(10.0, 0.1, -32.35), 1.0, ""],          # Schwelle
+		[Vector3(10.0, 0.02, -32.9), 0.9, "door_close"],  # Stufe hinab
+		[Vector3(10.0, 0.03, -35.4), 1.7, ""],
+		[Vector3(9.0, 0.03, -36.5), 1.7, ""],
+		[Vector3(-4.6, 0.03, -36.5), 1.9, ""],
+		[Vector3(-6.0, 0.03, -37.9), 1.8, ""],
+		[Vector3(-6.0, 0.03, -43.6), 1.8, ""],
+		[Vector3(-6.0, 0.12, -44.15), 1.0, ""],         # Kaimauer
+		[Vector3(-6.0, 0.2, -44.7), 1.0, ""],           # auf den Steg
+	]
+	var plane: Node3D = pts.get("plane") as Node3D
+	var door := Vector3(-5.4, 0.2, -60.5)
+	if plane != null and plane.has_method("door_point"):
+		door = plane.call("door_point")
+	var on_jetty := Vector3(clampf(door.x, -6.6, -5.4), 0.2, door.z)
+	steps.append([Vector3(-6.0, 0.2, on_jetty.z + 1.2), 1.75, ""])
+	steps.append([on_jetty, 1.0, "board"])
+	for s: Array in steps:
+		var p: Vector3 = s[0]
 		tw.tween_callback(_face.bind(root, p))
-		tw.tween_property(root, "position", p, prev.distance_to(p) / speed)
-		if i == 1:
-			tw.tween_callback(_door_to.bind(100.0))
-			tw.tween_interval(0.6)
-		elif i == 2:
-			tw.tween_callback(_door_to.bind(0.0))
+		tw.tween_property(root, "position", p, maxf(0.05, prev.distance_to(p) / float(s[1])))
+		match str(s[2]):
+			"door_open":
+				tw.tween_callback(_door_to.bind(100.0))
+				tw.tween_interval(0.75)
+			"door_close":
+				tw.tween_callback(_door_to.bind(0.0))
 		prev = p
+	tw.tween_callback(_weber_board.bind(root, door))
+
+## Einsteigen: zur Tuer drehen, Tuer auf, hinauf auf den Schwimmer und in die Kabine, Tuer zu, Motor an.
+func _weber_board(root: Node3D, door: Vector3) -> void:
+	var plane: Node3D = pts.get("plane") as Node3D
+	if plane == null or not is_instance_valid(root):
+		return
+	if plane.has_method("open_door"):
+		plane.call("open_door", true)
+	var cabin := door + Vector3(1.2, 0.5, 0.0)
+	if plane.has_method("cabin_point"):
+		cabin = plane.call("cabin_point")
+	var tw := create_tween()
+	tw.set_speed_scale(_weber_speed)
+	_weber_tw = tw
+	tw.tween_callback(_face.bind(root, door))
+	tw.tween_interval(0.6)
+	tw.tween_property(root, "position", door, maxf(0.2, root.position.distance_to(door) / 0.8))
+	tw.tween_interval(0.35)
+	tw.tween_callback(_face.bind(root, cabin))
+	# hinaufsteigen (Trittstufe/Strebe): erst hoch, dann hinein
+	var mid := Vector3(lerpf(door.x, cabin.x, 0.35), cabin.y - 0.25, lerpf(door.z, cabin.z, 0.35))
+	tw.tween_property(root, "position", mid, 0.9).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(root, "position", cabin, 0.8).set_trans(Tween.TRANS_SINE)
 	tw.tween_callback(func() -> void:
 		root.visible = false
-		_prop_speed = maxf(_prop_speed, 9.0)
-		_start_engine(-12.0))
+		_weber_boarded = true
+		if plane.has_method("open_door"):
+			plane.call("open_door", false)
+		if not _finished:
+			_set_throttle(0.18)
+			_start_engine(-12.0 if _phase < 5 else -6.0))
+
+## Propeller/Motor: neues Flugzeug (villa_seaplane.gd) hat "throttle", sonst altes Drehen ueber _prop_speed.
+func _set_throttle(v: float) -> void:
+	var plane: Node3D = pts.get("plane") as Node3D
+	if plane != null and "throttle" in plane:
+		plane.set("throttle", maxf(float(plane.get("throttle")), v) if v > 0.0 else 0.0)
+	else:
+		_prop_speed = maxf(_prop_speed, v * 40.0)
 
 func _door_to(deg: float) -> void:
 	if not pts.has("back_door"):
@@ -834,10 +1075,15 @@ func _start_storm() -> void:
 	_jaeger_figs.clear()
 	_obj("Halte die Bibliothek – Falks Jäger stürmen das Haus")
 	_say(StoryData.FALK, "Zugriff. Weber gehört mir. Den Mann in der Bibliothek lasst ihr leben – den will ich mir selbst ansehen.")
-	_later(4.5, func() -> void:
-		_say_once("storm_lena", StoryData.LENA, "Sie kommen durch die Vordertür und über die Terrasse! Halt die Bibliothek!"))
+	# Lena direkt nach Falk (Gespraech im selben Frame), nur solange der Sturm laeuft
+	_say_once_opt("storm_lena", StoryData.LENA, "Sie kommen durch die Vordertür und über die Terrasse! Halt die Bibliothek!",
+		{"valid": func() -> bool: return _storm_on})
+	# Brandt erst, wenn Falk/Lena durch sind und der Funk frei ist (als zeitgebundene Zeile mit max_age hat er
+	# Lenas "Halt die Bibliothek!" sonst bei Verzug unterbrochen); ohne max_age, aber nur waehrend des Sturms
 	_later(16.0, func() -> void:
-		_say_once("storm_brandt", StoryData.BRANDT, "Kerner, hier Brandt. Bin im Anflug, zehn Minuten. Haltet durch."))
+		_when_radio_free(func() -> void:
+			_say_once_opt("storm_brandt", StoryData.BRANDT, "Kerner, hier Brandt. Bin im Anflug, zehn Minuten. Haltet durch.",
+				{"valid": func() -> bool: return _storm_on}), 14.0))
 	_storm_spawn(1)
 	_ap_reset()
 
@@ -847,10 +1093,18 @@ func _storm_spawn(wave: int) -> void:
 	var list: Array = []
 	if wave == 1:
 		list = [["assault", Vector3(5.4, 0.05, -8.5)], ["rifleman", Vector3(7.0, 0.05, -9.5)],
-			["rifleman", Vector3(-16.5, 0.15, -24.5)], ["assault", Vector3(-16.5, 0.15, -20.5)]]
+			["rifleman", Vector3(-16.5, 0.15, -24.5)], ["assault", Vector3(-16.5, 0.15, -20.5)],
+			["rifleman", Vector3(3.0, 0.05, -9.0)], ["assault", Vector3(6.6, 0.05, -7.0)], ["rifleman", Vector3(-17.0, 0.15, -26.5)]]
 	else:
 		list = [["officer", Vector3(6.0, 0.05, -7.5)], ["assault", Vector3(4.2, 0.05, -8.8)],
-			["rifleman", Vector3(-17.5, 0.15, -22.0)], ["assault", Vector3(8.0, 0.15, -16.5)]]
+			["rifleman", Vector3(-17.5, 0.15, -22.0)], ["assault", Vector3(8.0, 0.15, -16.5)],
+			["rifleman", Vector3(2.8, 0.05, -7.2)], ["rifleman", Vector3(-15.0, 0.15, -24.5)], ["rifleman", Vector3(-17.0, 0.15, -26.5)]]
+	if _loud():
+		# Alarm vor der Bibliothek: Falk weiss, dass jemand drin ist - mehr Leute, besser ausgeruestet
+		if wave == 1:
+			list.append_array([["assault", Vector3(4.6, 0.05, -7.6)], ["marksman", Vector3(-17.8, 0.15, -21.5)]])
+		else:
+			list.append_array([["assault", Vector3(7.4, 0.05, -8.0)], ["assault", Vector3(-16.0, 0.15, -27.5)], ["officer", Vector3(-17.4, 0.15, -23.4)]])
 	for s: Array in list:
 		var e := _spawn_fighter(str(s[0]), s[1], tgt, true)
 		if e != null:
@@ -890,11 +1144,22 @@ func _start_escape() -> void:
 		_weber_escape()
 	_door_to(100.0)
 	_start_engine(-6.0)
-	_prop_speed = maxf(_prop_speed, 9.0)
+	_set_throttle(0.22)
 	_end_area.set_deferred("monitoring", true)
 	_obj("Zum Steg – Weber flieht mit dem Wasserflugzeug")
+	if _loud():
+		_jetty_rear_guard()
 	_route_stage = 1
 	_ap_reset(true)
+
+## Nach Alarm: Falks Nachhut sichert Webers Abflug am Ufer (Kaimauer, Bootssteg-Zugang).
+func _jetty_rear_guard() -> void:
+	_obj("Zum Steg – Falks Nachhut deckt Webers Abflug")
+	for s: Array in [["assault", Vector3(-3.6, 0.05, -41.6)], ["rifleman", Vector3(-8.8, 0.05, -41.2)],
+			["marksman", Vector3(-6.0, 0.2, -50.5)]]:
+		var e := _spawn_fighter(str(s[0]), s[1], Vector3(10.0, 0.1, -33.0), true)
+		if e != null:
+			_storm.append(e)
 
 func _on_outside_back() -> void:
 	if _phase >= 5:
@@ -905,18 +1170,27 @@ func _on_jetty_end() -> void:
 		return
 	_finished = true
 	_obj("")
-	if not _weber.is_empty():
-		(_weber["root"] as Node3D).visible = false
 	var plane: Node3D = pts.get("plane") as Node3D
-	_begin_cine(plane.global_position + Vector3(0, 2, 0), plane)
-	_prop_speed = 30.0
+	# Weber verschwindet NICHT mehr sofort: ist er noch unterwegs (schneller Spieler), rennt er jetzt
+	# (Tween schneller) am Spieler vorbei zum Flugzeug; die Kamera folgt ihm, abgelegt wird erst nach
+	# dem Einstieg (_weber_board blendet ihn in der Kabine aus).
+	var weber_root: Node3D = null if _weber.is_empty() else _weber["root"] as Node3D
+	var pending := weber_root != null and is_instance_valid(weber_root) and weber_root.visible and not _weber_boarded
+	print("[villa] Stegende erreicht: Weber %s, sichtbar=%s, an Bord=%s" % [
+		str(weber_root.global_position) if weber_root != null else "-", str(weber_root != null and weber_root.visible), str(_weber_boarded)])
+	if pending and not _escape_started:
+		_weber_escape()
+	if pending:
+		_weber_speed = 2.0
+		if _weber_tw != null and _weber_tw.is_valid():
+			_weber_tw.set_speed_scale(_weber_speed)
+		print("[villa] Stegende vor Weber erreicht – Weber rennt zum Flugzeug, Abflug wartet auf Einstieg")
+		_make_way_for_weber()
+	_begin_cine(plane.global_position + Vector3(0, 2, 0), weber_root if pending else plane)
+	_set_throttle(1.0)
 	_start_engine(0.0)
 	_loop_2d("veh_heli_rotor", -34.0)
-	# Rollen nach Norden auf den See, dann Steigflug nach Nordosten
-	var tw := create_tween()
-	tw.tween_property(plane, "position", plane.position + Vector3(0.0, 0.0, -70.0), 10.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(plane, "rotation", Vector3(0.22, -0.55, -0.18), 3.0)
-	tw.parallel().tween_property(plane, "position", plane.position + Vector3(60.0, 38.0, -230.0), 14.0)
+	_plane_depart(plane, weber_root)
 	_say(StoryData.KERNER, "Ich hab ihn im Visier.")
 	_say(StoryData.LENA, "Lass ihn, Jonas. Wir brauchen ihn lebend.")
 	_say(StoryData.BRANDT, "Wasserflugzeug startet nach Nordosten. Kurs … Berlin. Ich bleib dran, solange der Sprit reicht.")
@@ -925,10 +1199,57 @@ func _on_jetty_end() -> void:
 	await _wait_radio(60.0)
 	if not is_inside_tree():
 		return
+	# falls Weber spaet eingestiegen ist: Start abwarten, bevor das Level endet
+	var t_wait := 0.0
+	while not _plane_departed and t_wait < 30.0:
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return
+		t_wait += get_process_delta_time()
 	await get_tree().create_timer(1.0, false).timeout
 	if not is_inside_tree():
 		return
 	_on_level_end()
+
+## Abflug erst, wenn Weber an Bord ist (max. 25 s, dann ist er ohnehin ausser Sicht im Haus/Garten).
+func _plane_depart(plane: Node3D, weber_root: Node3D) -> void:
+	var waited := 0.0
+	while not _weber_boarded and waited < 25.0 and weber_root != null and is_instance_valid(weber_root) and weber_root.visible:
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return
+		waited += get_process_delta_time()
+	if weber_root != null and is_instance_valid(weber_root):
+		weber_root.visible = false
+	_cine_track = plane
+	if plane.has_method("cast_off"):
+		plane.call("cast_off")
+	_set_throttle(1.0)
+	# Rollen nach Norden auf den See, dann Steigflug nach Nordosten
+	var tw := create_tween()
+	var p0 := plane.position
+	tw.tween_interval(1.5)     # Leinen los, Motor kommt hoch
+	tw.tween_property(plane, "position", p0 + Vector3(0.0, 0.0, -70.0), 10.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	# Abheben: Nase leicht hoch, Schwimmer kommen frei
+	tw.tween_property(plane, "rotation:x", 0.1, 2.0).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(plane, "position", p0 + Vector3(0.0, 3.5, -112.0), 3.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	# Steigflug mit Rechtskurve nach Nordosten
+	tw.tween_property(plane, "rotation", Vector3(0.2, -0.55, -0.2), 4.0).set_trans(Tween.TRANS_SINE)
+	tw.parallel().tween_property(plane, "position", p0 + Vector3(60.0, 38.0, -260.0), 14.0)
+	_plane_departed = true
+
+## Spieler steht auf Webers Laufspur (Stegmitte x=-6): sanft an den Steg-Rand schieben, damit Weber
+## vorbeilaeuft statt durch ihn hindurch.
+func _make_way_for_weber() -> void:
+	var pl := _player()
+	if pl == null:
+		return
+	var gx := pl.global_position.x
+	if absf(gx - (-6.0)) >= 0.7:
+		return
+	var tx := -6.72 if gx <= -6.0 else -5.28
+	var tw := create_tween()
+	tw.tween_property(pl, "global_position:x", tx, 0.5).set_trans(Tween.TRANS_SINE)
 
 # ------------------------------------------------------------------ Alarm
 
@@ -936,12 +1257,13 @@ func _on_alarm_raised(_reason: String, _pos: Vector3, first: bool) -> void:
 	if not first or _phase >= 3:
 		return
 	_set_alarm_fx(true)
-	if _reinf_waves < 2:
-		_reinf_t = 7.0
-	_obj("Alarm! Kürzester Weg: durch die Haustür in die Bibliothek")
+	if _reinf_waves < 3:
+		_reinf_t = 7.0 if _reinf_waves == 0 else 5.0
+	_obj("Alarm! Verstärkung rückt an – kürzester Weg: Haustür, Bibliothek")
 	_later(1.2, func() -> void:
 		if bool(director.get("alarm")):
-			_say_once("alarm", StoryData.LENA, "Alarm im Haus! Vergiss das Leise – nimm den kürzesten Weg zur Haustür."))
+			_say_once_opt("alarm", StoryData.LENA, "Alarm im Haus! Vergiss das Leise – nimm den kürzesten Weg zur Haustür.",
+				{"priority": 2, "cut": true, "valid": func() -> bool: return bool(director.get("alarm"))}))
 
 func _on_alarm_ended() -> void:
 	_set_alarm_fx(false)
@@ -952,6 +1274,25 @@ func _on_alarm_ended() -> void:
 	for e in _reinf:
 		if is_instance_valid(e) and pl != null and (e as Node3D).global_position.distance_to(pl.global_position) > 22.0:
 			e.queue_free()
+
+## HUD-Zeile unter "ALARM": naechste Welle + was der Alarm spaeter kostet (Sturm/Nachhut, s. _loud()).
+func _update_alarm_note() -> void:
+	if hud == null or director == null:
+		return
+	if not bool(director.get("alarm")) or _phase >= 3:
+		hud.set("alarm_note", "")
+		return
+	var n := 0
+	for e in _reinf:
+		if is_instance_valid(e) and (e as Enemy).is_alive():
+			n += 1
+	var parts: Array[String] = []
+	if _reinf_t >= 0.0:
+		parts.append("Welle %d rückt an in %d s" % [_reinf_waves + 1, ceili(_reinf_t)])
+	if n > 0:
+		parts.append("Wachleute im Einsatz: %d" % n)
+	parts.append("Folge: mehr Jäger beim Sturm")
+	hud.set("alarm_note", " · ".join(parts))
 
 func _set_alarm_fx(on: bool) -> void:
 	for l in _alarm_lamps:
@@ -969,7 +1310,7 @@ func _set_alarm_fx(on: bool) -> void:
 		_alarm_loops.clear()
 
 func _call_reinforcements() -> void:
-	if director == null or not bool(director.get("alarm")) or _reinf_waves >= 2 or _phase >= 3:
+	if director == null or not bool(director.get("alarm")) or _reinf_waves >= 3 or _phase >= 3:
 		return
 	_reinf_waves += 1
 	var pl := _player()
@@ -986,13 +1327,21 @@ func _call_reinforcements() -> void:
 		if score > best_score:
 			best_score = score
 			best = p
-	var types: Array = ["rifleman", "assault", "rifleman"] if _reinf_waves == 1 else ["assault", "rifleman"]
+	var types: Array = ["rifleman", "assault", "rifleman"]
+	if _reinf_waves == 2:
+		types = ["assault", "assault", "rifleman", "marksman"]
+	elif _reinf_waves >= 3:
+		types = ["officer", "assault", "assault", "rifleman"]
 	for i in types.size():
 		var e := _spawn_fighter(str(types[i]), best + Vector3((float(i) - 1.0) * 0.9, 0.0, float(i % 2) * 0.9), pl.global_position, false)
 		if e != null:
+			e.accuracy_scale = 0.6 + 0.06 * float(_reinf_waves)
 			_reinf.append(e)
+	# solange der Alarm laeuft, rueckt alle ~25 s die naechste (staerkere) Welle nach
+	if _reinf_waves < 3:
+		_reinf_t = 25.0
 	if _reinf_waves == 1:
-		_say_once("reinf", StoryData.LENA, "Mehr Wachleute vom Pförtnerhaus – drei Mann, sie kommen zu dir.")
+		_say_once_opt("reinf", StoryData.LENA, "Mehr Wachleute vom Pförtnerhaus – drei Mann, sie kommen zu dir.", {"priority": 1, "max_age": 8.0})
 
 func _on_player_respawned() -> void:
 	for e in _reinf:

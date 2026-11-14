@@ -22,6 +22,8 @@ const Actor = preload("res://game/levels/overwatch_actor.gd")
 const OwBot = preload("res://game/levels/overwatch_bot.gd")
 const ReconDrone = preload("res://game/systems/recon_drone.gd")
 const LampScript = preload("res://game/levels/ep_lena_lamp.gd")
+const RoofKit = preload("res://game/levels/ep_lena_roofs.gd")
+const FarCity = preload("res://game/levels/far_city.gd")
 
 const FR_PRIMARY := Color(0.27, 0.29, 0.34)
 const FR_SECONDARY := Color(0.33, 0.27, 0.19)
@@ -87,6 +89,8 @@ var _fail: bool = false
 var _ending: bool = false
 var _relocating: bool = false
 var _said: Dictionary = {}
+## Hoechstes bisher geoeffnetes Gate (fuer Funk-Gueltigkeit).
+var _last_gate: int = -1
 var _ff_cool: float = 0.0
 
 var _k_hp: float = K_HP
@@ -115,6 +119,7 @@ var _glint_tex: Texture2D
 var _dl_t: float = -1.0
 var _dl_done: bool = false
 var _late_sent: bool = false
+var _late_pending: bool = false
 
 var _drone_cd: float = 0.0
 var _drone_t: float = 0.0
@@ -127,6 +132,13 @@ var _bt_spot: Vector3 = Vector3.ZERO
 var _bt_aim_h: float = -1.0
 var _bt_until: float = 0.0
 var _los_cache: Dictionary = {}
+## Gefechts-Geplauder: Abklingzeit je Schlüssel (keine Doppel-Barks).
+var _bark_cd: Dictionary = {}
+## Bot hört Einweisungen ab: bis _bot_brief_until nur Notfallziele, solange der Funk nicht 0,6 s frei war.
+var _bot_brief_until: float = -1.0
+var _bot_brief_quiet: float = 0.0
+var _k_hud_root: Control
+var _obj_box: Control
 
 func _init() -> void:
 	level_name = "ep_lena"
@@ -166,14 +178,72 @@ func get_level_info() -> Dictionary:
 
 func _setup_environment() -> void:
 	super()
-	# Weitere Sicht für das Zielfernrohr: Nebel halbieren (Optik bleibt curfew)
+	# Regen-Nacht, aber lesbar: curfew-Nebel (weißer Volumennebel, Albedo 0,82) machte die Stadt von oben zur
+	# grauen Suppe. Hier: dunklerer, dünnerer Volumennebel (Lichtkegel bleiben sichtbar), Tiefennebel mit
+	# kühlem Dunst nur in der Ferne und Höhennebel (Bodendunst in den Straßenschluchten, Dächer/Skyline darüber
+	# klarer) -> Silhouetten, Fensterlichter und Tiefenstaffelung lesbar, Ziele im Zielfernrohr erkennbar.
 	for n in find_children("*", "WorldEnvironment", true, false):
 		var env := (n as WorldEnvironment).environment
-		if env != null:
-			env.fog_density *= 0.5
-			if env.volumetric_fog_enabled:
-				env.volumetric_fog_density *= 0.5
+		if env == null:
+			continue
+		env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+		env.fog_density = 0.0042
+		env.fog_light_color = Color(0.085, 0.085, 0.11)
+		env.fog_sky_affect = 0.55
+		env.fog_aerial_perspective = 0.35
+		env.fog_height = 4.0
+		env.fog_height_density = 0.03
+		if env.volumetric_fog_enabled:
+			env.volumetric_fog_density = 0.0045
+			env.volumetric_fog_albedo = Color(0.46, 0.48, 0.54)
+			env.volumetric_fog_emission = Color(0.0015, 0.0015, 0.0024)
+			env.volumetric_fog_gi_inject = 0.15
+			env.volumetric_fog_ambient_inject = 0.04
+			env.volumetric_fog_length = 140.0
+			env.volumetric_fog_detail_spread = 1.6
 
+## Schornsteine aus berlin_props/facade_kit in Ziegel statt Schwarz (Builder liest mats["chimney"]).
+func _build_ground() -> void:
+	super()
+	mats["chimney"] = mats["brick"]
+
+## Materialien der Dachlandschaft (ep_lena_roofs.gd); Texturen Poly Haven CC0 (assets/CREDITS_ASSETS.md).
+func _roof_mats() -> Dictionary:
+	var slate := _tex(CF_TEX + "roof_slates_03", Color(1.6, 1.66, 1.78), 0.34, 0.55)
+	slate.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return {
+		"felt": _tex(CF_TEX + "bitumen", Color(1.3, 1.3, 1.34), 0.2, 0.62),
+		"felt_patch": _tex(CF_TEX + "bitumen", Color(0.9, 0.9, 0.94), 0.33, 0.55),
+		"slate": slate,
+		"trapez": _tex(CF_TEX + "box_profile_metal_sheet", Color(0.6, 0.62, 0.64), 0.45, 0.8),
+		"zinc": BP.mat("metal_plate", Color(0.52, 0.54, 0.57), 0.6, 0.7, 0.6),
+		"brick": mats["brick"], "conc": mats["concrete"], "metal": mats["metal"], "trim": mats["trim"],
+		"glass": BP.glass(), "glow": Geo.flat(Color(0.1, 0.08, 0.05), 0.4, 0.0, Color(1.0, 0.72, 0.42), 0.8), "dark": mats["dark"],
+		"pot": Geo.flat(Color(0.4, 0.22, 0.15), 0.85),
+		"dish": Geo.flat(Color(0.62, 0.62, 0.6), 0.5, 0.3),
+		"sky": Geo.mat("concrete_wall_008", Color(0.2, 0.2, 0.21), 0.08, 1.0),
+		"red": mats["red_glow"],
+	}
+
+## Dachlandschaft auf den Blöcken aus curfew._build_street (gleiche Maße), Anbau, Hinterhaus, Aufzugshaus.
+func _build_roofscape() -> void:
+	var rk := RoofKit.new(_roof_mats(), build_seed + 911)
+	# Linke Seite
+	rk.block_roof(-1, -12.0, 10.0, -40.0, 18.0, 22.0, true)
+	rk.block_roof(-1, -12.0, -46.0, -84.0, 6.0, 13.0, true)
+	rk.block_roof(-1, -12.0, -90.0, -110.0, 18.0, 24.0, true)
+	# Rechte Seite
+	rk.block_roof(1, 12.0, 10.0, -30.0, 18.0, 23.0, true)
+	rk.block_roof(1, 12.0, -36.0, -76.0, 18.0, 25.0, true)
+	rk.block_roof(1, 12.0, -82.0, -110.0, 18.0, 21.0, true)
+	# Regierungsbau und Ministerium (im -90°-Frame wie curfew._build_back_building)
+	rk.block_roof(-1, -26.0, -110.0, -162.0, 20.0, 24.0, true, Transform3D.IDENTITY, true)
+	rk.block_roof(-1, -162.0, 26.0, -24.0, 20.0, 26.0, true, Transform3D(Basis(Vector3.UP, deg_to_rad(-90.0)), Vector3.ZERO), true)
+	# Anbau (Dachplatte y 16.2), Hinterhaus hinter der Zufahrt (y 18), Aufzugshaus (y 30)
+	rk.flat_roof(23.8, 46.2, -162.2, -117.8, 16.2, 0.55, 9, -1.0)
+	rk.flat_roof(30.0, 48.0, -110.0, -82.0, 18.0, 0.7, 6, -1.0)
+	rk.flat_roof(15.0, 21.0, -169.0, -163.0, 30.0, 0.0, 0)
+	rk.build(world)
 func _build_markers() -> void:
 	var m := Node3D.new()
 	m.name = "Markers"
@@ -223,6 +293,56 @@ func _build_set_piece_geometry() -> void:
 	_invisible_wall(Vector3(21.1, 32.0, -166.0), Vector3(0.2, 4.0, 6.6))
 	_invisible_wall(Vector3(18.0, 32.0, -162.9), Vector3(6.6, 4.0, 0.2))
 	_invisible_wall(Vector3(18.0, 32.0, -169.1), Vector3(6.6, 4.0, 0.2))
+	_build_roofscape()
+
+## Skyline aus curfew: dieselben Zufallszahlen nachziehen. Die glatten Quader (und ihre aufgeklebten
+## Fensterquads) aus curfew werden durch Fernkulissen-Fassaden ersetzt (far_city.gd / far_facade.gdshader:
+## Wandtextur, Gesimse, Fensterraster mit Laibung, beleuchtete Fenster bei Nacht), jedes Hochhaus bekommt ein Dach.
+func _build_skyline() -> void:
+	var n0 := get_child_count()
+	super()
+	# curfew._build_skyline haengt zuerst Quader-Batch, dann Fenster-Batch an -> beide ausblenden und freigeben
+	for i in range(n0, mini(n0 + 2, get_child_count())):
+		var old := get_child(i)
+		if old is MeshInstance3D:
+			(old as MeshInstance3D).visible = false
+			old.queue_free()
+	var srng := RandomNumberGenerator.new()
+	srng.seed = build_seed + 400
+	var rk := RoofKit.new(_roof_mats(), build_seed + 912)
+	var fb := FarCity.Builder.new()
+	for i in 34:
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var x := side * srng.randf_range(40.0, 120.0)
+		var z := srng.randf_range(40.0, -320.0)
+		if x > 0.0 and z < -100.0 and z > -230.0:
+			x += 20.0
+		var h := srng.randf_range(18.0, 46.0)
+		var s := Vector3(srng.randf_range(14.0, 26.0), h, srng.randf_range(14.0, 26.0))
+		for k in srng.randi_range(2, 7):
+			srng.randf_range(6.0, h - 3.0)
+			srng.randf_range(-s.z / 2.5, s.z / 2.5)
+		rk.tower_roof(Vector3(x, h / 2.0, z), s)
+		_far_block(fb, Vector3(x, 0.0, z), s, i)
+	rk.build(self)
+	var sky := Node3D.new()
+	sky.name = "FernFassaden"
+	add_child(sky)
+	FarCity.build(fb, sky, false, {"lit_ratio": 0.16, "emission_energy": 2.6, "sky_tint": Color(0.1, 0.11, 0.15),
+		"reflect_amt": 0.12, "warm_a": Color(1.0, 0.6, 0.3), "warm_b": Color(1.0, 0.78, 0.5), "grime": 1.2})
+
+## Ein Fernhaus: hohe Plattenbauten, mittlere Buero-/Verwaltungsbauten, niedrige Altbauten (Flachdach, das
+## Dach selbst kommt aus RoofKit.tower_roof). Tönung gedeckt, damit die Häuser im Nebel nicht weiß leuchten.
+func _far_block(fb: FarCity.Builder, c: Vector3, s: Vector3, i: int) -> void:
+	var sv := fposmod(float(i) * 0.6180339 + 0.13, 1.0)
+	var o := {"seed": sv, "damage": 0.08 + 0.1 * float(i % 3), "lit": 1.0, "roof": "none", "parapet": 0.0, "bits": false}
+	if s.y > 33.0:
+		fb.block(c, s, "platte", "panel" if i % 2 == 0 else "concrete", Color(0.62, 0.62, 0.62), o)
+	elif s.y > 25.0 or i % 4 == 1:
+		fb.block(c, s, "office", "concrete_old" if i % 3 else "tile", Color(0.6, 0.59, 0.57), o)
+	else:
+		o["cornice"] = true
+		fb.block(c, s, "altbau", "plaster_old" if i % 2 == 0 else "brick", Color(0.62, 0.56, 0.5), o)
 
 ## Suchscheinwerfer auf dem Anbau (Optik wie curfew_searchlight.gd), Kopf abschießbar (ep_lena_lamp.gd).
 func _build_lamp() -> void:
@@ -320,13 +440,17 @@ func _build_overlay() -> void:
 	cl.name = "EpLenaOverlay"
 	cl.layer = 6
 	add_child(cl)
+	# In HUD-Einheiten wie der Auftragsblock (story_ui), damit die Zeile darunter mitwandern kann
+	_k_hud_root = UIStyle.HudRoot.new()
+	cl.add_child(_k_hud_root)
+	Events.story_cinematic.connect(_on_cinematic)
 	_k_hud = Label.new()
 	_k_hud.position = Vector2(28, 96)
 	_k_hud.add_theme_font_size_override("font_size", 20)
 	_k_hud.add_theme_color_override("font_color", Color(0.62, 0.85, 1.0))
 	_k_hud.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_k_hud.add_theme_constant_override("outline_size", 6)
-	cl.add_child(_k_hud)
+	_k_hud_root.add_child(_k_hud)
 	var fl := CanvasLayer.new()
 	fl.name = "EpLenaFade"
 	fl.layer = 60
@@ -374,6 +498,12 @@ func _guard_defs() -> Array:
 		{"key": "portal_s", "type": "rifleman", "flash": false, "gate": 3, "block": false, "route": [_wp(22.4, -142.4, 0.0, 90.0)]},
 		{"key": "lane", "type": "rifleman", "flash": false, "gate": 4, "block": true, "lane": true, "route": [_wp(26.5, -115.2, 5.0, 180.0), _wp(42.5, -115.2, 3.5, -90.0)]},
 		{"key": "door", "type": "rifleman", "flash": false, "gate": 4, "block": true, "lane": true, "route": [_wp(39.5, -116.4, 0.0, -90.0)]},
+		# Zusatzwachen (mehr Gegner): je Abschnitt ein zweiter Posten, dazu ein Platzposten im Westen
+		{"key": "street2", "type": "rifleman", "flash": true, "gate": 0, "block": true, "route": [_wp(3.0, -34.0, 3.0, 180.0), _wp(3.0, -26.0, 3.0, 0.0)]},
+		{"key": "post2", "type": "rifleman", "flash": false, "gate": 1, "block": true, "route": [_wp(-5.0, -66.0, 0.0, 180.0)]},
+		{"key": "south2", "type": "rifleman", "flash": false, "gate": 2, "block": true, "route": [_wp(8.0, -95.0, 0.0, 0.0)]},
+		{"key": "plaza2", "type": "rifleman", "flash": true, "gate": 3, "block": true, "route": [_wp(0.0, -152.0, 3.0, 0.0), _wp(-14.0, -135.0, 3.0, 90.0)]},
+		{"key": "plaza_sw", "type": "rifleman", "flash": false, "gate": 3, "block": false, "route": [_wp(-12.0, -140.0, 0.0, 90.0)]},
 	]
 
 ## Eigene Wachen (Puppen, vom Level gesteuert) statt der curfew-Schleich-KI.
@@ -463,7 +593,8 @@ func _tick_guards(delta: float) -> void:
 		if director != null:
 			director.call("end_alarm")
 		if not _fail:
-			_say(SD.LENA, "Das war der Letzte. Atme, Jonas. Dann weiter.")
+			_bark(SD.LENA, "Das war der Letzte. Atme, Jonas. Dann weiter.", "clear", 30.0,
+				{"priority": 1, "max_age": 4.0, "valid": func() -> bool: return not _combat and not _fail})
 
 func _guard_patrol(g: Dictionary, a: Node3D, delta: float) -> void:
 	var route: Array = g["d"]["route"]
@@ -520,7 +651,8 @@ func _guard_watch(g: Dictionary, a: Node3D, delta: float) -> void:
 		g["moving"] = false
 		if not bool(g["said"]):
 			g["said"] = true
-			_say(SD.LENA, "Einer schaut zu dir rüber. Nicht bewegen, Jonas.")
+			_bark(SD.LENA, "Einer schaut zu dir rüber. Nicht bewegen, Jonas.", "look", 20.0,
+				{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return not _combat})
 
 func _guard_detect(g: Dictionary, a: Node3D) -> float:
 	if _k_hidden() or kerner == null:
@@ -582,7 +714,7 @@ func _on_guard_down(g: Dictionary) -> void:
 		o["moving"] = false
 		any = true
 	if any:
-		_say(SD.LENA, "Der andere hat ihn fallen sehen – schnell!")
+		_say_opt(SD.LENA, "Der andere hat ihn fallen sehen – schnell!", 0.0, {"priority": 2, "cut": true, "max_age": 2.0})
 
 func _witness_act(g: Dictionary, a: Node3D) -> void:
 	var kd := a.global_position.distance_to(kerner.global_position)
@@ -596,7 +728,7 @@ func _witness_act(g: Dictionary, a: Node3D) -> void:
 	g["ref"] = a.global_position
 	if director != null:
 		director.call("raise_alarm", g["body"], "body", false)
-	_say(SD.ORDNUNG, "Mann am Boden! Alle Posten: Sperrgebiet absuchen!")
+	_bark(SD.ORDNUNG, "Mann am Boden! Alle Posten: Sperrgebiet absuchen!", "body", 30.0, {"priority": 1, "max_age": 4.0})
 
 func _guard_search(g: Dictionary, a: Node3D, delta: float) -> void:
 	if float(g["t"]) < 0.0:
@@ -647,7 +779,8 @@ func _guard_late(g: Dictionary, a: Node3D, delta: float) -> void:
 		g["fire_t"] = 0.8
 		if not _said.has("late_door"):
 			_said["late_door"] = true
-			_say(SD.KERNER, "Sie sind am Tor! Lena!")
+			_say_opt(SD.KERNER, "Sie sind am Tor! Lena!", 0.0, {"priority": 2, "cut": true, "max_age": 6.0,
+				"valid": func() -> bool: return _count_late() > 0})
 		return
 	var wp: Vector3 = (route[int(g["ri"])] as Dictionary)["p"]
 	if not bool(a.get("has_goal")):
@@ -703,14 +836,16 @@ func _start_combat(reason: String) -> void:
 		_k_shoot_t = 2.0
 		if director != null:
 			director.call("raise_alarm", kp, reason, true)
-		match reason:
-			"searchlight":
-				_say(SD.ORDNUNG, "Scheinwerfer hat ihn! Alarm, Alarm!")
-			_:
-				_say(SD.ORDNUNG, "Eindringling gesichtet! Alarm!")
-		_later(1.6, func() -> void:
-			if _combat and not _fail:
-				_say(SD.KERNER, "Kontakt! Sie haben mich – Lena, ich brauch dich!"))
+		# Alarm-Bark + Kerners Ruf einmal je 30 s und nur bei freiem Funk (bricht keine Einweisung ab)
+		if _t >= float(_bark_cd.get("alarm", -1.0)) and _radio_busy() <= 1.0:
+			_bark_cd["alarm"] = _t + 30.0
+			match reason:
+				"searchlight":
+					_say_opt(SD.ORDNUNG, "Scheinwerfer hat ihn! Alarm, Alarm!", 0.0, {"priority": 1, "max_age": 4.0})
+				_:
+					_say_opt(SD.ORDNUNG, "Eindringling gesichtet! Alarm!", 0.0, {"priority": 1, "max_age": 4.0})
+			_say_opt(SD.KERNER, "Kontakt! Sie haben mich – Lena, ich brauch dich!", 0.0,
+				{"priority": 1, "valid": func() -> bool: return not _fail})
 
 func _make_hostile(g: Dictionary, a: Node3D) -> void:
 	if a == null:
@@ -759,6 +894,10 @@ func _tick_kerner(delta: float) -> void:
 				kerner.set("crouch", true)
 				return
 			_follow_path(delta)
+			# Epilog beginnt, sobald Kerner auf der Schachttreppe ist (nicht erst am Tunnelende):
+			# der Rest seines Wegs laeuft unter Voss' Begruessung und Lenas Monolog weiter.
+			if _k_mode == "exit" and _k_pi >= 5 and not _ending:
+				_finish_episode()
 		"takedown":
 			if paused:
 				kerner.set("has_goal", false)
@@ -766,15 +905,16 @@ func _tick_kerner(delta: float) -> void:
 			_tick_takedown(delta)
 		"download":
 			_dl_t += delta
-			if _dl_t >= 4.0 and not _late_sent:
-				_send_late()
+			if _dl_t >= 4.0 and not _late_sent and not _late_pending:
+				# Nachzuegler erst losschicken, wenn der Funk frei ist: ihre Ansage kommt dann sofort und veraltet nicht
+				_late_pending = true
+				_when_radio_free(_send_late, 8.0)
 			if _dl_t >= DL_TIME and not _dl_done:
 				_dl_done = true
-				_say(SD.KERNER, "Hab sie. Alles drauf.")
+				_say_opt(SD.KERNER, "Hab sie. Alles drauf.", 0.0, {"priority": 2})
 				if _count_late() > 0:
-					_later(2.2, func() -> void:
-						if _count_late() > 0:
-							_say(SD.LENA, "Warte, Jonas. Draußen sind noch zwei."))
+					_say_opt(SD.LENA, "Warte, Jonas. Draußen sind noch zwei.", 0.0,
+						{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return _count_late() > 0})
 			if _dl_done and _gate_ok(5):
 				_gate_open(5)
 
@@ -873,26 +1013,37 @@ func _gate_ok(i: int) -> bool:
 		3:
 			return _perch == 1 and lamp != null and bool(lamp.get("dead"))
 		4:
-			return not _csniper.is_empty() and not _alive(_node(_csniper["a"]))
+			if _csniper.is_empty() or _alive(_node(_csniper["a"])):
+				return false
+			# Drohnenphase: erst nach einem Flug, der beide Wachen markiert hat, und nach der Landung
+			# (sonst ist der Auftrag nach Bruchteilen einer Sekunde erledigt); dann Lena ausreden lassen.
+			if drone != null and _lane_alive() > 0:
+				if _drone_flights <= 0 or bool(drone.get("active")) or not _lane_marked():
+					return false
+				if _radio_busy() > 0.3:
+					return false
+			return true
 		5:
 			return _dl_done and _late_sent and _count_late() == 0
 	return true
 
 func _gate_open(i: int) -> void:
+	_last_gate = maxi(_last_gate, i)
+	var go := {"priority": 2, "cut": true, "valid": func() -> bool: return not _fail and _last_gate == i}
 	match i:
 		0:
-			_say(SD.LENA, "Streife liegt. Geh, Jonas – an der rechten Hauswand entlang.")
-			_later(2.6, func() -> void: _say(SD.KERNER, "Unterwegs."))
+			_say_opt(SD.LENA, "Streife liegt. Geh, Jonas – an der rechten Hauswand entlang.", 0.0, go)
+			_say_opt(SD.KERNER, "Unterwegs.", 0.0, {"valid": func() -> bool: return not _combat and not _fail})
 		1:
-			_say(SD.LENA, "Kontrollpunkt ist frei. Durch die Schranke, Jonas, und nicht stehen bleiben.")
+			_say_opt(SD.LENA, "Kontrollpunkt ist frei. Durch die Schranke, Jonas, und nicht stehen bleiben.", 0.0, go)
 		2:
-			_say(SD.LENA, "Weg ist frei. Bis zum Platz – dort muss ich umziehen.")
+			_say_opt(SD.LENA, "Weg ist frei. Bis zum Platz – dort muss ich umziehen.", 0.0, go)
 		3:
-			_say(SD.LENA, "Platz ist sauber. Rüber zur Lieferzufahrt, Jonas – an der Hausecke warten.")
+			_say_opt(SD.LENA, "Platz ist sauber. Rüber zur Lieferzufahrt, Jonas – an der Hausecke warten.", 0.0, go)
 		4:
-			_say(SD.KERNER, "Verstanden. Ich nehm sie mir leise.")
+			_say_opt(SD.KERNER, "Verstanden. Ich nehm sie mir leise.", 0.0, go)
 		5:
-			_say(SD.LENA, "Raus jetzt. Notausgang, runter in den Schacht – Voss wartet unten.")
+			_say_opt(SD.LENA, "Raus jetzt. Notausgang, runter in den Schacht – Voss wartet unten.", 0.0, {"priority": 2, "cut": true})
 	_obj("Decke Kerner auf seinem Weg")
 	if i <= 3:
 		_start_path(SEG_PATHS[i], "move")
@@ -914,7 +1065,7 @@ func _gate_open(i: int) -> void:
 		_k_stuck_ref = kerner.global_position
 	else:
 		_start_path(EXIT_ROUTE, "exit")
-		_obj("")
+		_obj("Kerners Abstieg decken – bis er in den Schacht steigt")
 
 func _arrive(s: int) -> void:
 	_k_mode = "hold"
@@ -925,15 +1076,23 @@ func _arrive(s: int) -> void:
 		_checkpoint("ep_cp%d" % s)
 	match s:
 		1:
-			_say(SD.LENA, "Stopp. Kontrollpunkt vor dir – ein Offizier am Häuschen, ein Posten an der Schranke. Ich nehme beide, kurz hintereinander.")
+			_brief_hold(12.0)
+			_say_opt(SD.LENA, "Stopp. Kontrollpunkt vor dir – ein Offizier am Häuschen, ein Posten an der Schranke. Ich nehme beide, kurz hintereinander.", 0.0,
+				{"priority": 2, "valid": func() -> bool: return _last_gate < 1})
 		2:
-			_say(SD.LENA, "Halt. Einer kommt dir entgegen, Taschenlampe. Duck dich in den Hauseingang.")
+			_brief_hold(10.0)
+			_say_opt(SD.LENA, "Halt. Einer kommt dir entgegen, Taschenlampe. Duck dich in den Hauseingang.", 0.0,
+				{"priority": 2, "valid": func() -> bool: return _last_gate < 2})
 		3:
 			_relocate()
 		4:
 			_spawn_csniper()
-			_say(SD.KERNER, "Lena, Blitzen auf dem Regierungsbau! Da drüben liegt einer!")
-			_later(3.4, func() -> void: _say(SD.LENA, "Gesehen. Gegenscharfschütze, Dachkante. Wenn er blitzt, geh ich runter."))
+			_csniper["t"] = 9.0   # erst Kerners Meldung + Lenas Antwort, dann zeigt er sich
+			_csniper["intro"] = true   # Countdown haelt an, solange der Funk noch spricht
+			_brief_hold(16.0)
+			_say_opt(SD.KERNER, "Lena, Blitzen auf dem Regierungsbau! Da drüben liegt einer!", 0.0, {"priority": 2})
+			_say_opt(SD.LENA, "Gesehen. Gegenscharfschütze, Dachkante. Wenn er blitzt, geh ich runter.", 0.0,
+				{"priority": 2, "valid": func() -> bool: return not _csniper.is_empty() and _alive(_node(_csniper["a"]))})
 		5:
 			_start_download()
 	_obj(_objective_for(s))
@@ -951,6 +1110,8 @@ func _objective_for(s: int) -> String:
 		4:
 			if _csniper.is_empty() or _alive(_node(_csniper.get("a"))):
 				return "Gegenscharfschütze auf dem Regierungsbau – bei Blitzen hinlegen [%s]" % _key("prone")
+			if _drone_flights > 0 and _lane_marked():
+				return "Wachen markiert – Kerner übernimmt die Lieferzufahrt"
 			return "Drohne [%s]: Wachen in der Lieferzufahrt markieren – [%s] Wärmebild" % [_key("drone_toggle"), _key("drone_thermal")]
 		5:
 			return "Halte Kerner den Rücken frei, bis die Übertragung durch ist"
@@ -965,7 +1126,7 @@ func _tick_takedown(delta: float) -> void:
 				_k_td = nx
 				break
 		if _k_td.is_empty():
-			_say(SD.KERNER, "Gasse sauber. Ich geh rein.")
+			_say_opt(SD.KERNER, "Gasse sauber. Ich geh rein.", 0.0, {"priority": 1, "max_age": 3.0})
 			_start_path(LANE_ROUTE, "move")
 			_seg = 4
 			return
@@ -981,7 +1142,7 @@ func _tick_takedown(delta: float) -> void:
 		_k_td["state"] = "dead"
 		_k_td = {}
 		if not _k_td_queue.is_empty():
-			_say(SD.KERNER, "Einer weniger.")
+			_say_opt(SD.KERNER, "Einer weniger.", 0.0, {"priority": 1, "max_age": 4.0, "key": "ep_td"})
 		return
 	var goal: Vector3 = kerner.get("goal")
 	if not bool(kerner.get("has_goal")) or goal.distance_to(p) > 0.3:
@@ -1001,7 +1162,7 @@ func _kerner_down() -> void:
 	kerner.set("has_goal", false)
 	kerner.set("aiming", false)
 	kerner.set("frozen", true)
-	_say(SD.LENA, "Jonas! – Nein. Nicht so. Nicht heute Nacht.")
+	_say_opt(SD.LENA, "Jonas! – Nein. Nicht so. Nicht heute Nacht.", 0.0, {"priority": 2, "cut": true})
 	_later(2.4, func() -> void:
 		var pl := _player()
 		if pl != null:
@@ -1011,9 +1172,14 @@ func _kerner_down() -> void:
 
 func _intro() -> void:
 	_obj(_objective_for(0))
-	_later(1.0, func() -> void: _say(SD.LENA, "Jonas, ich bin auf dem Dach gegenüber. Ab hier gilt Ausgangssperre – wer sich bewegt, wird erschossen."))
-	_later(6.0, func() -> void: _say(SD.KERNER, "Dann sollte mich besser keiner sehen."))
-	_later(9.0, func() -> void: _say(SD.LENA, "Bleib unten, bis ich die Straße frei habe. Ich hab dich im Glas."))
+	_brief_hold(25.0, 1.5)
+	# Einweisung als Gespräch mit Story-Priorität (verfällt nicht, Alarm-Barks unterbrechen sie nicht)
+	_later(1.0, func() -> void:
+		_brief_hold(25.0, 0.5)
+		_say_opt(SD.LENA, "Jonas, ich bin auf dem Dach gegenüber. Ab hier gilt Ausgangssperre – wer sich bewegt, wird erschossen.", 0.0, {"priority": 2})
+		_say_opt(SD.KERNER, "Dann sollte mich besser keiner sehen.", 0.0, {"priority": 2})
+		_say_opt(SD.LENA, "Bleib unten, bis ich die Straße frei habe. Ich hab dich im Glas.", 0.0,
+			{"priority": 2, "valid": func() -> bool: return not _fail}))
 
 ## Umzug aufs Ministerium (Abblende), danach Checkpoint auf Dach B.
 func _relocate() -> void:
@@ -1023,8 +1189,8 @@ func _relocate() -> void:
 	_relocating = true
 	if drone != null and bool(drone.get("active")):
 		drone.call("stop", "scene")
-	_say(SD.LENA, "Von hier seh ich den Platz nicht. Ich wechsle aufs Ministerium – zwei Minuten, Jonas. Rühr dich nicht.")
-	_later(3.6, func() -> void: _say(SD.KERNER, "Ich warte. Beeil dich."))
+	_say_opt(SD.LENA, "Von hier seh ich den Platz nicht. Ich wechsle aufs Ministerium – zwei Minuten, Jonas. Rühr dich nicht.", 0.0, {"priority": 2})
+	_say_opt(SD.KERNER, "Ich warte. Beeil dich.", 0.0, {"priority": 2})
 	_fade.visible = true
 	_fade.modulate.a = 0.0
 	var tw := create_tween()
@@ -1047,26 +1213,44 @@ func _relocate_jump() -> void:
 func _relocate_done() -> void:
 	_fade.visible = false
 	_relocating = false
-	_say(SD.LENA, "Bin oben. Aufzugshaus, Ministeriumsdach. Ich seh den ganzen Platz.")
-	_later(4.0, func() -> void:
-		if lamp != null and not bool(lamp.get("dead")):
-			_say(SD.LENA, "Der Scheinwerfer auf dem Anbau streicht über den Platz. Ein Schuss ins Glas, und er ist blind."))
+	# Erst nach Kerners Antwort melden (Umzug ist kürzer als das Gespräch); Bot hört die Einweisung ab
+	_brief_hold(20.0)
+	_when_radio_free(_say_perch_b, 8.0)
+
+func _say_perch_b() -> void:
+	_brief_hold(16.0, 0.5)
+	_say_opt(SD.LENA, "Bin oben. Aufzugshaus, Ministeriumsdach. Ich seh den ganzen Platz.", 0.0, {"priority": 2})
+	if lamp != null and not bool(lamp.get("dead")):
+		_say_opt(SD.LENA, "Der Scheinwerfer auf dem Anbau streicht über den Platz. Ein Schuss ins Glas, und er ist blind.", 0.0,
+			{"priority": 2, "valid": func() -> bool: return lamp != null and not bool(lamp.get("dead"))})
 
 func _on_lamp_destroyed() -> void:
 	_lamp_seen = 0.0
-	_say(SD.ORDNUNG, "Anbau B an Zentrale: Scheinwerfer ausgefallen. Vermutlich der Regen.")
-	_later(3.4, func() -> void: _say(SD.LENA, "Der Regen hat heute Nacht gute Augen."))
+	# Feindfunk + Lenas Kommentar als Paar, sobald der Funk frei ist (kein Verfallen in der Warteschlange)
+	_when_radio_free(_say_lamp_out, 8.0)
+
+func _say_lamp_out() -> void:
+	if _ending:
+		return
+	# Prioritaet 2: eine spaetere Einweisung (Gegenscharfschuetze) wartet, statt das Paar zu zerschneiden
+	_say_opt(SD.ORDNUNG, "Anbau B an Zentrale: Scheinwerfer ausgefallen. Vermutlich der Regen.", 0.0, {"priority": 2})
+	_say_opt(SD.LENA, "Der Regen hat heute Nacht gute Augen.", 0.0, {"priority": 2})
 
 func _start_download() -> void:
 	_k_mode = "download"
 	_dl_t = 0.0
 	_dl_done = false
 	_late_sent = false
+	_late_pending = false
 	kerner.set("has_goal", false)
-	_say(SD.LENA, "Ab jetzt bist du für mich unsichtbar, Jonas. Ich halte dir den Rücken frei.")
-	_later(3.0, func() -> void: _say(SD.KERNER, "Terminal gefunden. Übertragung läuft – zweiundzwanzig Sekunden."))
+	_say_opt(SD.LENA, "Ab jetzt bist du für mich unsichtbar, Jonas. Ich halte dir den Rücken frei.", 0.0, {"priority": 2})
+	_say_opt(SD.KERNER, "Terminal gefunden. Übertragung läuft – zweiundzwanzig Sekunden.", 0.0,
+		{"priority": 2, "valid": func() -> bool: return not _dl_done})
 
 func _send_late() -> void:
+	_late_pending = false
+	if _late_sent or _k_mode != "download" or _dl_t < 4.0 or _ending:
+		return
 	_late_sent = true
 	if not spawn_enemies:
 		return
@@ -1076,8 +1260,10 @@ func _send_late() -> void:
 		var g := _add_guard(d)
 		g["state"] = "late"
 		g["ri"] = 1
-	_say(SD.ORDNUNG, "Zentrale an Streife Platz: Zwei Mann zur Anlieferung B, Sichtkontrolle.")
-	_later(3.6, func() -> void: _say(SD.LENA, "Zwei kommen über den Platz, Richtung Anlieferung. Die erreichen das Tor nicht."))
+	_brief_hold(14.0)
+	_say_opt(SD.ORDNUNG, "Zentrale an Streife Platz: Zwei Mann zur Anlieferung B, Sichtkontrolle.", 0.0, {"priority": 2})
+	_say_opt(SD.LENA, "Zwei kommen über den Platz, Richtung Anlieferung. Die erreichen das Tor nicht.", 0.0,
+		{"priority": 2, "valid": func() -> bool: return _count_late() > 0})
 
 func _count_late() -> int:
 	var n := 0
@@ -1092,12 +1278,14 @@ func _finish_episode() -> void:
 	_ending = true
 	_finished = true
 	_obj("")
-	_say(SD.VOSS, "Kerner. Konrad Voss. Willkommen im Untergrund – Lena hat nicht übertrieben.")
-	_later(4.5, func() -> void: _say(SD.LENA, "Er ist unten. Funk aus, Gewehr runter."))
-	_later(9.0, func() -> void: _say(SD.LENA, "Jonas weiß nicht, dass ich Höhenangst habe. Seit ich denken kann."))
-	_later(14.0, func() -> void: _say(SD.LENA, "Mein Vater war Schornsteinfeger in Mitte. Er hat gesagt: Man lernt nicht, keine Angst zu haben – man lernt nur, wohin man schaut."))
-	_later(21.5, func() -> void: _say(SD.LENA, "Heute Nacht hab ich nur durchs Glas geschaut. Auf Jonas. Hat funktioniert, Papa."))
-	_later(27.0, _on_level_end)
+	# Klar als Epilog gerahmt (Kinobalken, Untertitel im Balken) statt stillem Warten auf dem Dach
+	Events.story_cinematic.emit(true)
+	_say_opt(SD.VOSS, "Kerner. Konrad Voss. Willkommen im Untergrund – Lena hat nicht übertrieben.", 0.0, {"priority": 2, "cut": true})
+	_say_opt(SD.LENA, "Er ist unten. Funk aus, Gewehr runter.", 0.0, {"priority": 2})
+	_say_opt(SD.LENA, "Jonas weiß nicht, dass ich Höhenangst habe. Seit ich denken kann.", 0.0, {"priority": 2})
+	_say_opt(SD.LENA, "Mein Vater war Schornsteinfeger in Mitte. Er hat gesagt: Man lernt nicht, keine Angst zu haben – man lernt nur, wohin man schaut.", 0.0, {"priority": 2})
+	_say_opt(SD.LENA, "Heute Nacht hab ich nur durchs Glas geschaut. Auf Jonas. Hat funktioniert, Papa.", 0.0, {"priority": 2})
+	_later(1.5, _when_radio_free.bind(_on_level_end, 40.0))
 
 ## --phase=N: Kerner an Haltepunkt N, frühere Wachen fehlen (siehe _spawn_wave), Dach B ab 3.
 func _apply_phase(n: int) -> void:
@@ -1160,7 +1348,9 @@ func _reset_to_cp(cp: int) -> void:
 	_dl_t = -1.0
 	_dl_done = false
 	_late_sent = false
+	_late_pending = false
 	_said.erase("late_door")
+	_said.erase("lane_both")
 	var s := mini(cp, 5)
 	kerner.set("frozen", false)
 	kerner.set("has_goal", false)
@@ -1307,6 +1497,8 @@ func _tick_csniper(delta: float) -> void:
 		s["stage"] = "hide"
 		s["t"] = maxf(float(s["t"]), 1.5)
 		return
+	if bool(s.get("intro", false)) and str(s["stage"]) == "hide" and _radio_busy() > 0.3:
+		s["t"] = maxf(float(s["t"]), 1.5)
 	s["t"] = float(s["t"]) - delta
 	match str(s["stage"]):
 		"hide":
@@ -1316,6 +1508,7 @@ func _tick_csniper(delta: float) -> void:
 			if float(s["t"]) <= 0.0:
 				s["stage"] = "aim"
 				s["t"] = 2.6
+				s["intro"] = false
 				a.set("aiming", true)
 				if player != null:
 					VFX.play_sfx_3d("overwatch_glint", player.global_position + Vector3(0, 1.5, -4.0), -12.0, 8.0, 40.0)
@@ -1353,7 +1546,7 @@ func _sniper_shot(s: Dictionary) -> void:
 			VFX.play_whiz_along(from, cam + (cam - from).normalized() * 4.0, 4.0)
 			if not r2.is_empty():
 				VFX.spawn_impact(r2.position, r2.normal, "concrete"))
-		_say(SD.LENA, "Er hat mich! Runter – die Brüstung deckt nur liegend.")
+		_say_opt(SD.LENA, "Er hat mich! Runter – die Brüstung deckt nur liegend.", 0.0, {"priority": 2, "cut": true, "max_age": 1.5, "key": "ep_cs"})
 		return
 	if hit.is_empty():
 		_later(tof, func() -> void:
@@ -1391,12 +1584,20 @@ func _update_glints() -> void:
 	(g.material_override as StandardMaterial3D).albedo_color.a = glow * flick
 
 func _on_csniper_down() -> void:
-	_say(SD.LENA, "Gegenscharfschütze erledigt.")
-	_later(2.4, func() -> void:
-		if _seg == 4 and _k_mode == "hold" and not _lane_marked():
-			_say(SD.KERNER, "Die Gasse seh ich nicht ein. Schick die Drohne, Lena."))
-	if _seg == 4:
+	_brief_hold(10.0)
+	_say_opt(SD.LENA, "Gegenscharfschütze erledigt.", 0.0, {"priority": 2})
+	if _seg == 4 and _k_mode == "hold" and not _lane_marked():
+		_say_opt(SD.KERNER, "Die Gasse seh ich nicht ein. Schick die Drohne, Lena.", 0.0,
+			{"priority": 2, "valid": func() -> bool: return _seg == 4 and _k_mode == "hold"})
+	if _seg == 4 and not (drone != null and bool(drone.get("active"))):
 		_obj(_objective_for(4))
+
+func _lane_alive() -> int:
+	var n := 0
+	for g: Dictionary in _guards:
+		if not bool(g["dead"]) and bool(g["d"].get("lane", false)) and _alive(_node(g["a"])):
+			n += 1
+	return n
 
 func _lane_marked() -> bool:
 	for g: Dictionary in _guards:
@@ -1421,7 +1622,8 @@ func _tick_drone(pl: Player, delta: float) -> void:
 	if _bot:
 		_bot_drone_wait -= delta
 		if _seg == 4 and _k_mode == "hold" and not _csniper.is_empty() and not _alive(_node(_csniper["a"])) \
-				and not _lane_marked() and _drone_cd <= 0.0 and _bot_drone_wait <= 0.0:
+				and bool(_csniper.get("down", false)) \
+				and not _lane_marked() and _drone_cd <= 0.0 and _bot_drone_wait <= 0.0 and not _brief_holding():
 			if _drone_flights >= 3:
 				# Testhilfe: nach drei erfolglosen Flügen direkt markieren
 				for g: Dictionary in _guards:
@@ -1465,12 +1667,16 @@ func _on_target_marked(node: Node3D, _kind: String) -> void:
 		if g["a"] != node or not bool(g["d"].get("lane", false)):
 			continue
 		if str(g["d"]["key"]) == "lane":
-			_say(SD.LENA, "Markiert. Einer in der Gasse – er läuft auf und ab.")
+			_say_opt(SD.LENA, "Markiert. Einer in der Gasse – er läuft auf und ab.", 0.0, {"priority": 1})
 		else:
-			_say(SD.LENA, "Zweiter am Rolltor. Steht still und schaut zur Straße.")
+			_say_opt(SD.LENA, "Zweiter am Rolltor. Steht still und schaut zur Straße.", 0.0, {"priority": 1})
 		if _lane_marked() and not _said.has("lane_both"):
 			_said["lane_both"] = true
-			_later(3.2, func() -> void: _say(SD.LENA, "Beide markiert, Jonas. Ich sag dir, wann sie wegsehen."))
+			# Kerner geht erst los, wenn die Drohne zurück ist und Lena ausgeredet hat (Gate 4)
+			_say_opt(SD.LENA, "Beide markiert, Jonas. Ich sag dir, wann sie wegsehen.", 0.0,
+				{"priority": 1, "valid": func() -> bool: return _seg == 4 and _k_mode == "hold"})
+			if drone != null and bool(drone.get("active")):
+				_obj("Beide Wachen markiert – Drohne zurückholen [%s]" % _key("drone_toggle"))
 
 func menu_reload_checkpoint() -> void:
 	if drone != null and bool(drone.get("active")):
@@ -1493,6 +1699,10 @@ func _physics_process(delta: float) -> void:
 	_tick_guards(delta)
 	_tick_csniper(delta)
 	_tick_kerner(delta)
+	if _radio_busy() > 0.3:
+		_bot_brief_quiet = minf(_bot_brief_quiet, 0.0)
+	else:
+		_bot_brief_quiet += delta
 	_update_k_hud()
 	if ep_bot != null and not _relocating and not _ending and not (drone != null and bool(drone.get("active"))):
 		ep_bot.call("tick", delta)
@@ -1501,9 +1711,45 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	_update_glints()
 
+## Bot: Einweisung abhören (höchstens cap s; grace = Vorlauf, bis die Zeilen eingereiht sind).
+func _brief_hold(cap: float, grace: float = 0.0) -> void:
+	if not _bot:
+		return
+	_bot_brief_until = maxf(_bot_brief_until, _t + cap)
+	_bot_brief_quiet = -grace
+
+func _brief_holding() -> bool:
+	return _bot and _t < _bot_brief_until and _bot_brief_quiet < 0.6
+
+## Gefechts-Geplauder: je key höchstens alle cooldown s, und nur bei (fast) freiem Funk – sonst entfällt es,
+## statt in der Warteschlange zu verfallen oder eine Einweisung zu verdrängen.
+func _bark(speaker: String, text: String, key: String, cooldown: float, opts: Dictionary) -> void:
+	if _t < float(_bark_cd.get(key, -1.0)) or _radio_busy() > 1.0:
+		return
+	_bark_cd[key] = _t + cooldown
+	_say_opt(speaker, text, 0.0, opts)
+
+func _on_cinematic(on: bool) -> void:
+	if _k_hud_root != null and is_instance_valid(_k_hud_root):
+		_k_hud_root.visible = not on
+	# Welt-Marker (Kerner-Schild, Drohnen-Markierungen) gehören in Zwischensequenzen ebenfalls weg
+	if _k_label != null and is_instance_valid(_k_label):
+		_k_label.visible = not on
+	if drone != null and is_instance_valid(drone) and drone.has_method("set_marks_visible"):
+		drone.call("set_marks_visible", not on)
+
 func _update_k_hud() -> void:
 	if _k_hud == null:
 		return
+	# Statuszeile unter den (ggf. mehrzeiligen) Auftragsblock der StoryUI setzen – beide in HUD-Einheiten
+	if _obj_box == null or not is_instance_valid(_obj_box):
+		var ui := get_tree().get_first_node_in_group(&"story_ui")
+		if ui != null:
+			_obj_box = ui.get("_obj_box") as Control
+	if _obj_box != null and is_instance_valid(_obj_box) and _obj_box.visible:
+		_k_hud.position = Vector2(_obj_box.position.x, _obj_box.position.y + _obj_box.size.y + 10.0)
+	else:
+		_k_hud.position = Vector2(28, 96)
 	var n := int(ceil(clampf(_k_hp / K_HP, 0.0, 1.0) * 10.0))
 	var bar := "■".repeat(n) + "□".repeat(10 - n)
 	var st := ""
@@ -1533,10 +1779,12 @@ func sniper_wind() -> Vector3:
 func bot_task() -> Dictionary:
 	var face := (kerner.global_position if kerner != null else Vector3.ZERO) + Vector3.UP
 	var spots: Array[Vector3] = SPOTS_B if _perch == 1 else SPOTS_A
-	if _bt_target != null and is_instance_valid(_bt_target) and bool(_bt_target.call("is_alive")) and _t < _bt_until:
+	# Während einer Einweisung nur Notfallziele (wer Kerner bedroht), keine Gate-Ziele vorwegnehmen
+	var hold := _brief_holding()
+	if not hold and _bt_target != null and is_instance_valid(_bt_target) and bool(_bt_target.call("is_alive")) and _t < _bt_until:
 		return {"kind": "snipe", "pos": _push(_bt_spot), "targets": [_bt_target], "face": face, "aim_h": _bt_aim_h}
 	_bt_target = null
-	for entry: Array in _bot_targets():
+	for entry: Array in _bot_targets(hold):
 		var t: Node3D = entry[0]
 		var ah: float = entry[1]
 		var si := _spot_for(t, ah, spots)
@@ -1556,12 +1804,16 @@ func _push(spot: Vector3) -> Vector3:
 	var d := Vector3(spot.x - c.x, 0.0, spot.z - c.z)
 	return spot + d.normalized() * 0.6 if d.length() > 0.1 else spot
 
-func _bot_targets() -> Array:
+func _bot_targets(urgent_only: bool = false) -> Array:
 	var out: Array = []
 	for st: String in ["hostile", "door", "witness", "curious", "late"]:
+		if urgent_only and st == "late":
+			continue
 		for g: Dictionary in _guards:
 			if not bool(g["dead"]) and str(g["state"]) == st and _alive(_node(g["a"])):
 				out.append([g["a"], -1.0])
+	if urgent_only:
+		return out
 	if _k_mode == "hold" or _k_mode == "download":
 		for g: Dictionary in _guards:
 			var d: Dictionary = g["d"]
@@ -1612,7 +1864,7 @@ func on_friendly_hit(who: Node) -> void:
 	_ff_cool = 1.5
 	_k_damage(35.0)
 	if not _fail:
-		_say(SD.KERNER, "Lena! Das war ich! Ich bin getroffen!")
+		_say_opt(SD.KERNER, "Lena! Das war ich! Ich bin getroffen!", 0.0, {"priority": 2, "cut": true, "max_age": 1.5, "key": "ep_ff"})
 
 func on_friendly_died(_who: Node) -> void:
 	pass

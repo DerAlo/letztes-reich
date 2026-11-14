@@ -6,6 +6,12 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 1
 
 | | |
 |---|---|
+| ![Speisewagen](docs/screenshots/v05_nachtzug_speisewagen.jpg) | ![Reisender](docs/screenshots/v05_nachtzug_reisender.jpg) |
+| **Nachtzug** – Speisewagen mit Reisenden, die sich beim ersten Schuss ducken | **Abteil** – neue, animierte Zivilfiguren statt starrer Puppen |
+| ![Hubbrücke](docs/screenshots/v05_hafen_hubbruecke.jpg) | ![Regierungsviertel](docs/screenshots/v05_ep_lena_regierungsviertel.jpg) |
+| **Hubbrücke** – Schützen oben auf der Brücke, das Zollboot wartet davor | **Lenas Nacht** – Dächer des Regierungsviertels im Regen, Kerner im Zielfernrohr |
+| ![Fernmeldestelle](docs/screenshots/v05_curfew_fernmeldestelle.jpg) | ![Nachtsicht](docs/screenshots/v05_kanalisation_nachtsicht.jpg) |
+| **Ausgangssperre** – Webers Funkprotokolle aus der Fernmeldestelle ziehen | **Unter der Spree** – Versorgungskeller des Kanzleramts im Nachtsichtgerät |
 | ![Hauptmenü](docs/screenshots/v04_hauptmenue.jpg) | ![Absetzen mit der Mi-8](docs/screenshots/v04_alpenpass_mi8_absetzen.jpg) |
 | **Hauptmenü** – Fortsetzen, Missionsauswahl, Episoden und Einstellungen direkt beim Spielstart | **Weißes Rauschen** – Absetzen am Grenzpass, die Mi-8 hebt im Schneesturm der Rotoren ab |
 | ![Kessel](docs/screenshots/v04_alpenpass_kessel.jpg) | ![Lawine](docs/screenshots/v04_alpenpass_lawine.jpg) |
@@ -27,7 +33,7 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 1
 
 ## ▶ Spielen
 
-1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.3-win64.zip`
+1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.5-win64.zip`
 2. Entpacken, `LetztesReich.exe` doppelklicken. Keine Installation nötig.
 3. Falls Windows warnt („Der Computer wurde durch Windows geschützt“): **Weitere Informationen → Trotzdem ausführen** (die Datei ist nicht signiert).
 

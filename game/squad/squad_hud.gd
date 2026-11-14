@@ -11,6 +11,7 @@ const C_FIRE := Color(1.0, 0.36, 0.25)
 var orders: Node = null                       ## squad_orders.gd
 var _root: Control
 var _canvas: Control
+var _sroot: Control
 var _box: VBoxContainer
 var _title: Label
 var _state: Label
@@ -32,6 +33,9 @@ func _ready() -> void:
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_canvas.draw.connect(_draw_markers)
 	_root.add_child(_canvas)
+	# Textfelder in 1080p-Pixeln skaliert (kleine Fenster); _canvas bleibt in echten Pixeln (unproject_position)
+	_sroot = UIStyle.HudRoot.new()
+	_root.add_child(_sroot)
 	_box = VBoxContainer.new()
 	_box.anchor_left = 0.0
 	_box.anchor_right = 0.0
@@ -45,7 +49,7 @@ func _ready() -> void:
 	_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_theme_constant_override("separation", 0)
-	_root.add_child(_box)
+	_sroot.add_child(_box)
 	_title = _label(13, C_DIM)
 	_state = _label(19, C_TEXT)
 	_keys = _label(12, C_DIM)
@@ -61,7 +65,7 @@ func _ready() -> void:
 	_hint.offset_top = 128.0
 	_hint.offset_bottom = 190.0
 	_hint.visible = false
-	_root.add_child(_hint)
+	_sroot.add_child(_hint)
 
 func _label(fs: int, col: Color) -> Label:
 	var l := Label.new()

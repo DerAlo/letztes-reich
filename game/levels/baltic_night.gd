@@ -6,6 +6,7 @@ extends "res://game/levels/level.gd"
 
 const NightProps = preload("res://game/levels/night_props.gd")
 const PH = preload("res://game/levels/ph_props.gd")
+const GroundCover = preload("res://game/levels/ground_cover.gd")
 const NightFx = preload("res://game/levels/night_fx.gd")
 const WaterTower = preload("res://game/levels/water_tower.gd")
 const FuelTank = preload("res://game/levels/fuel_tank.gd")
@@ -99,8 +100,8 @@ func _setup_environment() -> void:
 	env.volumetric_fog_gi_inject = 0.4
 	env.volumetric_fog_ambient_inject = 0.15
 	env.volumetric_fog_sky_affect = 0.7
-	env.glow_hdr_threshold = 1.0
-	env.glow_intensity = 0.7
+	env.glow_hdr_threshold = 1.4   # vorher 1.0/0.7: beleuchteter Schnee bloomte als Ganzes mit
+	env.glow_intensity = 0.4
 	env.glow_bloom = 0.04
 	env.adjustment_saturation = 0.9
 	env.adjustment_contrast = 1.06
@@ -392,7 +393,8 @@ func _build_props() -> void:
 		var e2 := base - bs * Vector3(0, 0, float(lg[2]) * 0.5 + 0.55)
 		var se := e1 if absf(e1.x) > absf(e2.x) else e2
 		if absf(se.x) > 9.0:
-			PH.place(p, "tree_stump_01", PH.xform(se + Vector3(0, -0.06, 0), rng.randf_range(0.0, 360.0), Vector3.ONE * rng.randf_range(0.8, 1.0)), 0.38)
+			var yaw_s := rng.randf_range(0.0, 360.0)
+			_stump(p, "tree_stump_01", se, yaw_s, rng.randf_range(0.8, 1.0))
 	# Felsbrocken (Poly Haven "rock_moss_set_01", Einzelsteine, verschneit); Kollision/Deckung wie bisher
 	var rocks: Array = [["rock03", 0.95, 0.41], ["rock04", 0.75, 0.66], ["rock06", 0.8, 0.53], ["rock02", 0.72, 0.47]]
 	var ri := 0
@@ -510,16 +512,20 @@ func _build_markers() -> void:
 	add_child(m)
 	var ps := Geo.marker(m, Vector3(2.5, TRENCH_FLOOR + 0.1, 0.3), "player_spawn")
 	ps.name = "PlayerSpawn"
-	# Gegner: [typ, welle, x, y, z]  (22 gesamt)
+	# Gegner: [typ, welle, x, y, z]  (34 gesamt)
 	var spawns: Array = [
 		["rifleman", 0, -6.0, 0.05, -53.6], ["rifleman", 0, 8.3, 0.05, -56.7], ["rifleman", 0, -13.0, 0.05, -49.6],
-		["rifleman", 0, 12.5, 0.05, -43.6], ["rifleman", 0, -4.0, 0.05, -62.6], ["rifleman", 0, 15.0, 0.05, -60.0],
+		["rifleman", 0, 14.0, 0.05, -43.3], ["rifleman", 0, -4.0, 0.05, -62.6], ["rifleman", 0, 14.3, 0.05, -61.2],
+		["rifleman", 0, -11.0, 0.05, -46.0], ["assault", 0, 7.0, 0.05, -52.0], ["rifleman", 0, -5.0, 0.05, -58.0],
 		["rifleman", 1, -2.9, 0.05, -82.0], ["rifleman", 1, 2.2, 0.05, -88.5], ["rifleman", 1, -2.5, 0.05, -91.0],
 		["assault", 1, 2.5, 0.05, -102.0], ["drone", 1, 0.0, 6.0, -100.0],
+		["rifleman", 1, -8.0, 0.05, -84.0], ["rifleman", 1, 7.0, 0.05, -96.0], ["marksman", 1, -8.0, 0.05, -102.0],
 		["rifleman", 2, 3.6, 0.05, -142.0], ["rifleman", 2, -3.5, 0.05, -160.0], ["rifleman", 2, 6.5, 0.05, -153.5],
 		["marksman", 2, -6.5, 0.05, -172.0], ["heavy", 2, 1.0, 0.05, -167.0],
+		["rifleman", 2, 4.0, 0.05, -150.0], ["assault", 2, -5.0, 0.05, -147.0], ["rifleman", 2, 7.0, 0.05, -165.0],
 		["assault", 3, -6.0, 0.05, -192.0], ["officer", 3, -8.0, 0.05, -201.0], ["rifleman", 3, 9.0, 0.05, -215.0],
 		["heavy", 3, 5.0, 0.05, -214.0], ["drone", 3, -5.0, 7.0, -195.0], ["drone", 3, 6.0, 8.0, -205.0],
+		["rifleman", 3, 10.0, 0.05, -203.0], ["rifleman", 3, -8.0, 0.05, -212.0], ["assault", 3, -11.0, 0.05, -197.0],
 	]
 	for i in spawns.size():
 		var s: Array = spawns[i]
@@ -610,6 +616,7 @@ func _shell_hit(h: Dictionary, pl: Node3D) -> void:
 		var dir := (d.normalized() * 0.6 + Vector3(-0.8, 0.9, 0) + Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(0, 0.6), rng.randf_range(-0.4, 0.4))).normalized()
 		rb.apply_central_impulse(dir * rb.mass * rng.randf_range(4.0, 9.0))
 		rb.apply_torque_impulse(Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * rb.mass * 2.0)
+		DebrisSettle.solidify_when_settled(rb, 3.0, 12.0)
 	# Truemmerhaufen + Brand im Grundriss
 	var base: Vector3 = (h["body"] as Node3D).global_position
 	Props.rubble(world, base + Vector3(-0.5, 0, 0), 3.2, 1.3, rng, false)
@@ -671,6 +678,7 @@ func _build_skyline() -> void:
 			continue
 		young.append([p, trng.randf_range(0.18, 0.35)])
 	NightProps.forest(f, young, trng, false)
+	_build_ground_cover(placed)
 	# Ferne Brandherde am Horizont (Glut im Nebel)
 	for c: Vector3 in [Vector3(-75, 0, -60), Vector3(85, 0, -140), Vector3(-90, 0, -210), Vector3(60, 0, -290), Vector3(-40, 0, -300)]:
 		Props.fire(self, c, 3.2, false, 3.5)
@@ -681,6 +689,63 @@ func _build_skyline() -> void:
 		gl.light_volumetric_fog_energy = 3.0
 		gl.position = c + Vector3(0, 6, 0)
 		add_child(gl)
+
+## Baumstumpf (Poly Haven, verschneit) mit Zylinder-Kollision um den Wurzelkern.
+func _stump(parent: Node3D, mname: String, pos: Vector3, yaw: float, s: float) -> void:
+	var b := Geo.static_body(pos * Vector3(1, 0, 1))
+	PH.place(b, mname, PH.xform(Vector3(0, -0.06, 0), yaw, Vector3.ONE * s), 0.38)
+	var cs := CollisionShape3D.new()
+	var cy := CylinderShape3D.new()
+	cy.radius = 0.5 * s
+	cy.height = 0.9
+	cs.shape = cy
+	cs.position = Vector3(0, 0.2, 0)
+	b.add_child(cs)
+	parent.add_child(b)
+
+## Bodenbewuchs im Schnee: trockene Grasbueschel und Unkraut, die durch die Schneedecke ragen,
+## Reisig und weitere Stuempfe im Wald. Eigener Zufallsstrom (der Level-rng bleibt unveraendert).
+func _build_ground_cover(placed: Array[Vector2]) -> void:
+	var gr := RandomNumberGenerator.new()
+	gr.seed = build_seed + 31
+	var patch := FastNoiseLite.new()
+	patch.seed = build_seed + 5
+	patch.frequency = 0.07
+	var gc := Node3D.new()
+	gc.name = "GroundCover"
+	add_child(gc)
+	var ok := func(q: Vector3) -> bool:
+		if q.z > RAMP_END_Z - 0.6 and q.z < TRENCH_Z + 0.6 and absf(q.x) < TRENCH_X + 0.6:
+			return false   # Graben/Rampen
+		if q.z < -112.0 and q.z > -215.0 and absf(q.x) < 34.0:
+			return false   # Dorf/Platz
+		if _route_dist(q) < 0.9:
+			return false   # ausgetretener Pfad
+		return patch.get_noise_2d(q.x, q.z) > -0.15
+	# Strohige, bereifte Toene (Nacht, Schnee): Gras entsaettigt, Unkraut braun
+	var straw := Color(1.05, 0.88, 0.62)
+	var halms := GroundCover.points(gr, 16000, -40.0, 40.0, end_z - 20.0, 26.0, Vector2(0.7, 1.3), ok)
+	GroundCover.scatter(gc, "grass01", halms, {"only": "tall", "mult": 2.4, "tint": straw, "fade": Vector2(20, 30), "seed": 6})
+	var grass := GroundCover.points(gr, 5200, -40.0, 40.0, end_z - 20.0, 26.0, Vector2(0.75, 1.3), ok)
+	GroundCover.scatter(gc, "grass02", grass, {"mult": 2.2, "tint": straw, "fade": Vector2(26, 40), "seed": 3})
+	var weeds := GroundCover.points(gr, 900, -40.0, 40.0, end_z - 20.0, 26.0, Vector2(0.7, 1.2), ok)
+	GroundCover.scatter(gc, "weed", weeds, {"mult": 2.0, "tint": Color(0.85, 0.7, 0.5), "fade": Vector2(24, 36), "seed": 4})
+	# Reisig und Bruchholz auf dem Waldboden (Spielbereich), nicht auf dem Pfad
+	var wood_ok := func(q: Vector3) -> bool:
+		return _route_dist(q) > 1.6
+	var br := GroundCover.points(gr, 260, -29.0, 29.0, -110.0, -62.0, Vector2(0.9, 1.5), wood_ok, 0.0, 8.0)
+	GroundCover.scatter(gc, "branches", br, {"tint": Color(0.82, 0.82, 0.86), "fade": Vector2(26, 38), "seed": 5})
+	# weitere Stuempfe (Kollision) im Spielwald; Abstand zu Pfad, Baeumen und Deckungen
+	var n := 0
+	for i in 160:
+		if n >= 14:
+			break
+		var q := Vector3(gr.randf_range(-27.0, 27.0), 0, gr.randf_range(-108.0, -64.0))
+		if _route_dist(q) < 3.2 or not _free(placed, q, 1.9):
+			continue
+		placed.append(Vector2(q.x, q.z))
+		_stump(world, "tree_stump_02" if n % 3 == 0 else "tree_stump_01", q, gr.randf_range(0.0, 360.0), gr.randf_range(0.7, 0.95))
+		n += 1
 
 func _free(placed: Array[Vector2], p: Vector3, d: float) -> bool:
 	var q := Vector2(p.x, p.z)
@@ -699,8 +764,16 @@ func _build_atmosphere() -> void:
 	# Suchscheinwerfer: zwei eigene hinter dem Graben, einer feindlich am Bahnuebergang
 	_searchlight_tower(Vector3(-18.0, 0, 9.0))
 	_searchlight_tower(Vector3(18.0, 0, 9.0))
-	fx.call("add_searchlight", Vector3(-18.0, 5.6, 9.0), 8.0, -4.5, 22.0, 0.22, 55.0)
-	fx.call("add_searchlight", Vector3(18.0, 5.6, 9.0), -6.0, -4.0, 24.0, 0.17, 55.0)
+	# Startfeld: Lichtkegel als schmaler Strahl statt Glow-Blob (Volumen-Streuung 5 -> 1.4, Linse 40 -> 14).
+	# Im groben Froxel-Nebel verschmierte der 3.6-Grad-Strahl sonst zu einer halbbildgrossen weissen Wolke.
+	for sp: Array in [[Vector3(-18.0, 5.6, 9.0), 8.0, -4.5, 22.0, 0.22], [Vector3(18.0, 5.6, 9.0), -6.0, -4.0, 24.0, 0.17]]:
+		var sl: SpotLight3D = fx.call("add_searchlight", sp[0], sp[1], sp[2], sp[3], sp[4], 34.0)
+		if sl != null:
+			sl.light_volumetric_fog_energy = 1.4
+			for c in sl.get_children():
+				var mi := c as MeshInstance3D
+				if mi != null and mi.material_override is StandardMaterial3D and (mi.material_override as StandardMaterial3D).emission_enabled:
+					(mi.material_override as StandardMaterial3D).emission_energy_multiplier = 14.0
 	_searchlight_tower(Vector3(-16.0, 0, -232.0))
 	var dsl: SpotLight3D = fx.call("add_searchlight", Vector3(-16.0, 5.6, -232.0), 172.0, -12.0, 30.0, 0.15, 28.0)
 	# Blendung am Dorfplatz daempfen: weniger Volumen-Streulicht und schwaechere Linse

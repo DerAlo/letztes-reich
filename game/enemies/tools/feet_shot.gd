@@ -185,9 +185,7 @@ func _process(delta: float) -> void:
 		var sv: SoldierVisual = en._soldier
 		if sv == null:
 			continue
-		sv.anim_tree.set("parameters/loco/blend_position", lo)
-		sv.anim_tree.set("parameters/crouch/blend_position", lo.length())
-		sv.anim_tree.set("parameters/crouch_mix/blend_amount", float(_arg("stance", "0")))
+		sv.set_loco(lo, float(_arg("stance", "0")))
 		sv.ik.aim_weight = float(_arg("aim", "1"))
 		if _frames == 2 and _arg("notoes", "") != "":
 			var ap: AnimationPlayer = sv.find_children("*", "AnimationPlayer", true, false)[0]

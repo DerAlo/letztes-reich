@@ -154,7 +154,7 @@ class Builder:
 				"frame_white": FKit.frame_mat(Color(0.62, 0.6, 0.56)),
 				"sill": mats.get("trim", G.flat(Color(0.5, 0.5, 0.5))),
 				"metal": FKit.metal_mat(Color(0.25, 0.26, 0.27)),
-				"chimney": mats.get("dark", G.flat(Color(0.1, 0.1, 0.1))),
+				"chimney": mats.get("chimney", mats.get("dark", G.flat(Color(0.1, 0.1, 0.1)))),   # Level kann "chimney" setzen (z. B. Ziegel)
 			}
 			fk.build(parent, fm, [], {"frame_dark": 90.0, "frame_white": 90.0})
 		var gl := wins.build_node(FKit.window_mat("night"))

@@ -4,9 +4,10 @@ extends Weapon
 ## Nullpunkt (Bild auf/ab bzw. Alt+Mausrad, 100..600 m), zwei Zoomstufen (Mausrad im Anschlag),
 ## Zielfernrohr-Overlay mit Absehen (Duplex + Strichplatte + BDC-Marken mit Wind-Punkten), Wind- und
 ## Entfernungsanzeige, Atemleiste, Schwanken + Atem anhalten (Shift im Anschlag, begrenzt), Geschossspur
-## entlang der simulierten Bahn ("Trace"), satte Treffer-Rueckmeldung und dezente Geschoss-Kamera.
+## entlang der simulierten Bahn ("Trace"), satte Treffer-Rueckmeldung und Geschoss-Kamera (ab BULLET_CAM_MIN
+## vorhergesagter Einschlagentfernung immer, mit echtem 7,62-mm-Geschossmodell, Drall und Luftverwirbelung).
 ## Ein Ballistik-Modell fuer alles: Flug (_physics_process), Haltemarken (drop_mil/drift_mil),
-## Geschoss-Kamera (_predict_headshot), Zielhilfe und Bot-Loeser (solve_aim) nutzen ballistic_step().
+## Geschoss-Kamera (_predict_impact_dist), Zielhilfe und Bot-Loeser (solve_aim) nutzen ballistic_step().
 ## Wind liefert das Level ueber sniper_wind() -> Vector3 (m/s, Weltkoordinaten), sonst windstill.
 ## Alles bleibt in dieser Datei: weapon.gd/player.gd werden nicht veraendert.
 ## Ziele in der Gruppe "friendly" bekommen take_damage (das Ziel meldet den Eigenbeschuss selbst),
@@ -28,6 +29,47 @@ const TAB_MAX := 1000.0
 const TRAIL_TAIL := 110.0           # m sichtbarer Schweif hinter dem Geschoss
 const TRAIL_FADE := 0.6             # s Ausblenden nach dem Einschlag
 const TRAIL_PX := 10.0              # Bildschirmbreite der Spur (px), unabhaengig von Entfernung/Zoom
+## Geschoss-Kamera: ab dieser vorhergesagten Einschlagentfernung (m) bei jedem Schuss, darunter nie.
+const BULLET_CAM_MIN := 180.0
+const CAM_FLIGHT_REAL := 3.2        # s Echtzeit fuer den Flug; die Zeitlupe richtet sich nach der Flugzeit
+const CAM_SCALE_MIN := 0.1
+const CAM_SCALE_MAX := 0.38
+const CAM_HOLD_HIT := 1.1           # s Echtzeit nach dem Einschlag (Treffer ansehen)
+const CAM_HOLD_MISS := 0.25
+const CAM_MAX_REAL := 9.0           # s Sicherheitsgrenze
+const CAM_BACK := 0.2               # m hinter dem Geschoss
+const CAM_SIDE := 0.1
+const CAM_UP := 0.05
+const CAM_AIM := 0.12               # m Blickpunkt vor dem Geschoss (Geschoss im Profil, Ziel noch im Bild)
+## 7,62 x 51 Matchgeschoss (175 gr, Boattail): 31,2 mm lang, 7,82 mm Kaliber; fuer die Kamera leicht vergroessert.
+const BULLET_LEN := 0.0312
+const BULLET_R := 0.00391
+const BULLET_VIS_SCALE := 2.0
+const BULLET_SPIN := 9.0            # rad/s Echtzeit: sichtbarer Drall in der Zeitlupe
+const WAKE_LEN := 0.5
+
+const WAKE_SHADER := """
+shader_type spatial;
+render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabled;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
+uniform float strength = 0.012;
+void fragment() {
+	// Nachlauf hinter dem Geschoss: verwirbelte Luft, Hintergrund flimmernd versetzt, kaum eingefaerbt.
+	// UV.y = 0 am Geschossboden, 1 am Ende des Nachlaufs.
+	float along = clamp(UV.y, 0.0, 1.0);
+	float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
+	float swirl = sin(UV.x * 37.7 + TIME * 24.0 - along * 30.0) * cos(UV.x * 18.8 - TIME * 15.0 + along * 11.0);
+	float k = facing * (1.0 - along) * (1.0 - along);
+	vec2 off = vec2(swirl, -0.7 * swirl) * strength * k;
+	vec3 bg = textureLod(screen_tex, SCREEN_UV + off, 0.0).rgb;
+	ALBEDO = bg * (1.0 + 0.05 * k);
+	ALPHA = clamp(k * 1.5, 0.0, 1.0);
+}
+"""
+
+static var _bullet_mesh_res: ArrayMesh = null
+static var _bullet_mat_res: StandardMaterial3D = null
+static var _wake_mat_res: ShaderMaterial = null
 
 const TRAIL_SHADER := """
 shader_type spatial;
@@ -76,13 +118,13 @@ var _drift_tab: PackedFloat32Array = PackedFloat32Array()   # mil Abdrift je 1 m
 var _tof_tab: PackedFloat32Array = PackedFloat32Array()     # s Flugzeit je TAB_STEP
 var _zero_flash: float = 0.0                   # s Hervorhebung nach Nullpunkt-Verstellung
 var _level_ref: Node = null
-var _mist_tex: GradientTexture2D
 var _overlay_layer: CanvasLayer
 var _mask: ColorRect
 var _mask_mat: ShaderMaterial
 var _reticle: Control
 var _sway_t: float = 0.0
 var _sway_off: Vector2 = Vector2.ZERO          # Grad (x = yaw, y = pitch)
+var _need_release: bool = false              # Atem automatisch beendet -> erst Taste loslassen
 var _exhausted: float = 0.0                    # s Zittern nach leerer Lunge
 var _heart_t: float = 0.0
 var _range_m: float = -1.0
@@ -93,6 +135,13 @@ var _cam_proj: Dictionary = {}
 var _cam_hold: float = 0.0
 var _cam_prev_scale: float = 1.0
 var _cam_cooldown: float = 0.0
+var _bullet_vis: Node3D = null                 # Geschossmodell + Nachlauf (nur in der Geschoss-Kamera)
+var _bullet_mi: MeshInstance3D = null
+var _bullet_spin: float = 0.0
+var _cam_real_t: float = 0.0                   # s Echtzeit seit Start der Geschoss-Kamera
+var _cam_hold_t: float = 0.0                   # s Echtzeit seit dem Einschlag
+var _cam_count: int = 0
+var _cam_shot_i: int = 0
 var _noise := FastNoiseLite.new()
 ## Treffpunkt-Vorhersage beim Luftanhalten (Nutzerwunsch: weniger Frust): gleiche Ballistik wie der Flug
 var pred_valid: bool = false
@@ -231,6 +280,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func set_active(on: bool) -> void:
 	super.set_active(on)
 	if not on:
+		_end_bullet_cam()
 		_set_breath(false)
 		scoped_amount = 0.0
 		if _overlay_layer:
@@ -243,8 +293,10 @@ func tick(delta: float) -> void:
 	_cam_cooldown = maxf(0.0, _cam_cooldown - delta)
 	_zero_flash = maxf(0.0, _zero_flash - delta)
 	var ads: float = _player_ads() if visible else 0.0
-	var want_hold: bool = ads > 0.85 and owner_player != null and bool(owner_player.get("_in_sprint")) \
-			and _exhausted <= 0.0 and breath > 0.05
+	var key_held: bool = owner_player != null and bool(owner_player.get("_in_sprint"))
+	if not key_held:
+		_need_release = false   # Taste losgelassen -> Atem anhalten wieder moeglich
+	var want_hold: bool = ads > 0.85 and key_held and not _need_release and breath > 0.5
 	if want_hold != holding_breath:
 		_set_breath(want_hold)
 	if holding_breath:
@@ -255,7 +307,7 @@ func tick(delta: float) -> void:
 			_play("overwatch_heartbeat", 0.02)
 		if breath <= 0.0:
 			breath = 0.0
-			_exhausted = 2.6
+			_need_release = true   # Luft alle: sauber zurueck in den Normalmodus, neu anhalten erst nach Loslassen
 			_set_breath(false)
 	else:
 		_exhausted = maxf(0.0, _exhausted - delta)
@@ -357,9 +409,13 @@ func _shoot(cam: Camera3D, spread_deg: float) -> void:
 	var p := {"pos": origin, "vel": vel0, "t": 0.0, "dist": 0.0, "origin": origin, "wind": wind,
 		"hist": hist, "trail": _make_trail(), "vis_off": vis_off, "fade": 0.0}
 	_projectiles.append(p)
-	if bullet_cam and _cam_node == null and _cam_cooldown <= 0.0 and not Game.arg("autopilot", false) \
-			and not Game.arg("nobulletcam", false) and _predict_headshot(origin, vel0, wind):
-		_start_bullet_cam(p)
+	# Geschoss-Kamera bei jedem weiten Schuss (vorhergesagter Einschlag >= BULLET_CAM_MIN), nie bei nahen.
+	# Autopilot nur mit --bulletcam (Test/Screenshots).
+	if bullet_cam and _cam_node == null and not Game.arg("nobulletcam", false) \
+			and (not Game.arg("autopilot", false) or Game.arg("bulletcam", false)):
+		var hit_d: float = _predict_impact_dist(origin, vel0, wind)
+		if hit_d >= BULLET_CAM_MIN:
+			_start_bullet_cam(p, time_of_flight(hit_d))
 
 func _physics_process(delta: float) -> void:
 	if _projectiles.is_empty():
@@ -401,8 +457,32 @@ func _physics_process(delta: float) -> void:
 func _finish_projectile(p: Dictionary, hit: bool) -> void:
 	p["fade"] = TRAIL_FADE
 	_fading.append(p)
-	if _cam_node != null and _cam_proj == p:
-		_cam_hold = 0.55 if hit else 0.15
+	if _cam_node != null and is_same(_cam_proj, p):
+		_cam_hold = CAM_HOLD_HIT if hit else CAM_HOLD_MISS
+		_cam_hold_t = 0.0
+		if is_instance_valid(_bullet_vis):
+			_bullet_vis.visible = false
+		if hit:
+			_place_hold_cam(p.pos, (p.vel as Vector3).normalized())
+
+## Nach dem Einschlag: Kamera einige Meter zurueck und seitlich versetzt, Blick auf den Einschlag (nicht in der Wand).
+func _place_hold_cam(at: Vector3, d: Vector3) -> void:
+	if not is_instance_valid(_cam_node):
+		return
+	var side: Vector3 = d.cross(Vector3.UP)
+	side = side.normalized() if side.length_squared() > 1e-6 else Vector3.RIGHT
+	var want: Vector3 = at - d * 3.4 + side * 1.1 + Vector3.UP * 0.6
+	var from: Vector3 = at - d * 0.4
+	var ex: Array[RID] = []
+	if owner_player:
+		ex.append(owner_player.get_rid())
+	var q := PhysicsRayQueryParameters3D.create(from, want, 1, ex)
+	var r: Dictionary = get_world_3d().direct_space_state.intersect_ray(q)
+	if not r.is_empty():
+		want = (r.position as Vector3).lerp(from, 0.25)
+	_cam_node.global_position = want
+	if want.distance_to(at) > 0.2:
+		_cam_node.look_at(at, Vector3.UP)
 
 # ---------------------------------------------------------------- Ballistik
 
@@ -579,44 +659,20 @@ func _impact(res: Dictionary, dir: Vector3, dist: float) -> void:
 	var is_enemy: bool = _is_enemy(target)
 	_apply_hit(res, dir)
 	var delay: float = dist / 343.0
-	if is_enemy:
-		_spawn_mist(pos, normal)
+	if is_enemy and not VFX.is_bleeder(target):
+		_later_sfx("overwatch_impact_metal", delay)
+		VFX.spawn_impact(pos, normal, "metal")
+	elif is_enemy:
+		_spawn_mist(pos, normal, dir, res.collider is Node and bool((res.collider as Node).get_meta("headshot", false)))
 		_later_sfx("overwatch_impact_flesh", delay)
 	elif target == null:
 		var surface: String = str((res.collider as Node).get_meta("surface", "concrete")) if res.collider is Node else "concrete"
 		if surface == "metal":
 			_later_sfx("overwatch_impact_metal", delay)
-		# Deutliches Feedback auch auf grosse Distanz: Staubwolke waechst mit der Entfernung + leuchtender Einschlagpunkt
+		# Deutliches Feedback auch auf grosse Distanz: Staubwolke waechst mit der Entfernung (kein Leuchtpunkt mehr,
+		# Nutzerwunsch; die Leuchtspur zeigt die Bahn)
 		VFX.spawn_dust_cloud(pos + normal * 0.2, clampf(dist / 110.0, 0.6, 2.2))
 		VFX.spawn_impact(pos, normal, surface)
-		_spawn_hit_marker(pos + normal * 0.05, dist)
-
-## Leuchtender orangefarbener Punkt am Einschlag, ~2,5 s sichtbar; Groesse waechst mit der Entfernung,
-## damit er im Zielfernrohr immer einige Pixel gross ist (Korrektur nach Fehlschuss).
-func _spawn_hit_marker(pos: Vector3, dist: float) -> void:
-	var mi := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	var r: float = clampf(dist * 0.0012, 0.06, 0.8)
-	sm.radius = r
-	sm.height = r * 2.0
-	sm.radial_segments = 12
-	sm.rings = 6
-	mi.mesh = sm
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.no_depth_test = true
-	m.albedo_color = Color(1.0, 0.5, 0.08, 0.95)
-	m.render_priority = 6
-	mi.material_override = m
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.top_level = true
-	_world_root().add_child(mi)
-	mi.global_position = pos
-	var tw := mi.create_tween()
-	tw.tween_interval(1.4)
-	tw.tween_property(m, "albedo_color:a", 0.0, 1.1)
-	tw.tween_callback(mi.queue_free)
 
 func _is_enemy(t: Node) -> bool:
 	if t == null:
@@ -636,40 +692,11 @@ func _later_sfx(sfx: String, delay: float) -> void:
 		if is_instance_valid(self):
 			_play(sfx, 0.05))
 
-## Rote Wolke beim Treffer (aus der Entfernung sichtbar).
-func _spawn_mist(pos: Vector3, normal: Vector3) -> void:
-	VFX.spawn_blood(pos, normal)
-	if _mist_tex == null:
-		var g := Gradient.new()
-		g.set_color(0, Color(0.55, 0.05, 0.04, 0.85))
-		g.set_color(1, Color(0.35, 0.03, 0.03, 0.0))
-		_mist_tex = GradientTexture2D.new()
-		_mist_tex.gradient = g
-		_mist_tex.fill = GradientTexture2D.FILL_RADIAL
-		_mist_tex.fill_from = Vector2(0.5, 0.5)
-		_mist_tex.fill_to = Vector2(0.5, 0.0)
-		_mist_tex.width = 64
-		_mist_tex.height = 64
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	m.albedo_texture = _mist_tex
-	m.albedo_color = Color(1, 1, 1, 0.9)
-	var q := QuadMesh.new()
-	q.size = Vector2(0.5, 0.5)
-	q.material = m
-	var mi := MeshInstance3D.new()
-	mi.mesh = q
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_world_root().add_child(mi)
-	mi.global_position = pos - normal * 0.15
-	var tw := mi.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(mi, "scale", Vector3.ONE * 2.6, 0.7).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(m, "albedo_color:a", 0.0, 0.7)
-	tw.tween_property(mi, "global_position", mi.global_position + Vector3(0, -0.25, 0), 0.7)
-	tw.chain().tween_callback(mi.queue_free)
+## Blut beim Treffer (game/vfx/blood_fx.gd): gerichteter Spruehstoss + Nebel, Spritzer an der Wand dahinter.
+## Hochgeschwindigkeitsgeschoss -> kraeftiger als Sturmgewehr; Kopftreffer am staerksten. Sieht auch in der
+## Zeitlupe der Geschoss-Kamera gut aus (Partikel/Timer laufen in Spielzeit).
+func _spawn_mist(pos: Vector3, normal: Vector3, dir: Vector3 = Vector3.ZERO, head: bool = false) -> void:
+	VFX.spawn_blood(pos, normal, dir, 2.1 if head else 1.5)
 
 # ---------------------------------------------------------------- Geschossspur
 
@@ -692,13 +719,16 @@ func _make_trail() -> MeshInstance3D:
 	return mi
 
 func _process(delta: float) -> void:
+	# Geschosskopf zwischen zwei Physikschritten fortschreiben (ruhige Spur bei hoher Bildrate; in der Zeitlupe
+	# ist ein Physikschritt entsprechend kuerzer)
+	var frac: float = Engine.get_physics_interpolation_fraction() * Engine.time_scale / float(maxi(Engine.physics_ticks_per_second, 1))
+	if _cam_node != null:
+		_process_bullet_cam(delta, frac)
 	if _fading.is_empty() and _projectiles.is_empty():
 		return
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if cam == null:
 		return
-	# Geschosskopf zwischen zwei Physikschritten fortschreiben (ruhige Spur bei hoher Bildrate)
-	var frac: float = Engine.get_physics_interpolation_fraction() / float(maxi(Engine.physics_ticks_per_second, 1))
 	for p in _projectiles:
 		_draw_trail(p, cam, (p.vel as Vector3) * frac, 1.0)
 	for i in range(_fading.size() - 1, -1, -1):
@@ -719,6 +749,9 @@ func _draw_trail(p: Dictionary, cam: Camera3D, head_ext: Vector3, alpha: float) 
 		return
 	var im: ImmediateMesh = tr.mesh as ImmediateMesh
 	im.clear_surfaces()
+	# In der Geschoss-Kamera zeigt das Geschossmodell den Flug; die Spur waere von hinten nur ein Fleck
+	if _cam_node != null and is_same(p, _cam_proj):
+		return
 	var hist: PackedVector3Array = p.hist
 	if hist.size() < 2:
 		return
@@ -791,7 +824,16 @@ func _draw_trail(p: Dictionary, cam: Camera3D, head_ext: Vector3, alpha: float) 
 
 # ---------------------------------------------------------------- Geschoss-Kamera
 
-func _predict_headshot(origin: Vector3, vel: Vector3, wind: Vector3) -> bool:
+## Fuer Level-Platzierung: kommt ein korrekt gehaltener Schuss von from bis target durch (Geschossbahn mit Fall,
+## Wind und Nullpunkt, nicht nur die Sichtlinie)?
+func ballistic_clear(from: Vector3, target: Vector3) -> bool:
+	var aim: Vector3 = solve_aim(from, target)
+	var vel: Vector3 = launch_dir(aim - from) * muzzle_velocity
+	var d: float = _predict_impact_dist(from, vel, wind_vector())
+	return d < 0.0 or d >= from.distance_to(target) - 1.0
+
+## Vorhergesagte Einschlagentfernung (m) mit derselben Ballistik wie der Flug; -1 = kein Einschlag in Reichweite.
+func _predict_impact_dist(origin: Vector3, vel: Vector3, wind: Vector3) -> float:
 	var space := get_world_3d().direct_space_state
 	var exclude: Array[RID] = []
 	if owner_player:
@@ -799,57 +841,103 @@ func _predict_headshot(origin: Vector3, vel: Vector3, wind: Vector3) -> bool:
 	var pos := origin
 	var v := vel
 	var dt := 0.02
-	for _i in 100:
+	for _i in 160:
 		var st: Array = ballistic_step(pos, v, wind, dt)
 		var npos: Vector3 = st[0]
 		var q := PhysicsRayQueryParameters3D.create(pos, npos, HIT_MASK, exclude)
 		q.collide_with_areas = true
 		var res: Dictionary = space.intersect_ray(q)
 		if not res.is_empty():
-			if origin.distance_to(res.position) < 110.0:
-				return false
-			var c: Node = res.collider as Node
-			if c == null or not bool(c.get_meta("headshot", false)):
-				return false
-			var t: Node = _find_damageable(c)
-			return _is_enemy(t) and t.has_method("is_alive") and bool(t.call("is_alive"))
+			return origin.distance_to(res.position)
+		if origin.distance_to(npos) > max_range:
+			break
 		v = st[1]
 		pos = npos
-	return false
+	return -1.0
 
-func _start_bullet_cam(p: Dictionary) -> void:
+func _start_bullet_cam(p: Dictionary, tof: float) -> void:
 	_cam_node = Camera3D.new()
-	_cam_node.fov = 32.0
-	_cam_node.near = 0.02
+	_cam_node.name = "BulletCam"
+	_cam_node.fov = 38.0
+	_cam_node.near = 0.01
 	_cam_node.far = 2000.0
 	_world_root().add_child(_cam_node)
+	_bullet_vis = _make_bullet_vis()
 	_cam_proj = p
 	_cam_hold = -1.0
-	_place_bullet_cam()
+	_cam_hold_t = 0.0
+	_cam_real_t = 0.0
+	_cam_shot_i = 0
+	_cam_count += 1
+	_bullet_spin = randf() * TAU
+	_place_bullet_cam(p.pos, (p.vel as Vector3).normalized(), 0.0)
 	_cam_node.make_current()
 	_cam_prev_scale = Engine.time_scale
-	Engine.time_scale = 0.14
-	_cam_cooldown = 25.0
+	# Zeitlupe nach Flugzeit: nahe und weite Schuesse dauern in Echtzeit etwa gleich lang
+	Engine.time_scale = clampf(tof / CAM_FLIGHT_REAL, CAM_SCALE_MIN, CAM_SCALE_MAX)
 	if _overlay_layer:
 		_overlay_layer.visible = false
-	# Zoom beenden: nach der Killcam ist man wieder in der Hueftanschlag-Ansicht
-	if owner_player != null and is_instance_valid(owner_player) and owner_player.has_method("cancel_aim"):
-		owner_player.call("cancel_aim")
+	# Kein cancel_aim mehr: die Kamera kommt jetzt bei jedem weiten Schuss, danach geht es im Zielfernrohr
+	# weiter (Treffer kontrollieren, naechstes Ziel)
 
-func _place_bullet_cam() -> void:
-	if _cam_node == null or _cam_proj.is_empty():
+## Kamera seitlich hinter dem Geschoss, leicht mitdrehend; Geschossmodell mit Drall an der Kopfposition.
+func _place_bullet_cam(head: Vector3, dir: Vector3, real_dt: float) -> void:
+	if _cam_node == null:
 		return
-	var pos: Vector3 = _cam_proj.pos
-	var dir: Vector3 = (_cam_proj.vel as Vector3).normalized()
-	var side: Vector3 = dir.cross(Vector3.UP).normalized()
-	_cam_node.global_position = pos - dir * 1.1 + side * 0.22 + Vector3.UP * 0.08
-	_cam_node.look_at(pos + dir * 6.0, Vector3.UP)
+	var side: Vector3 = dir.cross(Vector3.UP)
+	side = side.normalized() if side.length_squared() > 1e-6 else Vector3.RIGHT
+	var up: Vector3 = side.cross(dir).normalized()
+	# langsame Fahrt um die Flugachse (von rechts oben nach rechts)
+	var orbit: float = 0.55 - 0.22 * minf(_cam_real_t, 3.0)
+	var off: Vector3 = (side * CAM_SIDE + up * CAM_UP).rotated(dir, orbit)
+	_cam_node.global_position = head - dir * CAM_BACK + off
+	_cam_node.look_at(head + dir * CAM_AIM, up)
+	if is_instance_valid(_bullet_vis):
+		_bullet_vis.global_position = head
+		_bullet_vis.look_at(head + dir, up)
+		_bullet_spin = fposmod(_bullet_spin + BULLET_SPIN * real_dt, TAU)
+		if _bullet_mi != null:
+			_bullet_mi.rotation.z = _bullet_spin
+
+func _process_bullet_cam(delta: float, frac: float) -> void:
+	var real_dt: float = delta / maxf(Engine.time_scale, 0.01)
+	_cam_real_t += real_dt
+	if _cam_hold < 0.0 and not _cam_proj.is_empty():
+		var vel: Vector3 = _cam_proj.vel
+		_place_bullet_cam((_cam_proj.pos as Vector3) + vel * frac, vel.normalized(), real_dt)
+	elif _cam_hold >= 0.0 and is_instance_valid(_cam_node) and not _cam_proj.is_empty():
+		# nach dem Einschlag langsam zurueckziehen: Treffer bleibt im Bild
+		_cam_hold_t += real_dt
+		_cam_node.global_position -= _cam_node.global_transform.basis.z * -0.35 * real_dt
+	_capture_bullet_cam()
+
+## Test: --bulletcam-shots=<Ordner> speichert je Geschoss-Kamera (die ersten 4) drei Bilder.
+func _capture_bullet_cam() -> void:
+	var out: String = str(Game.arg("bulletcam-shots", ""))
+	if out == "" or _cam_count > 4 or _cam_shot_i >= 3:
+		return
+	var due: bool = false
+	if _cam_shot_i == 0 and _cam_real_t >= 0.35:
+		due = true
+	elif _cam_shot_i == 1 and (_cam_real_t >= 1.4 or _cam_hold >= 0.0):
+		due = true
+	elif _cam_shot_i == 2 and _cam_hold >= 0.0 and _cam_hold_t >= 0.3:
+		due = true
+	if not due:
+		return
+	DirAccess.make_dir_recursive_absolute(out)
+	var path: String = out.path_join("bulletcam_%d_%d.png" % [_cam_count, _cam_shot_i])
+	get_viewport().get_texture().get_image().save_png(path)
+	print("[g28] Geschoss-Kamera Bild: ", path)
+	_cam_shot_i += 1
 
 func _tick_bullet_cam_hold(delta: float) -> void:
 	if _cam_node == null:
 		return
+	if _cam_real_t > CAM_MAX_REAL:
+		_end_bullet_cam()
+		return
 	if _cam_hold < 0.0:
-		_place_bullet_cam()
 		return
 	# delta laeuft in Zeitlupe: Echtzeit-Haltezeit
 	_cam_hold -= delta / maxf(Engine.time_scale, 0.01)
@@ -857,6 +945,10 @@ func _tick_bullet_cam_hold(delta: float) -> void:
 		_end_bullet_cam()
 
 func _end_bullet_cam() -> void:
+	if is_instance_valid(_bullet_vis):
+		_bullet_vis.queue_free()
+	_bullet_vis = null
+	_bullet_mi = null
 	if _cam_node == null:
 		return
 	Engine.time_scale = _cam_prev_scale
@@ -866,6 +958,145 @@ func _end_bullet_cam() -> void:
 	_cam_proj = {}
 	if owner_player != null and is_instance_valid(owner_player):
 		owner_player.camera.make_current()
+
+# ---------------------------------------------------------------- Geschossmodell
+
+func _make_bullet_vis() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BulletCamProjectile"
+	root.top_level = true
+	_world_root().add_child(root)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _bullet_mesh()
+	mi.material_override = _bullet_material()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.scale = Vector3.ONE * BULLET_VIS_SCALE
+	root.add_child(mi)
+	_bullet_mi = mi
+	# Kleines Streiflicht seitlich ueber dem Geschoss (Kameraseite): der Tombakmantel glaenzt auch nachts
+	var lamp := OmniLight3D.new()
+	lamp.light_color = Color(1.0, 0.93, 0.84)
+	lamp.light_energy = 1.4
+	lamp.omni_range = 0.4
+	lamp.omni_attenuation = 1.2
+	lamp.shadow_enabled = false
+	lamp.position = Vector3(0.07, 0.06, -0.03)
+	root.add_child(lamp)
+	# Nachlauf: duenner Kegel hinter dem Boden, nur Luftflimmern (Bildschirm-Verzerrung)
+	if _wake_mat_res == null:
+		var sh := Shader.new()
+		sh.code = WAKE_SHADER
+		_wake_mat_res = ShaderMaterial.new()
+		_wake_mat_res.shader = sh
+	var cm := CylinderMesh.new()
+	cm.top_radius = BULLET_R * 0.8 * BULLET_VIS_SCALE
+	cm.bottom_radius = 0.03
+	cm.height = WAKE_LEN
+	cm.radial_segments = 18
+	cm.rings = 6
+	cm.cap_top = false
+	cm.cap_bottom = false
+	var wake := MeshInstance3D.new()
+	wake.name = "Wake"
+	wake.mesh = cm
+	wake.material_override = _wake_mat_res
+	wake.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Zylinderachse +Y -> -Z: schmales oberes Ende am Geschossboden, Kegel oeffnet nach hinten (+Z)
+	wake.basis = Basis(Vector3.RIGHT, -PI * 0.5)
+	wake.position = Vector3(0.0, 0.0, BULLET_LEN * 0.42 * BULLET_VIS_SCALE + WAKE_LEN * 0.5)
+	root.add_child(wake)
+	return root
+
+## Drehkoerper aus dem Profil eines 7,62-mm-Matchgeschosses (Boattail, Fuehrungsteil, Tangentenogive mit
+## kleiner Meplat). Spitze nach -Z, Ursprung im Schwerpunkt (42 % der Laenge vom Boden), Masse in Metern.
+static func _bullet_mesh() -> ArrayMesh:
+	if _bullet_mesh_res != null:
+		return _bullet_mesh_res
+	var l: float = BULLET_LEN * 1000.0
+	var rb: float = BULLET_R * 1000.0
+	var prof := PackedVector2Array()     # (z ab Boden, r) in mm
+	prof.append(Vector2(0.0, 3.05))
+	prof.append(Vector2(0.35, 3.22))
+	prof.append(Vector2(3.6, rb))
+	prof.append(Vector2(14.0, rb))
+	var og: float = l - 14.0
+	var big_r: float = (rb * rb + og * og) / (2.0 * rb)
+	for i in range(1, 14):
+		var x: float = og * float(i) / 14.0
+		prof.append(Vector2(14.0 + x, maxf(sqrt(maxf(big_r * big_r - x * x, 0.0)) - (big_r - rb), 0.5)))
+	prof.append(Vector2(l - 0.08, 0.48))
+	prof.append(Vector2(l, 0.0))
+	var n: int = prof.size()
+	var nrm := PackedVector2Array()      # (axial, radial)
+	for i in n:
+		var t: Vector2 = (prof[mini(i + 1, n - 1)] - prof[maxi(i - 1, 0)]).normalized()
+		nrm.append(Vector2(-t.y, t.x))
+	var zc: float = l * 0.42
+	var segs: int = 32
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in n - 1:
+		for s in segs:
+			var a0: float = TAU * float(s) / float(segs)
+			var a1: float = TAU * float(s + 1) / float(segs)
+			var q: Array = [[i, a0, s], [i + 1, a0, s], [i + 1, a1, s + 1], [i, a0, s], [i + 1, a1, s + 1], [i, a1, s + 1]]
+			for e: Array in q:
+				var p: Vector2 = prof[int(e[0])]
+				var nn: Vector2 = nrm[int(e[0])]
+				var ang: float = float(e[1])
+				st.set_normal(Vector3(cos(ang) * nn.y, sin(ang) * nn.y, -nn.x).normalized())
+				st.set_uv(Vector2(float(e[2]) / float(segs), p.x / l))
+				st.add_vertex(Vector3(cos(ang) * p.y, sin(ang) * p.y, -(p.x - zc)) * 0.001)
+	# Boden (flach, Normale nach hinten)
+	var r0: float = prof[0].y
+	for s in segs:
+		var a0: float = TAU * float(s) / float(segs)
+		var a1: float = TAU * float(s + 1) / float(segs)
+		for e: Vector3 in [Vector3(0, 0, 0), Vector3(cos(a1) * r0, sin(a1) * r0, 0), Vector3(cos(a0) * r0, sin(a0) * r0, 0)]:
+			st.set_normal(Vector3.BACK)
+			st.set_uv(Vector2(0.5 + e.x / (2.0 * r0) * 0.1, 0.985))   # Boden: dunkler Bereich der Textur
+			st.add_vertex(Vector3(e.x, e.y, zc) * 0.001)
+	_bullet_mesh_res = st.commit()
+	return _bullet_mesh_res
+
+## Tombakmantel (Kupfer-Zink, kupferrot-messingfarben) mit vier Feldeindruecken im Rechtsdrall auf dem
+## Fuehrungsteil, feinen Ziehriefen und leicht angelaufener Spitze.
+static func _bullet_material() -> StandardMaterial3D:
+	if _bullet_mat_res != null:
+		return _bullet_mat_res
+	var w: int = 128
+	var h: int = 64
+	var img := Image.create(w, h, false, Image.FORMAT_RGB8)
+	var base := Color(0.8, 0.5, 0.33)
+	var bear0: float = 3.8 / 31.2
+	var bear1: float = 13.8 / 31.2
+	for y in h:
+		var v: float = (float(y) + 0.5) / float(h)
+		for x in w:
+			var u: float = (float(x) + 0.5) / float(w)
+			var c: Color = base * (0.95 + 0.05 * sin(u * TAU * 23.0 + v * 9.0))
+			if v > bear0 and v < bear1:
+				var ph: float = fposmod(u * 4.0 + v * 0.35, 1.0)
+				if ph < 0.15:
+					c = c * 0.7
+				elif ph < 0.19:
+					c = c.lightened(0.18)
+			if v > 0.93:
+				c = c.darkened(0.25 * (v - 0.93) / 0.07)
+			img.set_pixel(x, y, c)
+	img.generate_mipmaps()
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.metallic = 0.7
+	m.metallic_specular = 0.6
+	m.roughness = 0.32
+	m.emission_enabled = true
+	m.emission = Color(0.3, 0.15, 0.07)
+	m.emission_energy_multiplier = 0.35
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_bullet_mat_res = m
+	return m
 
 # ---------------------------------------------------------------- Overlay
 

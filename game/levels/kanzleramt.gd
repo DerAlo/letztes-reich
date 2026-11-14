@@ -11,11 +11,19 @@ extends "res://game/levels/level.gd"
 ## Unter --autopilot spielt breach_bot.gd die Breach-Sequenzen (bot_drives_player()).
 
 const BP = preload("res://game/levels/berlin_props.gd")
+const FK = preload("res://game/levels/furniture_kit.gd")
 const RoomScript = preload("res://game/systems/breach_room.gd")
 const SlowmoScript = preload("res://game/systems/breach_slowmo.gd")
 const BotScript = preload("res://game/systems/breach_bot.gd")
 
 const Y2 := 9.0          ## Fussboden 2. OG
+const WK = preload("res://game/levels/overwatch_world_kit.gd")   ## pbr(): Poly-Haven-Texturordner
+const FarCity = preload("res://game/levels/far_city.gd")   ## Fernfassaden mit Fensterlicht (hinter den Fensterbaendern)
+const RED_DIM := 0.3  ## Faktor fuer rote Notleuchten (siehe _omni)
+const INT_TEX := "res://assets/environment/interior/textures/"   ## Poly Haven CC0 (tools/fetch_interior_assets.py)
+const INT_MOD := "res://assets/environment/interior/models/"
+const SHELF_BOARDS := [0.06, 0.48, 0.9, 1.32, 1.74]   ## Fachboden-Hoehen von Shelf_01 (geschaetzt, siehe Aufnahmen)
+const BOOK_COLORS := [Color(0.32, 0.06, 0.05), Color(0.07, 0.12, 0.22), Color(0.1, 0.2, 0.12), Color(0.55, 0.47, 0.34), Color(0.12, 0.1, 0.09), Color(0.62, 0.6, 0.55)]
 
 var mats: Dictionary = {}
 var _bd: BP.Builder
@@ -58,6 +66,8 @@ func _ready() -> void:
 	await super()
 	if not is_inside_tree():
 		return
+	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
+		add_child(load("res://game/levels/tools/villa_shots.gd").new())
 	slowmo = SlowmoScript.new()
 	slowmo.name = "BreachSlowmo"
 	add_child(slowmo)
@@ -95,6 +105,26 @@ func _later(t: float, f: Callable) -> void:
 
 func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	Events.story_radio.emit(speaker, text, dur)
+
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key/drop_live, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _say_opt(speaker: String, text: String, opts: Dictionary, dur: float = 0.0) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f ausfuehren, sobald der Funk frei ist (hoechstens max_wait s warten).
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_busy() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
+
+var _at_door1: bool = false
 
 func _obj(text: String) -> void:
 	Events.story_objective.emit(text)
@@ -144,6 +174,17 @@ func _player() -> Player:
 
 func _omni(pos: Vector3, c: Color, energy: float, rng_: float, fog: float = 0.6, shadows: bool = false) -> OmniLight3D:
 	var l := OmniLight3D.new()
+	# Rotes Notlicht: entsaettigt und gedimmt (echte Sicherheitsleuchten tauchen nicht den ganzen Raum in Rot)
+	if c.r > 0.9 and c.g < 0.3 and c.b < 0.3:
+		c = Color(1.0, maxf(c.g, 0.24), maxf(c.b, 0.16))
+		energy *= RED_DIM
+		rng_ *= 0.6
+		fog *= 0.5
+	# Gruene Fluchtwegleuchte: nur ein Schild, kein Raumlicht
+	elif c.g > 0.9 and c.r < 0.4 and c.b < 0.6:
+		energy *= 0.35
+		rng_ = minf(rng_, 3.5)
+		fog *= 0.4
 	l.light_color = c
 	l.light_energy = energy
 	l.omni_range = rng_
@@ -191,6 +232,14 @@ func _bx(key: String, a: Vector3, b: Vector3, collide: bool = true) -> void:
 	if collide:
 		Geo.add_box_shape(_body, c, s)
 
+## Moebel als Poly-Haven-Modell (furniture_kit.gd) in der alten Box a..b. Kollision wie bisher (collide),
+## fehlt das Modell, wird der alte Quader gezeichnet.
+func _fx(key: String, model: String, a: Vector3, b: Vector3, yaw: float = 0.0, opts: Dictionary = {}, collide: bool = true) -> void:
+	if not FK.place_ab(_body, model, a, b, yaw, opts):
+		_bx(key, a, b, collide)
+	elif collide:
+		_col(a, b)
+
 ## Nur Kollision (unsichtbar).
 func _col(a: Vector3, b: Vector3) -> void:
 	var lo := Vector3(minf(a.x, b.x), minf(a.y, b.y), minf(a.z, b.z))
@@ -232,11 +281,11 @@ func _wall_z(x: float, z0: float, z1: float, y0: float, y1: float, gaps: Array =
 		_bx(key, Vector3(x - t, y0, cur), Vector3(x + t, y1, z0))
 
 ## Fensterwand entlang z bei x: Bruestung, Sturz, Pfeiler, Glas; Kollision durchgehend.
-func _window_wall_z(x: float, z0: float, z1: float, y0: float, y1: float, sill: float, top: float, bay: float = 3.0) -> void:
+func _window_wall_z(x: float, z0: float, z1: float, y0: float, y1: float, sill: float, top: float, bay: float = 3.0, key: String = "wall") -> void:
 	var t := 0.15
 	_col(Vector3(x - t, y0, z1), Vector3(x + t, y1, z0))
-	_bx("wall", Vector3(x - t, y0, z1), Vector3(x + t, y0 + sill, z0), false)
-	_bx("wall", Vector3(x - t, y0 + top, z1), Vector3(x + t, y1, z0), false)
+	_bx(key, Vector3(x - t, y0, z1), Vector3(x + t, y0 + sill, z0), false)
+	_bx(key, Vector3(x - t, y0 + top, z1), Vector3(x + t, y1, z0), false)
 	var n := maxi(1, int(round((z0 - z1) / bay)))
 	var step := (z0 - z1) / float(n)
 	for i in n + 1:
@@ -302,8 +351,9 @@ func _setup_environment() -> void:
 	sky.sky_material = sm
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.22, 0.2, 0.3)
-	env.ambient_light_energy = 0.32
+	# Etwas neutraleres, helleres Grundlicht: Moebel und Gegner sollen ohne Nebelschleier lesbar sein
+	env.ambient_light_color = Color(0.26, 0.25, 0.3)
+	env.ambient_light_energy = 0.44
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_exposure = 1.25
 	env.ssr_enabled = true
@@ -311,21 +361,22 @@ func _setup_environment() -> void:
 	env.sdfgi_enabled = true
 	env.sdfgi_energy = 0.7
 	env.ssil_intensity = 1.1
+	# Innenraum: nur leichter Dunst (Staub nach dem Sturm). Rauch gibt es lokal per FogVolume.
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.07, 0.06, 0.08)
+	env.fog_light_color = Color(0.05, 0.045, 0.055)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.004
+	env.fog_density = 0.0009
 	env.fog_sky_affect = 0.8
-	env.fog_aerial_perspective = 0.25
+	env.fog_aerial_perspective = 0.1
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.016
-	env.volumetric_fog_albedo = Color(0.85, 0.84, 0.86)
-	env.volumetric_fog_emission = Color(0.005, 0.004, 0.006)
+	env.volumetric_fog_density = 0.0035
+	env.volumetric_fog_albedo = Color(0.62, 0.61, 0.62)
+	env.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
 	env.volumetric_fog_emission_energy = 1.0
-	env.volumetric_fog_anisotropy = 0.5
-	env.volumetric_fog_length = 90.0
-	env.volumetric_fog_gi_inject = 0.4
-	env.volumetric_fog_ambient_inject = 0.1
+	env.volumetric_fog_anisotropy = 0.6
+	env.volumetric_fog_length = 60.0
+	env.volumetric_fog_gi_inject = 0.12
+	env.volumetric_fog_ambient_inject = 0.0
 	env.volumetric_fog_sky_affect = 0.0
 	env.glow_enabled = true
 	env.glow_hdr_threshold = 0.85
@@ -355,39 +406,85 @@ func _setup_environment() -> void:
 	add_child(moon)
 	VfxEnv.apply_render_quality(get_viewport())
 	PostFx.apply(self, "night_city")
+	_tune_interior_glow(env)
+
+## Innenraum-Glow: nur echte Lichtquellen bluehen leicht, Deckenlampen ueberstrahlen nicht.
+## Laeuft nach PostFx.apply (das Profil "night_city" setzt sonst Schwelle 1.0 / Intensitaet 0.8).
+func _tune_interior_glow(env: Environment) -> void:
+	env.glow_hdr_threshold = 1.8
+	env.glow_intensity = 0.35
+	env.glow_bloom = 0.0
 
 func _make_mats() -> void:
 	mats = BP.materials()
-	mats["wall"] = Geo.flat(Color(0.6, 0.58, 0.54), 0.85)
-	mats["wall_dark"] = Geo.flat(Color(0.32, 0.31, 0.3), 0.85)
+	# Waende/Boeden mit Poly-Haven-Texturen (CC0, schon im Projekt: Villa, Fassaden, Nachtzug, Berlin)
+	# Kopie, weil WK.pbr-Materialien levelweit gecacht/geteilt sind; staerkere Normalen fuer sichtbaren Putz
+	var wall := WK.pbr("res://assets/environment/villa/plastered_wall_04", Color(0.8, 0.78, 0.74), 0.35, 1.0).duplicate() as StandardMaterial3D
+	wall.normal_scale = 1.6
+	mats["wall"] = wall
+	mats["wall_dark"] = WK.pbr("res://assets/environment/facade/textures/painted_plaster_wall", Color(0.42, 0.41, 0.4), 0.35, 1.0)
 	mats["concrete"] = Geo.mat("concrete_wall_008", Color(0.45, 0.44, 0.43), 0.25, 1.0)
-	mats["stone"] = Geo.flat(Color(0.5, 0.49, 0.47), 0.6)
-	mats["stone_dark"] = Geo.flat(Color(0.3, 0.29, 0.28), 0.7)
-	mats["floor"] = Geo.flat(Color(0.36, 0.35, 0.33), 0.35)
-	mats["carpet"] = Geo.flat(Color(0.2, 0.06, 0.06), 0.97)
-	mats["carpet_blue"] = Geo.flat(Color(0.07, 0.09, 0.16), 0.97)
-	mats["oak"] = Geo.flat(Color(0.3, 0.19, 0.11), 0.5)
+	mats["stone"] = WK.pbr("res://assets/environment/berlin/textures/marble_01", Color(0.62, 0.61, 0.59), 0.4, 0.8)
+	mats["stone_dark"] = WK.pbr("res://assets/environment/berlin/textures/marble_01", Color(0.38, 0.37, 0.36), 0.4, 0.8)
+	mats["floor"] = WK.pbr("res://assets/environment/berlin/textures/granite_tile", Color(0.5, 0.49, 0.47), 0.35, 0.7)
+	mats["carpet"] = WK.pbr("res://assets/environment/train/textures/dirty_carpet", Color(0.55, 0.2, 0.18), 0.5, 1.0)
+	# Bueroteppich: Fischgraet-Wollgewebe (Poly Haven, CC0) statt flachem Blau
+	mats["carpet_blue"] = WK.pbr(INT_TEX + "poly_wool_herringbone", Color(0.36, 0.4, 0.52), 0.9, 1.0)
+	# Holzvertaefelung (Nussbaumfurnier), Leisten dunkler
+	mats["walnut"] = WK.pbr(INT_TEX + "american_walnut_veneer", Color(0.78, 0.68, 0.6), 0.7, 0.85)
+	mats["cab_light"] = WK.pbr("res://assets/environment/bunker/textures/painted_steel", Color(0.62, 0.63, 0.6), 0.45, 0.9)
+	mats["walnut_dark"] = WK.pbr(INT_TEX + "american_walnut_veneer", Color(0.42, 0.35, 0.3), 0.9, 0.8)
+	mats["brass"] = Geo.flat(Color(0.72, 0.56, 0.3), 0.32, 1.0)
+	mats["flag_black"] = Geo.flat(Color(0.035, 0.035, 0.04), 0.92)
+	mats["flag_red"] = Geo.flat(Color(0.62, 0.04, 0.035), 0.9)
+	mats["flag_gold"] = Geo.flat(Color(0.95, 0.72, 0.06), 0.85)
+	mats["flag_blue"] = Geo.flat(Color(0.0, 0.13, 0.45), 0.9)
+	for i in BOOK_COLORS.size():
+		mats["book%d" % i] = Geo.flat(BOOK_COLORS[i], 0.8)
+	mats["oak"] = WK.pbr("res://assets/environment/train/textures/sapele_veneer", Color(0.75, 0.62, 0.52), 0.6, 0.8)
 	mats["leather"] = Geo.flat(Color(0.08, 0.07, 0.07), 0.45)
-	mats["ceiling"] = Geo.flat(Color(0.5, 0.5, 0.5), 0.9)
+	mats["ceiling"] = WK.pbr("res://assets/environment/villa/plastered_wall_04", Color(0.62, 0.61, 0.6), 0.3, 1.0)
 	mats["sandbag"] = Geo.flat(Color(0.3, 0.28, 0.2), 0.95)
 	mats["c4"] = Geo.flat(Color(0.5, 0.48, 0.38), 0.85)
 	mats["paper"] = Geo.flat(Color(0.8, 0.8, 0.76), 0.9)
 	mats["exit_green"] = BP.unshaded(Color(0.15, 2.4, 0.6))
-	mats["emerg_red"] = BP.unshaded(Color(2.6, 0.12, 0.08))
+	mats["emerg_red"] = BP.unshaded(Color(1.5, 0.12, 0.08))
 	mats["amber"] = BP.unshaded(Color(2.6, 1.2, 0.2))
 	mats["lamp_dead"] = Geo.flat(Color(0.25, 0.25, 0.26), 0.4)
+	mats["lamp_on"] = BP.unshaded(Color(1.7, 1.6, 1.45))
 	mats["armor_glass"] = Geo.flat(Color(0.2, 0.25, 0.28), 0.05, 0.3)
 	(mats["armor_glass"] as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	(mats["armor_glass"] as StandardMaterial3D).albedo_color = Color(0.25, 0.3, 0.34, 0.22)
+	# Realismus-Durchgang Saal/Kabinettssaal (Poly Haven CC0, tools/fetch_interior_assets.py):
+	# feiner Wandputz, Rauputzdecke + Kassetten, Holzpaneele, Samtvorhaenge, Heizkoerper, Wandleuchten
+	mats["plaster_w"] = WK.pbr(INT_TEX + "white_plaster_02", Color(0.8, 0.78, 0.73), 0.9, 1.0)
+	# Kassettenfelder: feinerer Rauputz (Kachel ~1.1 m statt 2.2 m -> keine groben Flecken), Unterzuege in
+	# glattem, hellem Stuckputz mit gestuftem Profil (_coffers)
+	mats["ceil_int"] = WK.pbr(INT_TEX + "ceiling_interior", Color(0.74, 0.73, 0.7), 0.9, 1.0)
+	mats["coffer"] = WK.pbr(INT_TEX + "white_plaster_02", Color(0.86, 0.85, 0.81), 1.4, 0.9)
+	mats["coffer_gap"] = Geo.flat(Color(0.05, 0.05, 0.05), 0.95)   # Schattenfuge Unterzug/Decke
+	mats["wood_panels"] = WK.pbr(INT_TEX + "wooden_panels", Color(0.72, 0.6, 0.5), 0.45, 0.85)
+	mats["curtain"] = WK.pbr("res://assets/environment/train/textures/velour_velvet", Color(0.5, 0.11, 0.1), 0.8, 1.0)
+	mats["cornice"] = Geo.flat(Color(0.76, 0.74, 0.7), 0.75)
+	mats["radiator"] = Geo.flat(Color(0.8, 0.79, 0.76), 0.4)
+	mats["sconce"] = BP.unshaded(Color(1.9, 1.45, 0.95))
+	# Fensterglas durchsichtig (BP.glass ist opak fast schwarz -> "schwarze Fenster"): leicht blaugrau, spiegelnd
+	var gl := StandardMaterial3D.new()
+	gl.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gl.albedo_color = Color(0.42, 0.5, 0.58, 0.14)
+	gl.roughness = 0.04
+	gl.metallic = 0.5
+	gl.metallic_specular = 0.9
+	mats["glass"] = gl
 	_leds = StandardMaterial3D.new()
 	_leds.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_leds.albedo_color = Color(3.0, 0.1, 0.05)
+	_leds.albedo_color = Color(1.6, 0.1, 0.05)
 	mats["led"] = _leds
 
 func _build_ground() -> void:
 	_make_mats()
 	_bd = BP.Builder.new(mats)
-	_bd.no_shadow.append_array(["glass", "exit_green", "emerg_red", "amber", "led", "armor_glass"])
+	_bd.no_shadow.append_array(["glass", "exit_green", "emerg_red", "amber", "led", "armor_glass", "lamp_on", "sconce", "cornice", "coffer", "coffer_gap"])
 	_body = Geo.static_body()
 	_body.name = "Kanzleramt"
 	_body.set_meta("no_fit", true)
@@ -422,6 +519,7 @@ func _build_props() -> void:
 	_build_stairwell()
 	_build_og2()
 	_build_bunker_room()
+	_build_dressing()
 	_bd.build(world)
 	_build_lights()
 
@@ -462,8 +560,11 @@ func _build_lobby() -> void:
 	_bx("oak", Vector3(-3.2, 0, -9.8), Vector3(-2.6, 1.1, -11.5))
 	# Sitzgruppen, Pflanzkuebel
 	for sx: float in [-10.5, 10.5]:
-		_bx("leather", Vector3(sx - 1.2, 0, -3.0), Vector3(sx + 1.2, 0.45, -3.8))
-		_bx("leather", Vector3(sx - 1.2, 0.45, -3.6), Vector3(sx + 1.2, 0.85, -3.8), false)
+		if FK.place_ab(_body, "sofa_02", Vector3(sx - 1.2, 0, -3.0), Vector3(sx + 1.2, 0.85, -3.8)):
+			_col(Vector3(sx - 1.2, 0, -3.0), Vector3(sx + 1.2, 0.45, -3.8))
+		else:
+			_bx("leather", Vector3(sx - 1.2, 0, -3.0), Vector3(sx + 1.2, 0.45, -3.8))
+			_bx("leather", Vector3(sx - 1.2, 0.45, -3.6), Vector3(sx + 1.2, 0.85, -3.8), false)
 		_bd.cyl("stone_dark", Vector3(sx, 0.45, -11.5), 0.55, 0.45, 0.9)
 		Geo.add_box_shape(_body, Vector3(sx, 0.45, -11.5), Vector3(1.0, 0.9, 1.0))
 	# Sandsack-Stellungen der Garde vor dem Saal
@@ -485,26 +586,34 @@ func _build_lobby() -> void:
 
 func _build_saal() -> void:
 	# Kabinettssaal x -12..12, z -24..-44, Decke 4.5, Fenster nach Westen
-	_window_wall_z(-12.15, -24.0, -44.0, 0, 4.5, 0.9, 3.7, 4.0)
-	_wall_z(12.15, -24.0, -44.0, 0, 4.5)
-	_wall_x(-44.0, -12.3, 12.3, 0, 4.5, [[8.0, 1.8, 2.5]])
-	_bx("ceiling", Vector3(-12.3, 4.5, -24.0), Vector3(12.3, 4.8, -44.0))
+	_window_wall_z(-12.15, -24.0, -44.0, 0, 4.5, 0.9, 3.7, 4.0, "plaster_w")
+	_wall_z(12.15, -24.0, -44.0, 0, 4.5, [], "plaster_w")
+	_wall_x(-44.0, -12.3, 12.3, 0, 4.5, [[8.0, 1.8, 2.5]], "plaster_w")
+	_bx("ceil_int", Vector3(-12.3, 4.5, -24.0), Vector3(12.3, 4.8, -44.0))
+	_build_saal_decor()
 	# Grosser Kabinettstisch (Oval angenaehert) mit Stuehlen
 	_bx("oak", Vector3(-4.6, 0.72, -33.0), Vector3(4.6, 0.8, -38.0))
 	_bx("oak", Vector3(-5.3, 0.72, -33.7), Vector3(5.3, 0.8, -37.3), false)
 	_col(Vector3(-5.3, 0, -33.0), Vector3(5.3, 0.8, -38.0))
-	for x: float in [-3.0, 3.0]:
-		_bx("dark", Vector3(x - 0.3, 0, -35.2), Vector3(x + 0.3, 0.72, -35.8), false)
+	# Unterbau: Zarge unter der Platte, vier Wangen-Fuesse mit Sockel, Mittelholm (vorher zwei dunkle
+	# 0.6-m-Stummel -> Platte wirkte schwebend)
+	_bx("oak", Vector3(-4.5, 0.6, -33.12), Vector3(4.5, 0.72, -33.22), false)
+	_bx("oak", Vector3(-4.5, 0.6, -37.78), Vector3(4.5, 0.72, -37.88), false)
+	_bx("oak", Vector3(-4.62, 0.6, -33.22), Vector3(-4.52, 0.72, -37.78), false)
+	_bx("oak", Vector3(4.52, 0.6, -33.22), Vector3(4.62, 0.72, -37.78), false)
+	for x: float in [-4.0, -1.35, 1.35, 4.0]:
+		_bx("oak", Vector3(x - 0.2, 0.06, -34.4), Vector3(x + 0.2, 0.72, -36.6), false)
+		_bx("dark", Vector3(x - 0.32, 0, -34.2), Vector3(x + 0.32, 0.06, -36.8), false)
+	_bx("oak", Vector3(-3.8, 0.3, -35.42), Vector3(3.8, 0.55, -35.58), false)
 	for i in 8:
 		var x := -4.2 + float(i) * 1.2
-		_bx("leather", Vector3(x - 0.25, 0, -38.3), Vector3(x + 0.25, 0.5, -38.8), false)
-		_bx("leather", Vector3(x - 0.25, 0.5, -38.75), Vector3(x + 0.25, 1.15, -38.85), false)
-	# Wandbilder (leer), Fahnenstaender ohne Hoheitszeichen
-	for x: float in [-8.0, 0.0]:
-		_bx("dark", Vector3(x - 1.2, 1.6, -43.8), Vector3(x + 1.2, 3.2, -43.84), false)
+		if not FK.place_ab(_body, "dining_chair_02", Vector3(x - 0.25, 0, -38.3), Vector3(x + 0.25, 1.15, -38.85), 0.0, {"scale": 1.0, "stretch": 1.0}):
+			_bx("leather", Vector3(x - 0.25, 0, -38.3), Vector3(x + 0.25, 0.5, -38.8), false)
+			_bx("leather", Vector3(x - 0.25, 0.5, -38.75), Vector3(x + 0.25, 1.15, -38.85), false)
+	# Wandbilder, Fahnen, Vertaefelung: siehe _build_dressing()
 	# Eckschrank, Sideboard (Deckung am Rand)
-	_bx("oak", Vector3(9.0, 0, -25.0), Vector3(11.8, 0.9, -25.6))
-	_bx("oak", Vector3(-11.8, 0, -40.0), Vector3(-11.2, 2.0, -43.6))
+	_fx("oak", "modern_wooden_cabinet", Vector3(9.0, 0, -25.0), Vector3(11.8, 0.9, -25.6), 180.0)
+	_fx("oak", "vintage_cabinet_01", Vector3(-11.8, 0, -40.0), Vector3(-11.2, 2.0, -43.6), 90.0)
 
 func _build_eg_corridor() -> void:
 	# EG-Flur x -12..12, z -44..-48 (Decke 3.5); Bueros z -48..-60
@@ -518,15 +627,22 @@ func _build_eg_corridor() -> void:
 	_label("WESTFLÜGEL  ←", Vector3(-3.0, 2.6, -47.8), 0.0, 32, Color(0.8, 0.8, 0.75), 0.005)
 	_label("TREPPENHAUS  →", Vector3(9.0, 2.6, -44.2), 180.0, 32, Color(0.8, 0.8, 0.75), 0.005)
 	# Westbuero: Schreibtische an den Waenden, Aktenschraenke
-	_bx("oak", Vector3(-11.8, 0, -50.0), Vector3(-10.6, 0.76, -53.0))
-	_bx("oak", Vector3(-1.4, 0, -57.0), Vector3(-0.2, 0.76, -59.8))
-	for z: float in [-58.0, -59.0]:
-		_bx("steel", Vector3(-11.8, 0, z - 0.45), Vector3(-11.2, 1.4, z + 0.45))
-	_bx("leather", Vector3(-7.8, 0, -58.8), Vector3(-5.4, 0.45, -59.7))
+	_fx("oak", "metal_office_desk", Vector3(-11.8, 0, -50.0), Vector3(-10.6, 0.76, -53.0), 90.0, {"scale": 1.0})
+	_fx("oak", "metal_office_desk", Vector3(-1.4, 0, -57.0), Vector3(-0.2, 0.76, -59.8), -90.0, {"scale": 1.0})
+	for z: float in [-58.0, -59.0]:   # Haengeregistraturen (hellgrau lackiert, Schubladenfugen + Griffe)
+		_bx("cab_light", Vector3(-11.8, 0, z - 0.45), Vector3(-11.2, 1.4, z + 0.45))
+		for k in 4:
+			_bx("black", Vector3(-11.2, 0.05 + float(k) * 0.34, z - 0.44), Vector3(-11.195, 0.065 + float(k) * 0.34, z + 0.44), false)
+			_bx("brass", Vector3(-11.2, 0.24 + float(k) * 0.34, z - 0.12), Vector3(-11.17, 0.27 + float(k) * 0.34, z + 0.12), false)
+	_fx("leather", "sofa_02", Vector3(-7.8, 0, -58.8), Vector3(-5.4, 0.45, -59.7))
 	# Ostbuero: Garde hat sich verbarrikadiert
-	_bx("oak", Vector3(3.0, 0, -52.0), Vector3(6.0, 0.76, -53.2))
-	_bx("oak", Vector3(8.0, 0, -55.5), Vector3(11.8, 0.76, -56.7))
-	_bx("steel", Vector3(1.0, 0, -58.6), Vector3(3.4, 1.9, -59.8))
+	_fx("oak", "metal_office_desk", Vector3(3.0, 0, -52.0), Vector3(6.0, 0.76, -53.2), 0.0, {"scale": 1.0, "stretch": 1.3})
+	_fx("oak", "metal_office_desk", Vector3(8.0, 0, -55.5), Vector3(11.8, 0.76, -56.7), 0.0, {"scale": 1.0, "stretch": 1.3})
+	_bx("walnut_dark", Vector3(1.0, 0, -58.6), Vector3(3.4, 1.9, -59.8))   # umgekippter Aktenschrank als Deckung (Nussbaum)
+	for x: float in [1.6, 2.2, 2.8]:
+		_bx("black", Vector3(x - 0.006, 0.08, -58.6), Vector3(x + 0.006, 1.82, -58.595), false)
+	for x: float in [1.48, 2.08, 2.68]:
+		_bx("brass", Vector3(x + 0.05, 0.95, -58.6), Vector3(x + 0.07, 1.15, -58.57), false)
 	for i in 5:
 		_bd.ball("sandbag", Vector3(4.0 + float(i) * 0.6, 0.15, -50.4), Vector3(0.62, 0.3, 0.42))
 	_col(Vector3(3.7, 0, -50.15), Vector3(6.9, 0.4, -50.65))
@@ -568,22 +684,22 @@ func _build_og2() -> void:
 	_wall_x(-44.0, -12.3, 12.0, Y2, Y2 + 3.5)
 	_wall_z(-12.15, -44.0, -48.0, Y2, Y2 + 3.5)
 	_bx("ceiling", Vector3(-12.3, Y2 + 3.5, -43.85), Vector3(12.0, Y2 + 3.8, -48.0))
-	_bx("leather", Vector3(-10.0, Y2, -44.2), Vector3(-7.0, Y2 + 0.45, -44.9))
+	_fx("leather", "sofa_02", Vector3(-10.0, Y2, -44.2), Vector3(-7.0, Y2 + 0.45, -44.9), 180.0)
 	_bx("steel", Vector3(-11.9, Y2, -45.2), Vector3(-11.3, Y2 + 1.2, -46.8))
 	# Saal unterm Dach x -14..14, z -48..-70, 6 m hoch
 	_bx("carpet", Vector3(-14.3, Y2 - 0.3, -48.0), Vector3(14.3, Y2, -70.0))
-	_wall_x(-48.0, -14.3, 14.3, Y2, Y2 + 6.3, [[0.0, 1.6, 2.45]])
-	_window_wall_z(-14.15, -48.0, -70.0, Y2, Y2 + 6.0, 1.0, 5.2, 3.7)
-	_window_wall_z(14.15, -48.0, -70.0, Y2, Y2 + 6.0, 1.0, 5.2, 3.7)
-	_bx("ceiling", Vector3(-14.3, Y2 + 6.0, -47.85), Vector3(14.3, Y2 + 6.3, -70.3))
+	_wall_x(-48.0, -14.3, 14.3, Y2, Y2 + 6.3, [[0.0, 1.6, 2.45]], "plaster_w")
+	_window_wall_z(-14.15, -48.0, -70.0, Y2, Y2 + 6.0, 1.0, 5.2, 3.7, "plaster_w")
+	_window_wall_z(14.15, -48.0, -70.0, Y2, Y2 + 6.0, 1.0, 5.2, 3.7, "plaster_w")
+	_bx("ceil_int", Vector3(-14.3, Y2 + 6.0, -47.85), Vector3(14.3, Y2 + 6.3, -70.3))
 	# Nordwand: Panzerglas zum Bunkervorraum (x -5..5), Tuer Nordost (x 10)
 	var z := -70.0
-	_bx("wall", Vector3(-14.3, Y2, z - 0.15), Vector3(-5.0, Y2 + 6.0, z + 0.15))
-	_bx("wall", Vector3(5.0, Y2, z - 0.15), Vector3(9.2, Y2 + 6.0, z + 0.15))
-	_bx("wall", Vector3(10.8, Y2, z - 0.15), Vector3(14.3, Y2 + 6.0, z + 0.15))
-	_bx("wall", Vector3(9.2, Y2 + 2.45, z - 0.15), Vector3(10.8, Y2 + 6.0, z + 0.15))
-	_bx("wall", Vector3(-5.0, Y2, z - 0.15), Vector3(5.0, Y2 + 0.9, z + 0.15))
-	_bx("wall", Vector3(-5.0, Y2 + 3.4, z - 0.15), Vector3(5.0, Y2 + 6.0, z + 0.15))
+	_bx("plaster_w", Vector3(-14.3, Y2, z - 0.15), Vector3(-5.0, Y2 + 6.0, z + 0.15))
+	_bx("plaster_w", Vector3(5.0, Y2, z - 0.15), Vector3(9.2, Y2 + 6.0, z + 0.15))
+	_bx("plaster_w", Vector3(10.8, Y2, z - 0.15), Vector3(14.3, Y2 + 6.0, z + 0.15))
+	_bx("plaster_w", Vector3(9.2, Y2 + 2.45, z - 0.15), Vector3(10.8, Y2 + 6.0, z + 0.15))
+	_bx("plaster_w", Vector3(-5.0, Y2, z - 0.15), Vector3(5.0, Y2 + 0.9, z + 0.15))
+	_bx("plaster_w", Vector3(-5.0, Y2 + 3.4, z - 0.15), Vector3(5.0, Y2 + 6.0, z + 0.15))
 	_bx("armor_glass", Vector3(-5.0, Y2 + 0.9, z - 0.06), Vector3(5.0, Y2 + 3.4, z + 0.06))
 	for x: float in [-5.0, -1.7, 1.7, 5.0]:
 		_bx("steel", Vector3(x - 0.08, Y2 + 0.9, z - 0.1), Vector3(x + 0.08, Y2 + 3.4, z + 0.1), false)
@@ -594,10 +710,12 @@ func _build_og2() -> void:
 		for i in 6:
 			var x := -12.5 + float(i) * 0.75
 			var zz := -52.0 - float(row) * 1.4
-			_bx("chair", Vector3(x - 0.25, Y2, zz - 0.25), Vector3(x + 0.25, Y2 + 0.48, zz + 0.25), false)
-			_bx("chair", Vector3(10.0 + float(i) * 0.6 - 0.25, Y2, zz - 0.25), Vector3(10.0 + float(i) * 0.6 + 0.25, Y2 + 0.48, zz + 0.25), false)
-	_bx("oak", Vector3(-9.0, Y2, -63.0), Vector3(-6.5, Y2 + 0.8, -64.2))
-	_bx("oak", Vector3(6.5, Y2, -63.0), Vector3(9.0, Y2 + 0.8, -64.2))
+			_fx("chair", "dining_chair_02", Vector3(x - 0.25, Y2, zz - 0.25), Vector3(x + 0.25, Y2 + 0.48, zz + 0.25), 180.0, {"scale": 1.0, "stretch": 1.0}, false)
+			# Ostreihe vor der Treppenhauswand (x 12) statt in ihr (vorher bis x 13)
+			_fx("chair", "dining_chair_02", Vector3(8.6 + float(i) * 0.6 - 0.25, Y2, zz - 0.25), Vector3(8.6 + float(i) * 0.6 + 0.25, Y2 + 0.48, zz + 0.25), 180.0, {"scale": 1.0, "stretch": 1.0}, false)
+	_fx("oak", "metal_office_desk", Vector3(-9.0, Y2, -63.0), Vector3(-6.5, Y2 + 0.8, -64.2), 0.0, {"scale": 1.0, "stretch": 1.25})
+	_fx("oak", "metal_office_desk", Vector3(6.5, Y2, -63.0), Vector3(9.0, Y2 + 0.8, -64.2), 0.0, {"scale": 1.0, "stretch": 1.25})
+	_build_halle_decor()
 
 func _build_bunker_room() -> void:
 	# Bunkervorraum hinter dem Panzerglas: x -8..12, z -70..-78
@@ -624,6 +742,383 @@ func _build_bunker_room() -> void:
 	_label("BUNKER", Vector3(0, Y2 + 3.05, -77.95), 0.0, 48, Color(0.9, 0.85, 0.7), 0.006)
 	# Rohre an der Decke
 	_bx("steel", Vector3(-8.0, Y2 + 3.2, -77.4), Vector3(12.0, Y2 + 3.35, -77.25), false)
+
+# ------------------------------------------------------------------ Ausstattung (Regierungsinnenraeume)
+
+## Vertaefelung, Gemaelde, Fahnen, Buecherregale, Schreibtischdetails, Feuerloescher. Alles an den Waenden,
+## ausserhalb von Tuerlinien, Geisel-/Waechterpositionen und Fensterflaechen; Bodenmoebel mit Kollision.
+func _build_dressing() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = build_seed + 17
+	# --- Kabinettssaal (x -12..12, z -24..-44)
+	_panel_x(-43.85, 1.0, -12.0, 7.0, 0.0)
+	_panel_x(-43.85, 1.0, 9.0, 12.0, 0.0)
+	_panel_x(-24.15, -1.0, -12.0, -0.95, 0.0)
+	_panel_x(-24.15, -1.0, 0.95, 12.0, 0.0)
+	_panel_z(12.0, -1.0, -24.15, -43.85, 0.0)
+	_pic("fancy_picture_frame_02", Vector3(-8.0, 1.4, -43.82), 0.0, 3.0)
+	_pic("fancy_picture_frame_02", Vector3(0.0, 1.4, -43.82), 0.0, 3.0)
+	_pic("hanging_picture_frame_02", Vector3(11.98, 1.5, -30.5), -90.0, 2.5)
+	_pic("hanging_picture_frame_02", Vector3(11.98, 1.5, -38.5), -90.0, 2.5)
+	_flag_stand(Vector3(3.4, 0, -43.35), false)
+	_flag_stand(Vector3(4.6, 0, -43.35), true)
+	_plant(Vector3(11.3, 0, -43.25))
+	_plant(Vector3(-11.3, 0, -24.75))
+	# Sitzungsunterlagen auf dem Kabinettstisch (Platz je zweitem Stuhl), Notizbloecke in der Mitte
+	for i in 8:
+		if i % 2 == 1:
+			continue
+		_item("binder_notebook", Vector3(-4.2 + float(i) * 1.2 + 0.6, 0.8, -37.25), 180.0, 0.85)
+	_item("office_notepads", Vector3(0.0, 0.8, -35.5), 0.0, 0.8)
+	# --- EG-Flur: Feuerloescher + Melder
+	_item("fire_extinguisher_de", Vector3(-11.75, 0, -44.45), 90.0, 1.0)
+	_col(Vector3(-11.95, 0, -44.2), Vector3(-11.6, 0.66, -44.7))
+	_item("fire_alarm", Vector3(-11.98, 1.35, -45.2), 90.0, 1.0)
+	# --- Westbuero (x -12..0, z -48..-60): Regalwand, Aktenschrank, Bild, Uhr, Pflanze
+	for x: float in [-10.6, -9.55, -4.4, -3.35]:
+		_shelf(Vector3(x, 0, -60.0), r)
+	_item("drawer_cabinet", Vector3(-11.33, 0, -48.4), 180.0, 1.0)
+	_col(Vector3(-11.9, 0, -48.15), Vector3(-10.76, 1.88, -48.66))
+	_pic("fancy_picture_frame_01", Vector3(-0.17, 1.55, -52.6), -90.0, 2.0)
+	_item("res://assets/environment/curfew/models/wall_clock", Vector3(-3.2, 2.35, -48.17), 180.0, 1.0)
+	_plant(Vector3(-0.85, 0, -48.75))
+	# Schreibtisch West (Front +x) und Ecktisch an der Trennwand (Front -x)
+	_item("res://assets/environment/curfew/models/desk_lamp_arm_01", Vector3(-11.5, 0.76, -50.45), 90.0, 1.0)
+	_item("stationery_supplies", Vector3(-11.2, 0.76, -51.3), 90.0, 1.0)
+	_item("binder_notebook", Vector3(-11.15, 0.76, -52.35), 90.0, 0.9)
+	_item("res://assets/environment/curfew/models/desk_lamp_arm_01", Vector3(-0.5, 0.76, -59.35), -90.0, 1.0)
+	_item("binder_notebook", Vector3(-0.85, 0.76, -57.8), -90.0, 0.9)
+	_item("stationery_supplies", Vector3(-0.55, 0.76, -58.6), -90.0, 1.0)
+	# --- Ostbuero (x 0..12): Teppich, Regale, Aktenschrank, Bild, Schreibtischkram
+	_bx("carpet_blue", Vector3(0.2, 0.0, -48.2), Vector3(11.8, 0.012, -59.9), false)
+	for x: float in [5.6, 6.65, 7.7]:
+		_shelf(Vector3(x, 0, -60.0), r)
+	_item("drawer_cabinet", Vector3(10.2, 0, -59.75), 0.0, 1.0)
+	_col(Vector3(9.63, 0, -60.0), Vector3(10.77, 1.88, -59.5))
+	_pic("hanging_picture_frame_02", Vector3(0.17, 1.6, -53.6), 90.0, 1.7)
+	_item("res://assets/environment/curfew/models/desk_lamp_arm_01", Vector3(3.4, 0.76, -52.85), 0.0, 1.0)
+	_item("binder_notebook", Vector3(4.6, 0.76, -52.6), 0.0, 0.9)
+	_item("stationery_supplies", Vector3(5.5, 0.76, -52.55), 0.0, 1.0)
+	_item("office_notepads", Vector3(10.0, 0.76, -56.1), 0.0, 0.55)
+	_plant(Vector3(11.3, 0, -59.3))
+	# --- Saal unterm Dach (Y2, x -14..14, z -48..-70)
+	_panel_x(-48.15, -1.0, -14.0, -0.85, Y2, 1.2)
+	_panel_x(-48.15, -1.0, 0.85, 14.0, Y2, 1.2)
+	_panel_x(-69.85, 1.0, -14.0, -5.0, Y2, 1.2)
+	_panel_x(-69.85, 1.0, 5.0, 9.15, Y2, 1.2)
+	_panel_x(-69.85, 1.0, 10.85, 14.0, Y2, 1.2)
+	_panel_x(-69.85, 1.0, -5.0, 5.0, Y2, 0.86)
+	_pic("fancy_picture_frame_02", Vector3(-8.0, Y2 + 1.8, -48.17), 180.0, 3.6)
+	_pic("fancy_picture_frame_02", Vector3(8.0, Y2 + 1.8, -48.17), 180.0, 3.6)
+	for sx: float in [-1.0, 1.0]:
+		_flag_stand(Vector3(sx * 5.75, Y2, -69.35), false)
+		_flag_stand(Vector3(sx * 6.95, Y2, -69.35), true)
+	# Buste auf Sockel (NW-Ecke), Pflanzen, Feuerloescher neben der NO-Tuer
+	_bx("stone", Vector3(-13.6, Y2, -69.6), Vector3(-13.1, Y2 + 1.1, -69.1))
+	_bx("stone_dark", Vector3(-13.65, Y2 + 1.1, -69.65), Vector3(-13.05, Y2 + 1.15, -69.05), false)
+	_item("marble_bust_01", Vector3(-13.35, Y2 + 1.15, -69.35), 45.0, 1.25)
+	for p: Vector3 in [Vector3(-13.3, Y2, -48.8), Vector3(13.3, Y2, -48.8), Vector3(13.3, Y2, -69.2)]:
+		_plant(p)
+	_item("fire_extinguisher_de", Vector3(11.4, Y2, -69.6), 0.0, 1.0)
+	_col(Vector3(11.2, Y2, -69.85), Vector3(11.6, Y2 + 0.66, -69.4))
+
+## Modell aus assets/environment/interior/models (oder voller res://-Ordnerpfad) mit fester Skalierung;
+## base = Mitte der Grundflaeche auf der Unterkante. Ohne Kollision (Aufrufer setzt _col).
+func _item(mname: String, base: Vector3, yaw: float, sc: float) -> void:
+	var path := mname if mname.begins_with("res://") else INT_MOD + mname
+	FK.place(_body, path, base, Vector3.ZERO, yaw, {"scale": sc, "stretch": 1.0, "shadows": sc > 0.95})
+
+## Gemaelde an der Wand: base = Mitte der Unterkante direkt vor der Wandflaeche, yaw zeigt in den Raum.
+func _pic(mname: String, base: Vector3, yaw: float, sc: float) -> void:
+	var rot := Basis(Vector3.UP, deg_to_rad(yaw))
+	var fwd := rot * Vector3(0, 0, 1)
+	var bb := FK._aabb(INT_MOD + mname, Basis.IDENTITY)
+	FK.place(_body, INT_MOD + mname, base + fwd * (bb.size.z * sc * 0.5), Vector3.ZERO, yaw, {"scale": sc, "stretch": 1.0, "shadows": false})
+	# Bilderleuchte (Messing) ueber dem Rahmen
+	var side := rot * Vector3(1, 0, 0)
+	var h := bb.size.y * sc
+	var w := bb.size.x * sc
+	_bd.box("brass", base + Vector3.UP * (h + 0.1) + fwd * 0.09, side.abs() * (w * 0.45) + fwd.abs() * 0.05 + Vector3(0, 0.035, 0))
+
+## Pflanzkuebel mit Kollision.
+func _plant(base: Vector3) -> void:
+	_item("potted_plant_02", base, 0.0, 0.95)
+	_col(base + Vector3(-0.3, 0, -0.3), base + Vector3(0.3, 0.6, 0.3))
+
+## Buecherregal (Shelf_01, 1 m breit, Rueckseite an der Wand bei at.z, Front +z) mit Buechern.
+func _shelf(at: Vector3, r: RandomNumberGenerator) -> void:
+	_item("Shelf_01", Vector3(at.x, at.y, at.z + 0.13), 0.0, 1.0)
+	_col(Vector3(at.x - 0.5, at.y, at.z), Vector3(at.x + 0.5, at.y + 2.08, at.z + 0.26))
+	for board: float in SHELF_BOARDS:
+		_book_row(at.x - 0.46, at.x + 0.46, at.y + board, at.z + 0.02, r)
+
+## Buchreihe von x0 bis x1 auf Hoehe y (Ruecken nach +z), mit Luecken und liegenden Stapeln.
+func _book_row(x0: float, x1: float, y: float, z_back: float, r: RandomNumberGenerator) -> void:
+	var x := x0 + r.randf_range(0.0, 0.08)
+	var end := x1 - r.randf_range(0.0, 0.18)
+	while x < end:
+		var w := r.randf_range(0.022, 0.055)
+		var h := r.randf_range(0.2, 0.3)
+		var d := r.randf_range(0.15, 0.2)
+		var key := "book%d" % r.randi_range(0, BOOK_COLORS.size() - 1)
+		if r.randf() < 0.06 and x + h < end:
+			for k in r.randi_range(2, 4):
+				_bd.box(key, Vector3(x + h * 0.5, y + 0.02 + float(k) * 0.04, z_back + d * 0.5), Vector3(h, 0.035, d), Basis(Vector3.UP, r.randf_range(-0.06, 0.06)))
+			x += h + 0.02
+			continue
+		_bd.box(key, Vector3(x + w * 0.5, y + h * 0.5, z_back + d * 0.5), Vector3(w, h, d))
+		x += w + r.randf_range(0.0, 0.004)
+
+## Holzvertaefelung (Lambris) vor einer Wand entlang x: Wandflaeche bei z = face, Raum auf Seite sgn.
+func _panel_x(face: float, sgn: float, x0: float, x1: float, y0: float, h: float = 1.1) -> void:
+	_bx("walnut", Vector3(x0, y0, face), Vector3(x1, y0 + h, face + sgn * 0.03), false)
+	_bx("walnut_dark", Vector3(x0, y0 + h - 0.02, face), Vector3(x1, y0 + h + 0.05, face + sgn * 0.06), false)
+	_bx("walnut_dark", Vector3(x0, y0, face), Vector3(x1, y0 + 0.12, face + sgn * 0.05), false)
+	var n := maxi(1, int(round((x1 - x0) / 1.15)))
+	var st := (x1 - x0) / float(n)
+	for i in n + 1:
+		var x := clampf(x0 + st * float(i), x0 + 0.035, x1 - 0.035)
+		_bx("walnut_dark", Vector3(x - 0.035, y0 + 0.12, face), Vector3(x + 0.035, y0 + h - 0.02, face + sgn * 0.045), false)
+
+## Wie _panel_x, Wand entlang z bei x = face.
+func _panel_z(face: float, sgn: float, z0: float, z1: float, y0: float, h: float = 1.1) -> void:
+	_bx("walnut", Vector3(face, y0, z0), Vector3(face + sgn * 0.03, y0 + h, z1), false)
+	_bx("walnut_dark", Vector3(face, y0 + h - 0.02, z0), Vector3(face + sgn * 0.06, y0 + h + 0.05, z1), false)
+	_bx("walnut_dark", Vector3(face, y0, z0), Vector3(face + sgn * 0.05, y0 + 0.12, z1), false)
+	var lo := minf(z0, z1)
+	var hi := maxf(z0, z1)
+	var n := maxi(1, int(round((hi - lo) / 1.15)))
+	var st := (hi - lo) / float(n)
+	for i in n + 1:
+		var z := clampf(lo + st * float(i), lo + 0.035, hi - 0.035)
+		_bx("walnut_dark", Vector3(face, y0 + 0.12, z - 0.035), Vector3(face + sgn * 0.045, y0 + h - 0.02, z + 0.035), false)
+
+# ------------------------------------------------------------------ Realismus: Saal unterm Dach, Kabinettssaal
+
+## Saal unterm Dach: Kassettendecke, Kranzgesims, Putz/Holzpaneele, Samtvorhaenge, Heizkoerper, Wandleuchten,
+## weitere Stuhlreihen, Laeufer, Rednerpult und Stehpulte. Reine Optik ohne Kollision, abseits der
+## Geisel-/Waechterplaetze (x -6.4..6.4, z -56..-58) und der Tuerlinien.
+func _build_halle_decor() -> void:
+	var yc := Y2 + 6.0
+	# Kassetten: Unterzuege alle 2.8 m (x) / 2.75 m (z); Deckenlampen sitzen in den Feldmitten
+	var xs: Array = []
+	for k in range(1, 10):
+		xs.append(-14.0 + 2.8 * float(k))
+	var zs: Array = []
+	for k in range(1, 8):
+		zs.append(-48.0 - 2.75 * float(k))
+	_coffers(-14.0, 14.0, -48.15, -69.85, yc, 0.4, xs, zs)
+	# Kranzgesims rundum (Ost: Treppenhauswand x 11.85 bis z -62, dahinter das Fensterstueck x 14)
+	_cornice_x(-48.15, -1.0, -14.0, 14.0, yc)
+	_cornice_x(-69.85, 1.0, -14.0, 14.0, yc)
+	_cornice_z(-14.0, 1.0, -48.15, -69.85, yc)
+	_cornice_z(11.82, -1.0, -48.15, -62.15, yc)
+	_cornice_z(14.0, -1.0, -62.15, -69.85, yc)
+	# Treppenhauswand (x 12) im Saal: Putz bis unter die Saaldecke (vorher Spalt ueber der Treppenhausdecke),
+	# kurze Rueckwand bei z -62, Nussbaum-Lambris
+	_bd.box("plaster_w", Vector3(11.835, Y2 + 2.25, -55.075), Vector3(0.03, 4.5, 14.15))
+	_bd.box("plaster_w", Vector3(11.985, (13.5 + yc) * 0.5, -55.075), Vector3(0.33, yc - 13.5, 14.15))
+	_bd.box("plaster_w", Vector3(12.925, (13.5 + yc) * 0.5, -62.0), Vector3(2.15, yc - 13.5, 0.3))
+	_bd.box("plaster_w", Vector3(12.925, Y2 + 2.25, -62.165), Vector3(2.15, 4.5, 0.03))
+	_panel_z(11.82, -1.0, -48.15, -61.85, Y2, 1.2)
+	# Nordwand: Kassetten-Holzpaneele ueber dem Lambris hinter Fahnen und Buste
+	for r: Vector2 in [Vector2(-14.0, -5.2), Vector2(5.2, 9.0)]:
+		var cx := (r.x + r.y) * 0.5
+		var w := r.y - r.x
+		_bd.box("wood_panels", Vector3(cx, Y2 + 2.75, -69.835), Vector3(w, 3.0, 0.03))
+		_bd.box("walnut_dark", Vector3(cx, Y2 + 4.28, -69.82), Vector3(w, 0.07, 0.07))
+	# Vorhaenge an jedem Fensterpfeiler, Messingstange, Heizkoerper unter jeder Fensterachse
+	var step := 22.0 / 6.0
+	for i in 7:
+		_curtain_pair_z(-14.0, 1.0, -70.0 + step * float(i), -69.85, -48.15, Y2 + 0.03, Y2 + 5.4)
+	_bd.box("brass", Vector3(-13.86, Y2 + 5.47, -59.0), Vector3(0.04, 0.04, 21.7))
+	for i in 6:
+		_radiator_z(-14.0, 1.0, -70.0 + step * (float(i) + 0.5), Y2, 1.4)
+	for i in 3:
+		_curtain_pair_z(14.0, -1.0, -70.0 + step * float(i), -69.85, -62.3, Y2 + 0.03, Y2 + 5.4)
+	_bd.box("brass", Vector3(13.86, Y2 + 5.47, -66.075), Vector3(0.04, 0.04, 7.55))
+	for i in 2:
+		_radiator_z(14.0, -1.0, -70.0 + step * (float(i) + 0.5), Y2, 1.4)
+	# Wandleuchten (warm, schwach, ohne Schatten)
+	for x: float in [-11.5, -3.5, 3.5]:
+		_sconce(Vector3(x, Y2 + 2.7, -48.15), Vector3.FORWARD)
+	_sconce(Vector3(-10.2, Y2 + 2.7, -69.82), Vector3.BACK)
+	_sconce(Vector3(12.4, Y2 + 2.7, -69.85), Vector3.BACK)
+	_sconce(Vector3(11.82, Y2 + 2.7, -55.0), Vector3.LEFT)
+	# Weitere Stuhlreihen (Fortsetzung der drei Reihen am Rand), Laeufer von der Tuer zum Pult
+	for row in range(3, 5):
+		var zz := -52.0 - float(row) * 1.4
+		for i in 5:
+			var x := -12.5 + float(i) * 0.75
+			_fx("chair", "dining_chair_02", Vector3(x - 0.25, Y2, zz - 0.25), Vector3(x + 0.25, Y2 + 0.48, zz + 0.25), 180.0, {"scale": 1.0, "stretch": 1.0}, false)
+		for i in 6:
+			var x := 8.6 + float(i) * 0.6
+			_fx("chair", "dining_chair_02", Vector3(x - 0.25, Y2, zz - 0.25), Vector3(x + 0.25, Y2 + 0.48, zz + 0.25), 180.0, {"scale": 1.0, "stretch": 1.0}, false)
+	_bd.box("carpet_blue", Vector3(0.0, Y2 + 0.006, -57.2), Vector3(1.6, 0.012, 18.0))
+	_bd.box("brass", Vector3(-0.81, Y2 + 0.008, -57.2), Vector3(0.025, 0.016, 18.0))
+	_bd.box("brass", Vector3(0.81, Y2 + 0.008, -57.2), Vector3(0.025, 0.016, 18.0))
+	# Rednerpult (Kollisionsbox bleibt): Front in Nussbaum mit Messingschild, Schraegpult, Mikrofon
+	_bd.box("walnut_dark", Vector3(0.0, Y2 + 0.6, -66.48), Vector3(1.8, 0.95, 0.04))
+	_bd.box("brass", Vector3(0.0, Y2 + 0.82, -66.455), Vector3(0.5, 0.32, 0.015))
+	_bd.box("walnut_dark", Vector3(0.0, Y2 + 0.03, -66.85), Vector3(2.1, 0.06, 0.85))
+	_bd.box("oak", Vector3(0.0, Y2 + 1.2, -66.88), Vector3(1.9, 0.04, 0.62), Basis(Vector3.RIGHT, deg_to_rad(-12.0)))
+	_bd.box("dark", Vector3(0.0, Y2 + 1.38, -66.65), Vector3(0.012, 0.36, 0.012), Basis(Vector3.RIGHT, deg_to_rad(25.0)))
+	_bd.box("black", Vector3(0.0, Y2 + 1.55, -66.57), Vector3(0.035, 0.07, 0.035))
+	for sx: float in [-1.0, 1.0]:
+		_lectern(Vector3(sx * 3.4, Y2, -66.9))
+
+## Kabinettssaal: Kassettendecke, Gesims, Vorhaenge, Heizkoerper, Wandleuchten. Vintage-Schrank am Westfenster
+## (z -40..-43.6) bleibt frei.
+func _build_saal_decor() -> void:
+	# Felder 3.0 x 2.8 m (vorher 3 x 5.5-6 m): Querunterzuege gleichmaessig, Deckenleuchten (z -28/-34/-40) in Feldmitten
+	var zs: Array = []
+	for k in range(1, 7):
+		zs.append(-24.15 - 19.7 / 7.0 * float(k))
+	_coffers(-12.0, 12.0, -24.15, -43.85, 4.5, 0.3, [-10.5, -7.5, -4.5, -1.5, 1.5, 4.5, 7.5, 10.5], zs)
+	_cornice_x(-43.85, 1.0, -12.0, 12.0, 4.5)
+	_cornice_x(-24.15, -1.0, -12.0, 12.0, 4.5)
+	_cornice_z(-12.0, 1.0, -24.15, -43.85, 4.5)
+	_cornice_z(12.0, -1.0, -24.15, -43.85, 4.5)
+	for i in 6:
+		_curtain_pair_z(-12.0, 1.0, -44.0 + 4.0 * float(i), -39.9, -24.15, 0.03, 3.85)
+	_bd.box("brass", Vector3(-11.86, 3.92, -31.95), Vector3(0.04, 0.04, 15.6))
+	for zc: float in [-38.0, -34.0, -30.0, -26.0]:
+		_radiator_z(-12.0, 1.0, zc, 0.0, 1.6)
+	for z: float in [-26.5, -34.5, -42.3]:
+		_sconce(Vector3(12.0, 2.35, z), Vector3.LEFT)
+	for x: float in [-11.0, -4.0]:
+		_sconce(Vector3(x, 2.4, -43.85), Vector3.BACK)
+
+## Kassettendecke: Unterzuege unter der Decke y_ceil (xs laufen entlang z, zs entlang x), Tiefe depth.
+## Profil (Querschnitt) statt eines groben 0.35er-Balkens mit ueberstehender Leiste:
+##   Schattenfuge 2.5 cm (dunkel, zurueckgesetzt) an der Decke -> oberer Profilsprung 0.30 m -> mittlerer
+##   Sprung 0.24 m -> schlanker Steg 0.18 m bis zur Unterkante. Die Kassette verjuengt sich so nach oben
+##   (wie gestufte Stuckrahmen), der Unterzug liest sich von unten als schmales, fein gegliedertes Band.
+## Je Feld zusaetzlich ein umlaufender Stuckstab 8 cm vor dem Profil.
+func _coffers(x0: float, x1: float, z0: float, z1: float, y_ceil: float, depth: float, xs: Array, zs: Array) -> void:
+	var gap := 0.025
+	var h_top := depth * 0.32
+	var h_mid := depth * 0.26
+	var lz := absf(z1 - z0)
+	var lx := absf(x1 - x0)
+	var cz := (z0 + z1) * 0.5
+	var cx := (x0 + x1) * 0.5
+	# [Breite, Unterkante unter y_ceil, Oberkante unter y_ceil]
+	var prof: Array = [[0.18, depth, gap], [0.24, gap + h_top + h_mid, gap], [0.3, gap + h_top, gap]]
+	for x: float in xs:
+		_bd.box("coffer_gap", Vector3(x, y_ceil - gap * 0.5, cz), Vector3(0.26, gap, lz))
+		for pr: Array in prof:
+			var hh: float = pr[1] - pr[2]
+			_bd.box("coffer", Vector3(x, y_ceil - pr[2] - hh * 0.5, cz), Vector3(pr[0], hh, lz))
+	for z: float in zs:
+		_bd.box("coffer_gap", Vector3(cx, y_ceil - gap * 0.5, z), Vector3(lx, gap, 0.26))
+		for pr: Array in prof:
+			var hh: float = pr[1] - pr[2]
+			_bd.box("coffer", Vector3(cx, y_ceil - pr[2] - hh * 0.5, z), Vector3(lx, hh, pr[0]))
+	# Stuckstab je Feld (zwischen den Unterzuegen bzw. Raumkanten)
+	var bx: Array = [minf(x0, x1)]
+	bx.append_array(xs)
+	bx.append(maxf(x0, x1))
+	var bz: Array = [minf(z0, z1)]
+	var zs_sorted := zs.duplicate()
+	zs_sorted.sort()
+	bz.append_array(zs_sorted)
+	bz.append(maxf(z0, z1))
+	var yb := y_ceil - 0.02
+	for i in range(bx.size() - 1):
+		for j in range(bz.size() - 1):
+			var ax: float = float(bx[i]) + (0.15 + 0.08 if i > 0 else 0.3)
+			var ex: float = float(bx[i + 1]) - (0.15 + 0.08 if i < bx.size() - 2 else 0.3)
+			var az: float = float(bz[j]) + (0.15 + 0.08 if j > 0 else 0.3)
+			var ez: float = float(bz[j + 1]) - (0.15 + 0.08 if j < bz.size() - 2 else 0.3)
+			if ex - ax < 0.6 or ez - az < 0.6:
+				continue
+			_bd.box("cornice", Vector3((ax + ex) * 0.5, yb, az), Vector3(ex - ax, 0.04, 0.035))
+			_bd.box("cornice", Vector3((ax + ex) * 0.5, yb, ez), Vector3(ex - ax, 0.04, 0.035))
+			_bd.box("cornice", Vector3(ax, yb, (az + ez) * 0.5), Vector3(0.035, 0.04, ez - az))
+			_bd.box("cornice", Vector3(ex, yb, (az + ez) * 0.5), Vector3(0.035, 0.04, ez - az))
+
+## Kranzgesims unter der Decke y an einer Wand entlang x (face = Wandflaeche, sgn = Richtung Raum).
+func _cornice_x(face: float, sgn: float, x0: float, x1: float, y: float) -> void:
+	_bd.box("cornice", Vector3((x0 + x1) * 0.5, y - 0.15, face + sgn * 0.09), Vector3(absf(x1 - x0), 0.3, 0.18))
+	_bd.box("cornice", Vector3((x0 + x1) * 0.5, y - 0.33, face + sgn * 0.05), Vector3(absf(x1 - x0), 0.06, 0.1))
+
+func _cornice_z(face: float, sgn: float, z0: float, z1: float, y: float) -> void:
+	_bd.box("cornice", Vector3(face + sgn * 0.09, y - 0.15, (z0 + z1) * 0.5), Vector3(0.18, 0.3, absf(z1 - z0)))
+	_bd.box("cornice", Vector3(face + sgn * 0.05, y - 0.33, (z0 + z1) * 0.5), Vector3(0.1, 0.06, absf(z1 - z0)))
+
+## Vorhangpaar an einem Fensterpfeiler bei z = p (je 0.75 m zu beiden Seiten), begrenzt auf zmin..zmax.
+## Haelften, die in zmin..zmax nicht passen, entfallen (z. B. vor einem Schrank).
+func _curtain_pair_z(face: float, sgn: float, p: float, zmin: float, zmax: float, y0: float, y1: float) -> void:
+	for half: Vector2 in [Vector2(p - 0.75, p), Vector2(p, p + 0.75)]:
+		var lo := maxf(half.x, zmin)
+		var hi := minf(half.y, zmax)
+		if hi - lo < 0.3:
+			continue
+		_curtain_z(face, sgn, lo, hi, y0, y1)
+
+## Samtvorhang als Faltenlamellen (Zickzack +-38 Grad) vor einer Wand entlang z.
+func _curtain_z(face: float, sgn: float, z0: float, z1: float, y0: float, y1: float) -> void:
+	var n := maxi(2, int(round((z1 - z0) / 0.12)))
+	var st := (z1 - z0) / float(n)
+	var a := deg_to_rad(38.0)
+	for i in n:
+		var zc := z0 + st * (float(i) + 0.5)
+		var yaw := a if i % 2 == 0 else -a
+		_bd.box("curtain", Vector3(face + sgn * 0.085, (y0 + y1) * 0.5, zc), Vector3(0.022, y1 - y0, st / cos(a) + 0.012), Basis(Vector3.UP, yaw))
+
+## Gliederheizkoerper vor einer Bruestung entlang z (face = Wandflaeche, sgn = Richtung Raum), Breite w.
+func _radiator_z(face: float, sgn: float, zc: float, y0: float, w: float) -> void:
+	var x := face + sgn * 0.11
+	_bd.box("radiator", Vector3(x, y0 + 0.47, zc), Vector3(0.08, 0.56, w))
+	var n := int(w / 0.075)
+	for i in n:
+		_bd.box("radiator", Vector3(x, y0 + 0.47, zc - w * 0.5 + (float(i) + 0.5) * w / float(n)), Vector3(0.13, 0.6, 0.03))
+	for s: float in [-1.0, 1.0]:
+		_bd.box("dark", Vector3(face + sgn * 0.06, y0 + 0.09, zc + s * (w * 0.5 + 0.06)), Vector3(0.12, 0.025, 0.025))
+		_bd.box("dark", Vector3(face + sgn * 0.11, y0 + 0.09, zc + s * (w * 0.5 + 0.03)), Vector3(0.025, 0.18, 0.025))
+
+## Wandleuchte (Messing, Opalglasschirm) mit schwachem Warmlicht; n = Wandnormale in den Raum.
+func _sconce(pos: Vector3, n: Vector3) -> void:
+	var na := n.abs()
+	var side := Vector3(na.z, 0.0, na.x)
+	_bd.box("brass", pos + n * 0.015, side * 0.11 + na * 0.03 + Vector3(0, 0.24, 0))
+	_bd.box("brass", pos + n * 0.09 - Vector3(0, 0.03, 0), side * 0.025 + na * 0.14 + Vector3(0, 0.025, 0))
+	_bd.box("sconce", pos + n * 0.17 + Vector3(0, 0.06, 0), side * 0.2 + na * 0.16 + Vector3(0, 0.17, 0))
+	var l := _omni(pos + n * 0.45 + Vector3(0, 0.05, 0), Color(1.0, 0.76, 0.48), 0.4, 4.5, 0.15)
+	l.omni_attenuation = 1.4
+
+## Stehpult (Nussbaum, Schraegplatte, Mikrofon) ohne Kollision.
+func _lectern(base: Vector3) -> void:
+	_bd.box("walnut_dark", base + Vector3(0, 0.025, 0), Vector3(0.55, 0.05, 0.5))
+	_bd.box("walnut", base + Vector3(0, 0.55, 0), Vector3(0.32, 1.0, 0.3))
+	_bd.box("walnut", base + Vector3(0, 1.1, -0.04), Vector3(0.62, 0.035, 0.46), Basis(Vector3.RIGHT, deg_to_rad(-14.0)))
+	_bd.box("dark", base + Vector3(0, 1.28, 0.12), Vector3(0.01, 0.3, 0.01), Basis(Vector3.RIGHT, deg_to_rad(25.0)))
+
+## Standfahne (Innenraum): Messingfuss, Stab, Tuch haengt in Falten neben dem Stab (Lamellen im Zickzack).
+## eu = blau mit angedeutetem Sternenkranz, sonst Schwarz-Rot-Gold. Ohne Kollision (steht an der Wand).
+func _flag_stand(base: Vector3, eu: bool) -> void:
+	_bd.cyl("brass", base + Vector3(0, 0.04, 0), 0.17, 0.2, 0.08, 16)
+	_bd.cyl("dark", base + Vector3(0, 1.42, 0), 0.016, 0.016, 2.76, 8)
+	_bd.ball("brass", base + Vector3(0, 2.84, 0), Vector3(0.07, 0.11, 0.07))
+	var top := 2.66
+	var n := 7
+	var keys := ["flag_black", "flag_red", "flag_gold"]
+	for i in n:
+		var u := (float(i) + 0.5) / float(n)
+		var zig := 0.035 if i % 2 == 0 else -0.035
+		var hang := 1.85 - u * 0.3 + (0.04 if i % 3 == 1 else 0.0)
+		var c := base + Vector3(0.03 + u * 0.4, 0, zig)
+		var rot := Basis(Vector3.UP, deg_to_rad(40.0 if i % 2 == 0 else -40.0))
+		if eu:
+			_bd.box("flag_blue", c + Vector3.UP * (top - hang * 0.5), Vector3(0.075, hang, 0.008), rot)
+		else:
+			for k in 3:
+				_bd.box(keys[k], c + Vector3.UP * (top - hang * (float(k) + 0.5) / 3.0), Vector3(0.075, hang / 3.0, 0.008), rot)
+	if eu:
+		for k in 12:
+			var a := TAU * float(k) / 12.0
+			_bd.box("flag_gold", base + Vector3(0.23 + cos(a) * 0.12, top - 0.55 + sin(a) * 0.12, 0.05), Vector3(0.028, 0.028, 0.005))
 
 func _build_lights() -> void:
 	var red := Color(1.0, 0.12, 0.08)
@@ -655,7 +1150,7 @@ func _build_lights() -> void:
 	_omni(Vector3(6.0, 3.0, -55.0), amber, 0.6, 8.0, 0.4)
 	_flicker_lamp(Vector3(0.0, 3.45, -46.0))
 	# Treppenhaus: gruene Fluchtwegleuchten, rot am Podest
-	_omni(Vector3(14.0, 3.0, -46.5), Color(0.3, 1.0, 0.5), 0.8, 8.0, 0.8)
+	_omni(Vector3(14.0, 3.0, -46.5), Color(0.3, 1.0, 0.5), 0.5, 4.0, 0.4)
 	_omni(Vector3(16.0, 7.5, -60.0), red, 1.4, 10.0, 1.0)
 	_omni(Vector3(16.0, Y2 + 2.8, -46.0), red, 1.2, 10.0, 1.0)
 	_exit_sign(Vector3(12.25, 2.9, -46.0), 90.0)
@@ -666,14 +1161,72 @@ func _build_lights() -> void:
 	_omni(Vector3(-11.0, Y2 + 5.0, -50.0), red, 1.4, 14.0, 1.0)
 	_omni(Vector3(11.0, Y2 + 5.0, -50.0), red, 1.4, 14.0, 1.0)
 	_omni(Vector3(0.0, Y2 + 5.0, -60.0), cold, 0.7, 14.0, 0.6)
-	_flicker_lamp(Vector3(-4.0, Y2 + 5.95, -58.0))
-	_flicker_lamp(Vector3(5.0, Y2 + 5.95, -64.0))
+	# in den Kassettenfeldern (Unterzuege bei z -56.25/-59, -61.75/-64.5)
+	_flicker_lamp(Vector3(-4.2, Y2 + 5.95, -57.625))
+	_flicker_lamp(Vector3(4.2, Y2 + 5.95, -63.125))
 	_exit_sign(Vector3(10.0, Y2 + 2.75, -69.75), 0.0)
 	# Bunkervorraum: kaltes Licht (Riedhammer gut sichtbar), Warnlampe an der Panzertuer
 	_omni(Vector3(0.0, Y2 + 3.0, -74.0), cold, 1.6, 10.0, 0.8)
 	_omni(Vector3(0.0, Y2 + 2.9, -77.5), red, 1.6, 6.0, 1.0)
 	_bd.box("emerg_red", Vector3(1.7, Y2 + 3.0, -77.9), Vector3(0.25, 0.25, 0.12))
+	_build_ceiling_lights()
+	_build_window_light()
 	_bd.build(world)
+
+## Streiflicht von draussen (Scheinwerfer/Strassenlicht) durch die Fensterbaender: Fensterpfeiler werfen
+## Lichtbahnen auf Boden und Moebel. Dazu weiches Fuelllicht ueber den Geiselgruppen (keine schwarzen Beine).
+func _build_window_light() -> void:
+	var cold := Color(0.62, 0.72, 1.0)
+	var sodium := Color(1.0, 0.78, 0.52)
+	# Kabinettssaal: Fenster West (x -12)
+	_spot(Vector3(-24.0, 7.5, -31.0), Vector3(-3.0, 0.0, -35.0), cold, 5.0, 40.0, 24.0, 0.8, true)
+	# Saal unterm Dach: Fenster West und Ost
+	_spot(Vector3(-27.0, Y2 + 8.0, -56.0), Vector3(-2.0, Y2, -61.0), cold, 5.0, 42.0, 22.0, 0.8, true)
+	_spot(Vector3(27.0, Y2 + 7.0, -65.0), Vector3(3.0, Y2, -61.0), sodium, 3.5, 42.0, 20.0, 0.6, true)
+	# Fuelllicht ueber den Geiseln (neutral, ohne Schatten)
+	for p: Vector3 in [Vector3(0.0, 2.6, -28.6), Vector3(-6.0, 2.4, -52.6), Vector3(0.0, Y2 + 3.2, -55.0)]:
+		var l := _omni(p, Color(1.0, 0.95, 0.88), 0.7, 7.0, 0.1)
+		l.omni_attenuation = 1.6
+
+## Neutrale Deckenleuchten (Leuchtstoffroehren ~4000 K, Notstrom halb gedimmt): tragen das
+## Grundlicht je Raum, damit Putz, Marmor, Moebel und Gegner lesbar sind. Rot/Gruen bleibt Akzent.
+## Schatten nur bei je einem Hauptlicht pro grossem Raum.
+func _build_ceiling_lights() -> void:
+	# Lobby (Decke 7 m)
+	for x: float in [-7.0, 7.0]:
+		for z: float in [-3.5, -12.0, -20.5]:
+			_ceil_lamp(Vector3(x, 6.95, z), 2.0, 12.0, x < 0.0 and z == -12.0)
+	# Kabinettssaal (Decke 4.5 m)
+	for x: float in [-6.0, 6.0]:
+		for z: float in [-28.0, -40.0]:
+			_ceil_lamp(Vector3(x, 4.45, z), 2.0, 10.0)
+	_ceil_lamp(Vector3(-3.0, 4.45, -34.0), 1.8, 10.0, true)
+	# EG-Flur und Bueros (Decke 3.5 m)
+	for x: float in [-8.0, 8.0]:
+		_ceil_lamp(Vector3(x, 3.45, -46.0), 1.1, 7.0)
+	for x: float in [-6.0, 6.0]:
+		for z: float in [-51.5, -57.0]:
+			_ceil_lamp(Vector3(x, 3.45, z), 1.7, 8.0)
+	# Treppenhaus: Wandleuchten an den Podesten
+	_ceil_lamp(Vector3(14.0, 3.4, -46.0), 1.3, 8.0)
+	_ceil_lamp(Vector3(16.0, 8.2, -60.5), 1.4, 9.0)
+	_ceil_lamp(Vector3(17.5, Y2 + 3.0, -46.0), 1.3, 8.0)
+	_ceil_lamp(Vector3(16.0, 13.4, -53.0), 1.0, 9.0)
+	# 2. OG Flur
+	for x: float in [-8.0, 0.0, 8.0]:
+		_ceil_lamp(Vector3(x, Y2 + 3.45, -46.0), 1.0, 7.0)
+	# Saal unterm Dach (Decke 6 m)
+	for x: float in [-7.0, 7.0]:
+		for z: float in [-52.125, -60.375, -65.875]:   # Kassettenfeldmitten
+			_ceil_lamp(Vector3(x, Y2 + 5.95, z), 2.3, 12.0, x < 0.0 and z == -60.375)
+	# Bunkervorraum (Decke 3.5 m): neutrale Roehren neben dem kalten Hauptlicht
+	for x: float in [-5.0, 8.0]:
+		_ceil_lamp(Vector3(x, Y2 + 3.45, -74.0), 1.2, 8.0)
+
+func _ceil_lamp(pos: Vector3, energy: float, rng_: float, shadows: bool = false) -> void:
+	_bd.box("lamp_on", pos, Vector3(0.3, 0.05, 1.25))
+	var l := _omni(pos + Vector3(0, -0.35, 0), Color(1.0, 0.94, 0.86), energy, rng_, 0.25, shadows)
+	l.omni_attenuation = 1.3
 
 func _exit_sign(pos: Vector3, yaw: float) -> void:
 	var mi := Geo.box_mesh_node(Vector3(0.62, 0.22, 0.05), mats["exit_green"], pos, Vector3(0, yaw, 0))
@@ -705,6 +1258,8 @@ func _build_skyline() -> void:
 		var w := srng.randf_range(12.0, 30.0)
 		var d := srng.randf_range(12.0, 26.0)
 		var h := srng.randf_range(10.0, 42.0)
+		if absf(c.x) < 128.0 and c.z > -175.0 and c.z < 50.0:
+			continue   # dort stehen die Fernfassaden (_build_far_city)
 		bb.add(c + Vector3(0, h * 0.5, 0), Vector3(w, h, d))
 		# einzelne erleuchtete Fenster (Notstrom / Kerzen)
 		for k in 6:
@@ -720,6 +1275,7 @@ func _build_skyline() -> void:
 	var wm := wb.build()
 	if wm != null:
 		add_child(Geo.mesh_node(wm, BP.unshaded(Color(1.6, 1.0, 0.45)), Vector3.ZERO, false))
+	_build_far_city()
 	# Kuppelbau in der Ferne (generisch) und Fernsehturm-Silhouette
 	var dome := Geo.cylinder_node(14.0, 18.0, Geo.flat(Color(0.1, 0.1, 0.11)), Vector3(-60.0, 9.0, 40.0))
 	add_child(dome)
@@ -730,6 +1286,44 @@ func _build_skyline() -> void:
 	for i in 5:
 		var base := Vector3(-120.0 + float(i) * 60.0, 0.0, -150.0 + float(i % 2) * 260.0)
 		_beams.append(_beam(base, srng.randf() * TAU))
+
+## Stadt hinter den Fensterbaendern (West/Ost): zwei Reihen Fernfassaden mit vereinzelt erleuchteten Fenstern
+## (Notstrom), vorn Altbau/Verwaltung, hinten hoehere Platten- und Buerobauten. Ohne Schatten, ein Mesh je Textur.
+func _build_far_city() -> void:
+	var frng := RandomNumberGenerator.new()
+	frng.seed = build_seed + 77
+	var fb := FarCity.Builder.new()
+	var i := 0
+	for side: float in [-1.0, 1.0]:
+		for row in 2:
+			var z := 46.0
+			while z > -170.0:
+				var dz := frng.randf_range(14.0, 24.0) if row == 0 else frng.randf_range(18.0, 30.0)
+				var w := frng.randf_range(12.0, 20.0)
+				var h := frng.randf_range(15.0, 27.0) if row == 0 else frng.randf_range(24.0, 44.0)
+				var x0 := 46.0 if row == 0 else 84.0
+				var c := Vector3(side * (x0 + w * 0.5 + frng.randf_range(0.0, 5.0)), 0.0, z - dz * 0.5)
+				var sv := fposmod(float(i) * 0.6180339 + 0.21, 1.0)
+				var o := {"seed": sv, "damage": 0.05 + 0.08 * float(i % 3), "lit": 1.0, "roof": "flat", "bits": true}
+				if row == 1 and h > 34.0:
+					fb.block(c, Vector3(w, h, dz), "platte", "panel" if i % 2 == 0 else "concrete", Color(0.6, 0.6, 0.6), o)
+				elif row == 1 or i % 3 == 1:
+					fb.block(c, Vector3(w, h, dz), "office", "concrete_old" if i % 2 else "tile", Color(0.6, 0.59, 0.57), o)
+				else:
+					o["roof"] = "gable"
+					o["cornice"] = true
+					fb.block(c, Vector3(w, h, dz), "altbau", "plaster_old" if i % 2 == 0 else "brick", Color(0.64, 0.58, 0.52), o)
+				i += 1
+				z -= dz + frng.randf_range(5.0, 11.0)
+	# Boden unter den Fernfassaden (der Platz-Asphalt reicht nur bis x -70..80)
+	var gnd := Geo.box_mesh_node(Vector3(300.0, 0.5, 260.0), mats["asphalt"], Vector3(5.0, -0.35, -65.0))
+	gnd.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(gnd)
+	var node := Node3D.new()
+	node.name = "FernFassaden"
+	add_child(node)
+	FarCity.build(fb, node, false, {"lit_ratio": 0.18, "emission_energy": 2.4, "sky_tint": Color(0.1, 0.09, 0.11),
+		"reflect_amt": 0.1, "warm_a": Color(1.0, 0.6, 0.3), "warm_b": Color(1.0, 0.78, 0.5), "grime": 1.2})
 
 func _beam(base: Vector3, phase: float) -> Node3D:
 	var pivot := Node3D.new()
@@ -755,8 +1349,9 @@ func _beam(base: Vector3, phase: float) -> Node3D:
 
 func _build_atmosphere() -> void:
 	# Staub/Rauch in der Lobby und im Treppenhaus
-	Props.fog_volume(self, Vector3(0, 3.0, -12.0), Vector3(28, 6, 24), 0.03, Color(0.5, 0.46, 0.44))
-	Props.fog_volume(self, Vector3(16, 6.0, -53.0), Vector3(8, 12, 18), 0.025, Color(0.5, 0.46, 0.44))
+	# Gefechtsrauch nur dort, wo gekaempft/gesprengt wurde: duenn, damit Gegner sichtbar bleiben
+	Props.fog_volume(self, Vector3(0, 3.0, -12.0), Vector3(28, 6, 24), 0.01, Color(0.42, 0.4, 0.39))
+	Props.fog_volume(self, Vector3(16, 6.0, -53.0), Vector3(8, 12, 18), 0.006, Color(0.42, 0.4, 0.39))
 
 func _build_set_piece_geometry() -> void:
 	pass
@@ -853,19 +1448,27 @@ func _spawn_wave(index: int) -> void:
 			_spawn("assault", Vector3(-9.5, 0, -15.0), 160.0)
 			_spawn("rifleman", Vector3(9.8, 0, -13.5), 200.0)
 			_spawn("officer", Vector3(2.0, 0, -18.0), 180.0, 0.5)
+			_spawn("rifleman", Vector3(-11.0, 0, -21.0), 160.0)
+			_spawn("rifleman", Vector3(3.0, 0, -22.0), 180.0)
+			_spawn("rifleman", Vector3(-5.0, 0, -12.0), 170.0)
 		1:
 			# Ostbuero
 			_spawn("rifleman", Vector3(5.0, 0, -54.5), 180.0)
 			_spawn("assault", Vector3(9.5, 0, -58.0), 200.0)
+			_spawn("rifleman", Vector3(2.0, 0, -57.0), 170.0)
+			_spawn("rifleman", Vector3(11.0, 0, -51.0), 200.0)
 		2:
 			# Treppenhaus: Gepanzerter am Podest, Garde oben
 			_spawn("armored", Vector3(14.0, 4.5, -60.5), 0.0, 0.55)
 			_spawn("rifleman", Vector3(18.5, 4.5, -61.0), 0.0)
 			_spawn("rifleman", Vector3(18.3, Y2, -45.0), 0.0)
+			_spawn("rifleman", Vector3(14.0, Y2, -46.0), 0.0)
 		3:
 			# 2. OG Flur vor dem Saal
 			_spawn("armored", Vector3(-9.5, Y2, -46.0), -90.0, 0.5)
 			_spawn("rifleman", Vector3(-6.0, Y2, -44.8), -90.0)
+			_spawn("rifleman", Vector3(-3.0, Y2, -46.0), -90.0)
+			_spawn("assault", Vector3(2.0, Y2, -46.0), -90.0)
 
 # ------------------------------------------------------------------ Breach-Raeume
 
@@ -875,9 +1478,9 @@ func _build_rooms() -> void:
 	room_saal.set("room_id", "saal")
 	add_child(room_saal)
 	room_saal.call("setup_door", Transform3D(Basis.IDENTITY, Vector3(0, 0, -24.0)), slowmo)
-	room_saal.call("add_hostage", Vector3(-5.0, 0, -30.0), 180.0, "seat", {"suit": Color(0.12, 0.13, 0.17), "hair": Color(0.4, 0.38, 0.36)})
-	room_saal.call("add_hostage", Vector3(0.0, 0, -30.5), 180.0, "seat", {"suit": Color(0.3, 0.27, 0.22), "hair": Color(0.18, 0.12, 0.07), "shirt": Color(0.75, 0.8, 0.9)})
-	room_saal.call("add_hostage", Vector3(5.0, 0, -30.0), 180.0, "seat", {"suit": Color(0.1, 0.1, 0.1), "hair": Color(0.55, 0.52, 0.5)})
+	room_saal.call("add_hostage", Vector3(-5.0, 0, -30.0), 180.0, "seat", {"variant": "abgeordneter", "suit": Color(0.12, 0.13, 0.17), "hair": Color(0.4, 0.38, 0.36)})
+	room_saal.call("add_hostage", Vector3(0.0, 0, -30.5), 180.0, "seat", {"variant": "frau", "suit": Color(0.3, 0.27, 0.22), "hair": Color(0.18, 0.12, 0.07), "shirt": Color(0.75, 0.8, 0.9)})
+	room_saal.call("add_hostage", Vector3(5.0, 0, -30.0), 180.0, "seat", {"variant": "alt", "suit": Color(0.1, 0.1, 0.1), "hair": Color(0.55, 0.52, 0.5)})
 	room_saal.call("add_captor", "rifleman", Vector3(-6.3, 0, -29.6), 0)
 	room_saal.call("add_captor", "officer", Vector3(1.25, 0, -30.1), 1)
 	room_saal.call("add_captor", "rifleman", Vector3(6.3, 0, -29.6), 2)
@@ -886,8 +1489,8 @@ func _build_rooms() -> void:
 	room_buero.set("room_id", "buero")
 	add_child(room_buero)
 	room_buero.call("setup_door", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0, -48.0)), slowmo)
-	room_buero.call("add_hostage", Vector3(-8.0, 0, -54.0), 180.0, "kneel", {"suit": Color(0.2, 0.2, 0.22), "hair": Color(0.1, 0.08, 0.06)})
-	room_buero.call("add_hostage", Vector3(-4.0, 0, -55.0), 180.0, "kneel", {"suit": Color(0.35, 0.3, 0.33), "hair": Color(0.5, 0.35, 0.2), "shirt": Color(0.85, 0.82, 0.8)})
+	room_buero.call("add_hostage", Vector3(-8.0, 0, -54.0), 180.0, "kneel", {"variant": "mantel", "suit": Color(0.2, 0.2, 0.22), "hair": Color(0.1, 0.08, 0.06)})
+	room_buero.call("add_hostage", Vector3(-4.0, 0, -55.0), 180.0, "kneel", {"variant": "frau2", "suit": Color(0.35, 0.3, 0.33), "hair": Color(0.5, 0.35, 0.2), "shirt": Color(0.85, 0.82, 0.8)})
 	room_buero.call("add_captor", "rifleman", Vector3(-9.2, 0, -53.4), 0)
 	room_buero.call("add_captor", "assault", Vector3(-2.8, 0, -54.6), 1)
 	# Tuer 3: Saal unterm Dach – Praesidentin Hartmann + zwei Abgeordnete
@@ -897,9 +1500,9 @@ func _build_rooms() -> void:
 	room_halle.set("exec_kick", 3.6)
 	add_child(room_halle)
 	room_halle.call("setup_door", Transform3D(Basis.IDENTITY, Vector3(0, Y2, -48.0)), slowmo)
-	room_halle.call("add_hostage", Vector3(0.0, Y2, -56.5), 180.0, "seat", {"suit": Color(0.42, 0.08, 0.1), "hair": Color(0.72, 0.72, 0.72), "shirt": Color(0.1, 0.1, 0.1), "display_name": "Hartmann"})
-	room_halle.call("add_hostage", Vector3(-5.0, Y2, -57.5), 180.0, "kneel", {"suit": Color(0.14, 0.15, 0.2)})
-	room_halle.call("add_hostage", Vector3(5.0, Y2, -57.5), 180.0, "kneel", {"suit": Color(0.25, 0.22, 0.2), "hair": Color(0.3, 0.2, 0.12)})
+	room_halle.call("add_hostage", Vector3(0.0, Y2, -56.5), 180.0, "seat", {"variant": "praesidentin", "suit": Color(0.42, 0.08, 0.1), "hair": Color(0.72, 0.72, 0.72), "shirt": Color(0.1, 0.1, 0.1), "display_name": "Hartmann"})
+	room_halle.call("add_hostage", Vector3(-5.0, Y2, -57.5), 180.0, "kneel", {"variant": "abgeordneter", "suit": Color(0.14, 0.15, 0.2)})
+	room_halle.call("add_hostage", Vector3(5.0, Y2, -57.5), 180.0, "kneel", {"variant": "alt", "suit": Color(0.25, 0.22, 0.2), "hair": Color(0.3, 0.2, 0.12)})
 	room_halle.call("add_captor", "officer", Vector3(1.3, Y2, -56.3), 0)
 	room_halle.call("add_captor", "rifleman", Vector3(-6.4, Y2, -57.0), 1)
 	room_halle.call("add_captor", "rifleman", Vector3(6.4, Y2, -57.0), 2)
@@ -917,7 +1520,7 @@ func _on_room_breached(r: Node, kind: String, flash: bool) -> void:
 	print("[kanzleramt] breach %s: %s%s" % [str(r.get("room_id")), kind, " + Blendgranate" if flash else ""])
 
 func _on_room_warned(_r: Node) -> void:
-	_say(StoryData.LENA, "Da drin zählt einer laut runter, Jonas. Die machen ernst – geh rein, jetzt!")
+	_say_opt(StoryData.LENA, "Da drin zählt einer laut runter, Jonas. Die machen ernst – geh rein, jetzt!", {"priority": 1, "cut": true, "max_age": 2.0})
 
 func _on_room_failed(r: Node, reason: String) -> void:
 	if _restarting:
@@ -926,9 +1529,9 @@ func _on_room_failed(r: Node, reason: String) -> void:
 	_fail_count += 1
 	print("[kanzleramt] FEHLSCHLAG %s: %s" % [str(r.get("room_id")), reason])
 	if reason == "shot":
-		_say(StoryData.VOSS, "Feuer einstellen! Das war eine Geisel! Kerner – Abbruch, zurück auf Position.")
+		_say_opt(StoryData.VOSS, "Feuer einstellen! Das war eine Geisel! Kerner – Abbruch, zurück auf Position.", {"priority": 2, "cut": true})
 	else:
-		_say(StoryData.LENA, "Schuss im Raum – sie haben eine Geisel erschossen. Zu langsam, Jonas. Zurück, noch mal.")
+		_say_opt(StoryData.LENA, "Schuss im Raum – sie haben eine Geisel erschossen. Zu langsam, Jonas. Zurück, noch mal.", {"priority": 2, "cut": true})
 	if slowmo != null:
 		slowmo.call("stop")
 	_later(1.8, func() -> void:
@@ -954,7 +1557,7 @@ func _on_player_respawned() -> void:
 	if _restarting:
 		_restarting = false
 		_later(1.5, func() -> void:
-			_say(StoryData.LENA, "Neuer Versuch. Ladung, Deckung, rein – und schieß nur, wenn die Linie frei ist."))
+			_say_opt(StoryData.LENA, "Neuer Versuch. Ladung, Deckung, rein – und schieß nur, wenn die Linie frei ist.", {"priority": 1, "max_age": 3.0}))
 
 # ------------------------------------------------------------------ Story
 
@@ -965,16 +1568,21 @@ func _intro() -> void:
 
 func _on_enter_lobby() -> void:
 	_obj("Säubere die Lobby")
-	_say(StoryData.FALK, "Kerner. Ich hatte gehofft, dass Sie es sind. Hinter jeder Tür hier steht einer meiner Männer mit einer Pistole. Klopfen Sie ruhig an.")
+	_when_radio_free(func() -> void:
+		if not _at_door1:
+			_say_opt(StoryData.FALK, "Kerner. Ich hatte gehofft, dass Sie es sind. Hinter jeder Tür hier steht einer meiner Männer mit einer Pistole. Klopfen Sie ruhig an.",
+				{"drop_live": true, "valid": func() -> bool: return not _at_door1}), 14.0)
 
 func _on_near_door1() -> void:
 	_obj("Befreie die Abgeordneten im Kabinettssaal")
-	_say(StoryData.LENA, "Kabinettssaal: drei Geiseln, drei Wachen. [E] halten für die Ladung, [F] tritt die Tür ein, [B] nimmt eine Blendgranate mit. Danach hast du zwei Sekunden – triff nur die Wachen.")
+	_at_door1 = true
+	_say_opt(StoryData.LENA, "Kabinettssaal: drei Geiseln, drei Wachen. [E] halten für die Ladung, [F] tritt die Tür ein, [B] nimmt eine Blendgranate mit. Danach hast du zwei Sekunden – triff nur die Wachen.",
+		{"priority": 1, "drop_live": true, "valid": func() -> bool: return not bool(room_saal.call("is_cleared"))})
 
 func _on_saal_cleared() -> void:
 	_checkpoint("cp_saal_frei")
 	_obj("Durchsuche die Büros im Erdgeschoss")
-	_say(StoryData.VOSS, "Saal gesichert! Meine Leute holen die Abgeordneten raus. Weiter, Kerner – erst das Ostbüro, dann der Westflügel.")
+	_say_opt(StoryData.VOSS, "Saal gesichert! Meine Leute holen die Abgeordneten raus. Weiter, Kerner – erst das Ostbüro, dann der Westflügel.", {"priority": 1})
 
 func _on_enter_corridor() -> void:
 	_spawn_wave(1)
@@ -985,25 +1593,25 @@ func _on_buero_cleared() -> void:
 
 func _on_enter_stairs() -> void:
 	_spawn_wave(2)
-	_say(StoryData.FALK, "Meine Garde weicht nicht, Kerner. Sie hat keinen Ort mehr, an den sie gehen könnte. Genau wie Sie.")
+	_say_opt(StoryData.FALK, "Meine Garde weicht nicht, Kerner. Sie hat keinen Ort mehr, an den sie gehen könnte. Genau wie Sie.", {"max_age": 3.0})
 
 func _on_landing() -> void:
 	_spawn_wave(3)
-	_say(StoryData.LENA, "Gepanzerte! Zieh auf Kopf und Gelenke, nicht auf die Platten.")
+	_say_opt(StoryData.LENA, "Gepanzerte! Zieh auf Kopf und Gelenke, nicht auf die Platten.", {"priority": 1, "cut": true})
 
 func _on_enter_og2() -> void:
 	_spawn_wave(3)
 	_obj("Befreie Präsidentin Hartmann")
-	_say(StoryData.LENA, "Letzte Tür. Die Präsidentin und zwei Abgeordnete, drei Wachen. Das muss sitzen, Jonas.")
+	_say_opt(StoryData.LENA, "Letzte Tür. Die Präsidentin und zwei Abgeordnete, drei Wachen. Das muss sitzen, Jonas.", {"priority": 1})
 
 func _on_halle_cleared() -> void:
 	_obj("")
 	_cine = true
 	_cine_look = Vector3(0, Y2 + 1.6, -57.0)
-	_say(StoryData.HARTMANN, "Nicht schießen! Ich bin Hartmann … Sie sind Voss' Leute?")
+	_say_opt(StoryData.HARTMANN, "Nicht schießen! Ich bin Hartmann … Sie sind Voss' Leute?", {"priority": 2, "cut": true})
 	_say(StoryData.KERNER, "Kerner. Wir bringen Sie raus, Frau Präsidentin.")
 	_say(StoryData.HARTMANN, "Riedhammer war eben noch hier – er will in den Bunker! Da, hinter dem Glas!")
-	_later(4.0, _riedhammer_run)
+	_later(4.0, _when_radio_free.bind(_riedhammer_run, 14.0))
 
 # ------------------------------------------------------------------ Zwischensequenz: Riedhammer flieht
 
@@ -1040,7 +1648,7 @@ func _riedhammer_run() -> void:
 	_ried_run = true
 	_ried.rotation.y = deg_to_rad(-90.0)   # schaut nach +x
 	_cine_look = _ried.global_position + Vector3(0, 1.6, 0)
-	_say(StoryData.RIEDHAMMER, "Falk! Die Tür – schließen Sie die verdammte Tür!", 2.6)
+	_say_opt(StoryData.RIEDHAMMER, "Falk! Die Tür – schließen Sie die verdammte Tür!", {"priority": 2, "cut": true}, 2.6)
 	var tw := create_tween()
 	tw.tween_property(_ried, "position", Vector3(-2.0, Y2, -74.6), 2.4)
 	tw.tween_property(_ried, "position", Vector3(0.0, Y2, -77.4), 1.0)
@@ -1066,7 +1674,8 @@ func _close_blast() -> void:
 
 func _after_escape() -> void:
 	_say(StoryData.FALK, "Zu spät, Kerner. Der General ist dort, wo Sie ihn nie erreichen. Und unter Ihren Füßen liegt genug Sprengstoff für den ganzen Spreebogen.")
-	_say(StoryData.VOSS, "Hartmann ist bei uns, Kerner. Der Bunker hat einen zweiten Zugang – unter der Spree. Lena hat die Haustechnik: Tür Nordost ist offen. Zur Panzertür!")
+	_say_opt(StoryData.VOSS, "Hartmann ist bei uns, Kerner. Der Bunker hat einen zweiten Zugang – unter der Spree. Lena hat die Haustechnik: Tür Nordost ist offen. Zur Panzertür!",
+		{"drop_live": true, "valid": func() -> bool: return not _finished})
 	_obj("Erreiche die Panzertür zum Regierungsbunker")
 	var tw := create_tween()
 	tw.tween_interval(1.5)
@@ -1080,9 +1689,10 @@ func _finish() -> void:
 		return
 	_finished = true
 	_obj("")
-	_say(StoryData.KERNER, "Riedhammer ist hinter der Panzertür. Er hat sich eingemauert.")
+	_say_opt(StoryData.KERNER, "Riedhammer ist hinter der Panzertür. Er hat sich eingemauert.", {"priority": 1})
 	_say(StoryData.VOSS, "Dann gehen wir von unten rein. Gute Arbeit, Kerner – heute Nacht holen wir uns den General.")
-	_later(4.0, _on_level_end)
+	# Level endet erst, wenn das Schlussgespraech durch ist
+	_later(1.0, _when_radio_free.bind(_on_level_end, 14.0))
 
 # ------------------------------------------------------------------ Laufzeit
 
@@ -1091,7 +1701,7 @@ func _process(delta: float) -> void:
 	# Ladungs-LEDs an den Saeulen blinken
 	if _leds != null:
 		var on := fmod(_t, 1.1) < 0.12
-		_leds.albedo_color = Color(3.0, 0.1, 0.05) if on else Color(0.25, 0.02, 0.01)
+		_leds.albedo_color = Color(1.6, 0.1, 0.05) if on else Color(0.25, 0.02, 0.01)
 	# flackernde Neonroehren
 	for f: Array in _flicker:
 		var l := f[0] as OmniLight3D

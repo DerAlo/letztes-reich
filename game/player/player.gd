@@ -236,9 +236,30 @@ func _ready() -> void:
 	_apply_height_shape(_height_cur)
 	Events.explosion.connect(_on_explosion)
 	Events.checkpoint_reached.connect(_on_checkpoint)
+	Events.story_cinematic.connect(_on_story_cinematic)
 	if not external_input:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_init_options()
+
+## Zwischensequenz/Kinobalken (Events.story_cinematic): Waffe und HUD (Munition, Nachlade-Hinweis, Prompts)
+## ausblenden, danach den vorherigen Zustand wiederherstellen. Zentral fuer alle Level (Cutscene, Bunker, ep_lena).
+var _cine_layers: Dictionary = {}
+
+func _on_story_cinematic(active: bool) -> void:
+	if active:
+		if not _cine_layers.is_empty():
+			return
+		for n: String in ["HUD", "WeaponLayer"]:
+			var layer := get_node_or_null(n) as CanvasLayer
+			if layer != null:
+				_cine_layers[n] = layer.visible
+				layer.visible = false
+		return
+	for n: String in _cine_layers:
+		var layer := get_node_or_null(n) as CanvasLayer
+		if layer != null:
+			layer.visible = bool(_cine_layers[n])
+	_cine_layers.clear()
 
 # ----------------------------------------------------------------- Optionen (Settings, Runde 6)
 # Ohne gespeicherte Werte (und immer unter --autopilot/--debug-server) gelten exakt die bisherigen Werte.
@@ -622,7 +643,7 @@ func _update_camera(delta: float) -> void:
 		th *= k * _opt_bob
 	_bob_v = lerpf(_bob_v, tv, 1.0 - exp(-8.0 * delta))
 	_bob_h = lerpf(_bob_h, th, 1.0 - exp(-8.0 * delta))
-	_wbob = lerpf(_wbob, clampf(spd / walk_speed, 0.0, 1.5) if walking else 0.0, 1.0 - exp(-8.0 * delta))
+	_wbob = lerpf(_wbob, clampf(spd / maxf(walk_speed, 0.1), 0.0, 1.5) if walking else 0.0, 1.0 - exp(-8.0 * delta))
 	var sn: float = sin(_bob_phase)
 	var dip: float = 1.0 - absf(sn)                      # 1 beim Auftreten
 	var bob := Vector3(sn * _bob_h, (0.363 - dip) * _bob_v, 0.0)
@@ -707,7 +728,9 @@ func _update_movement(delta: float) -> void:
 		_sprinting = was_sprinting     # Sprint in der Luft beibehalten
 	_sprint_amt = move_toward(_sprint_amt, 1.0 if _sprinting else 0.0, delta * 7.0)
 	# ADS
-	var ads_target: bool = _in_aim and not _sprinting
+	# Beim Nachladen nimmt der Spieler die Waffe aus dem Anschlag (sonst kippt die Nachladepose das
+	# Zielfernrohr direkt vor die Kamera und das Bild ist schwarz)
+	var ads_target: bool = _in_aim and not _sprinting and not (weapon != null and weapon.reloading)
 	var ads_rate: float = weapon.ads_speed if weapon else 10.0
 	_ads = move_toward(_ads, 1.0 if ads_target else 0.0, ads_rate * delta)
 	# Zielgeschwindigkeit
@@ -766,7 +789,8 @@ func _update_movement(delta: float) -> void:
 	else:
 		move_and_slide()
 	var real_h: float = Vector2(get_real_velocity().x, get_real_velocity().z).length()
-	_move_ratio = clampf(Vector2(velocity.x, velocity.z).length() / sprint_speed, 0.0, 1.0)
+	# Level koennen sprint_speed auf 0 setzen (kanalisation: Entschaerfen) -> 0/0 = NaN in Streuung/Fadenkreuz
+	_move_ratio = clampf(Vector2(velocity.x, velocity.z).length() / maxf(sprint_speed, 0.1), 0.0, 1.0)
 	if _sliding and _slide_t > 0.15 and real_h < 1.2:
 		_end_slide(false)                # gegen eine Wand gerutscht
 	is_crouching = stance != Stance.STAND or _sliding
@@ -1249,18 +1273,40 @@ func give_weapon(id: String, mag: int, reserve: int) -> Dictionary:
 	play_sfx("weapon_switch")
 	return old
 
-## Wand vor der Mündung (Strahl entlang der Blickrichtung, nur Welt): Viewmodel zieht sich zurück.
+## Wand vor der Mündung (Strahlen nur gegen Welt): Viewmodel zieht sich zurück.
+## Mittelstrahl entlang der Blickrichtung (blockiert ab 0.75 auch das Feuern) plus zwei Strahlen entlang
+## der tatsächlichen Waffenlage (Hüft-/Zielposition unten rechts bzw. unter der Visierlinie): fängt
+## Dachkanten, Brüstungen und Boden ab, die die Waffe treffen, obwohl die Bildmitte frei ist (ep_lena).
+## Die Waffenstrahlen ziehen die Waffe nur zurück (max. 0.7), sperren also nie den Abzug.
 func _update_wall() -> void:
 	var reach: float = 0.95 if weapon.is_long() else 0.6
+	if weapon.weapon_id == "g28":
+		reach = 1.1        # G28/Zielfernrohrgewehre sind deutlich länger
 	var from: Vector3 = camera.global_position
-	var to: Vector3 = from - camera.global_basis.z * reach
-	var q := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
-	var res: Dictionary = get_world_3d().direct_space_state.intersect_ray(q)
+	var space := get_world_3d().direct_space_state
 	var target: float = 0.0
-	if not res.is_empty() and not _mantling:
-		var d: float = from.distance_to(res.position)
-		target = clampf(1.0 - (d - reach * 0.4) / (reach * 0.6), 0.0, 1.0)
+	if not _mantling:
+		target = _wall_ray(space, from, Vector3(0.0, 0.0, -reach), reach, 1.0)
+		var bp: Vector3 = weapon.hip_pos
+		var bpv: Variant = weapon.get("_base_pos")
+		if bpv is Vector3:
+			bp = bpv
+		# Lauf liegt etwa auf Höhe der Pivot-Position, unterhalb der Visierlinie.
+		var off := Vector2(clampf(bp.x, -0.05, 0.3), clampf(bp.y, -0.3, -0.06))
+		var r2: float = reach * 0.9
+		target = maxf(target, _wall_ray(space, from, Vector3(off.x, off.y, -r2), r2, 0.7))
+		target = maxf(target, _wall_ray(space, from, Vector3(off.x * 0.5, off.y * 0.6, -r2 * 0.75), r2 * 0.75, 0.7))
 	_wall_amt = target
+
+## Ein Wandstrahl in Kamerakoordinaten; Ergebnis 0..cap nach Tiefe entlang der Blickrichtung.
+func _wall_ray(space: PhysicsDirectSpaceState3D, from: Vector3, local_to: Vector3, reach: float, cap: float) -> float:
+	var to: Vector3 = from + camera.global_basis * local_to
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
+	var res: Dictionary = space.intersect_ray(q)
+	if res.is_empty():
+		return 0.0
+	var depth: float = (res.position - from).dot(-camera.global_basis.z)
+	return clampf(1.0 - (depth - reach * 0.4) / (reach * 0.6), 0.0, 1.0) * cap
 
 ## Pickups in Reichweite: Munition automatisch, Waffen/Kisten per [E] (HUD-Hinweis).
 func _update_pickups(delta: float, busy: bool) -> void:

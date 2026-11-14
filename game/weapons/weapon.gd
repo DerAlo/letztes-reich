@@ -551,9 +551,9 @@ func _apply_hit(res: Dictionary, dir: Vector3) -> void:
 	var killed: bool = was_alive and not target.is_alive()
 	var deflected: bool = armor != null and bool(armor.call("armor_deflected"))
 	var no_blood: bool = armor != null and bool(armor.call("armor_blocks_blood"))
-	if is_enemy and not no_blood:
-		VFX.spawn_blood(pos, normal)
-	elif not is_enemy:
+	if is_enemy and not no_blood and VFX.is_bleeder(target):
+		VFX.spawn_blood(pos, normal, dir, 1.6 if headshot else 1.0)
+	elif not is_enemy or not VFX.is_bleeder(target):
 		VFX.spawn_impact(pos, normal, str(target.get_meta("surface", "metal")) if target is Node else "metal")
 	if was_alive and (killed or not deflected):
 		hit_confirmed.emit(killed, headshot and not deflected)
@@ -729,12 +729,28 @@ func _spawn_mag_debris() -> void:
 	get_tree().create_timer(0.3).timeout.connect(func() -> void:
 		for m: MeshInstance3D in meshes:
 			if is_instance_valid(m):
-				m.layers = 1)
+				_set_layers_safe(m, 1))
 	_debris.append(body)
 	while _debris.size() > MAX_DEBRIS:
 		var old: Variant = _debris.pop_front()
 		if is_instance_valid(old):
 			(old as Node).queue_free()
+
+## Render-Layer einer Geometrie im Baum aendern, ohne Licht-Paarungen zu verwaisen (Godot 4.7 Forward+
+## loest Licht-Paare beim Layerwechsel nicht auf -> haengende Zeiger, Absturz beim Freigeben; Details
+## in armored_enemy.gd _set_layers_safe). Kurz aus dem Baum nehmen loest die Paare mit der alten Maske.
+static func _set_layers_safe(gi: GeometryInstance3D, mask: int) -> void:
+	if gi == null or gi.layers == mask:
+		return
+	var p := gi.get_parent()
+	if p == null or not gi.is_inside_tree():
+		gi.layers = mask
+		return
+	var idx := gi.get_index()
+	p.remove_child(gi)
+	gi.layers = mask
+	p.add_child(gi)
+	p.move_child(gi, idx)
 
 func _collect_meshes(n: Node) -> Array[MeshInstance3D]:
 	var out: Array[MeshInstance3D] = []
@@ -898,6 +914,11 @@ func animate(delta: float, s: Dictionary) -> void:
 	rot += Vector3(-28.0, 10.0, 22.0) * mantle
 	# Wand: Mündung hoch, Waffe an den Körper gezogen
 	var wall_k: float = _wall_amt * (1.0 - mantle)
+	# Nachladen an der Wand (kanzleramt: vor der Breach-Tuer): Wand-Pose (Muendung hoch, zur Kamera)
+	# plus Nachlade-Pose (zur Mitte, hoch, eingedreht) addierten sich zu ~55 Grad Kippung 12 cm vor
+	# der Linse -> Waffe/Hand bildfuellend. Beim Nachladen nur eine leichte Wand-Pose.
+	if reloading:
+		wall_k *= 0.3
 	pos += Vector3(-0.02, -0.035, 0.11 if is_long() else 0.06) * wall_k
 	rot += Vector3(38.0 if is_long() else 30.0, 12.0, 14.0) * wall_k
 	# Nachladen
@@ -1273,7 +1294,22 @@ func _build_procedural() -> void:
 		_sight_f = fp
 	muzzle.position = muzzle_pos
 	if has_red_dot:
+		_fold_iron_sights(model)
 		_build_red_dot()
+
+## Klappvisier (MBUS) unter einer Optik umgeklappt: Kimme nach vorn, Korn nach hinten flach auf die
+## Schiene (Drehung um die Schienenoberkante = Ursprung der Teile). Freie Sicht durch das Glas.
+func _fold_iron_sights(model: Node3D) -> void:
+	var irons: Node = model.find_child("IronSights", true, false)
+	if irons == null:
+		return
+	var rear := irons.get_node_or_null("Rear") as Node3D
+	var front := irons.get_node_or_null("Front") as Node3D
+	if rear != null and front != null:
+		rear.rotation_degrees.x = -90.0
+		front.rotation_degrees.x = 90.0
+	else:
+		(irons as Node3D).visible = false
 
 const MODEL_TEX_DIR: String = "res://assets/weapons/m4a1/"
 const RED_DOT_SHADER: Shader = preload("res://game/weapons/red_dot.gdshader")

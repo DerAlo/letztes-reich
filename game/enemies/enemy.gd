@@ -218,8 +218,12 @@ var _ragdoll_bodies: Array[RigidBody3D] = []
 ## on_owner_died(). null = Standardverhalten (alle anderen Level).
 var stealth: Object = null
 
+## Spielweite Zaehigkeit: alle Gegner halten 50 % mehr aus (Nutzerwunsch).
+const HEALTH_SCALE: float = 1.5
+
 func _ready() -> void:
 	rng.randomize()
+	max_health *= HEALTH_SCALE
 	health = max_health
 	add_to_group("enemy")
 	add_to_group("damageable")
@@ -262,7 +266,8 @@ func take_hit_part(amount: float, source: Node, hit_position: Vector3, hit_norma
 		amount *= head_damage_multiplier
 	health -= amount
 	Events.enemy_damaged.emit(self, amount)
-	VFX.spawn_blood(hit_position, hit_normal)
+	if VFX.is_bleeder(self):
+		VFX.spawn_blood(hit_position, hit_normal)
 	_flinch = 1.0
 	_last_hit_head = headshot
 	var dir := -hit_normal

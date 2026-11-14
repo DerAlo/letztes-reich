@@ -17,6 +17,11 @@ func _ready() -> void:
 		lv.set("ambient_artillery", false)
 	add_child(lv)
 	await _wait(0.6)
+	if str(Game.arg("big", "")) != "":
+		# --bg setzt das Fenster nach 1 s auf 480x270 -> danach wieder vergroessern (lesbare Visierbilder)
+		await _wait(0.8)
+		get_window().size = Vector2i(1280, 720)
+		await _wait(0.3)
 	player = Game.get_player() as Player
 	player.external_input = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

@@ -74,6 +74,16 @@ var _last_progress_t: float = 0.0
 var _stall_streak: int = 0
 var _stall_wp: int = -1
 
+# Schleichen (Level-Hook autopilot_stealth())
+var _sneak_retreat_until: float = 0.0
+var _sneak_threat: Node3D = null
+var _sneak_wait_t: float = 0.0
+var _sneak_giveup_until: float = 0.0
+var _sneak_was: bool = false
+var _sneak_mode: String = ""
+var _chase_t: float = 0.0            ## so lange schon ohne Erfolg hinter Wachen her
+var _chase_skip: Dictionary = {}     ## Wache (instance id) -> sim-Zeit, bis zu der sie nicht mehr verfolgt wird
+
 # Granaten
 var _gren_cd_until: float = 10.0
 var _gren_state: bool = false
@@ -96,6 +106,7 @@ var _last_pos: Vector3 = Vector3.ZERO
 var _last_damage_t: float = -100.0
 var _last_damage_type: String = ""
 var _alive: bool = true
+var _was_dead: bool = false   # nach dem Respawn Wegpunkt-Index zurueckspulen
 var _result: String = ""
 var _t_deaths: Array[Dictionary] = []
 var _t_damage_taken: Dictionary = {}
@@ -201,6 +212,13 @@ func _physics_process(delta: float) -> void:
 	if _level == null or not is_instance_valid(_level):
 		_level = _find_level()
 		_read_level_info()
+	# Level-Hook: Abschnitt mit eigenem Bot ausserhalb des Spielers (z. B. Nachtzug-Tuer-MG) -> nur Zeit zaehlen.
+	if _level != null and _level.has_method("autopilot_paused") and bool(_level.call("autopilot_paused")):
+		_last_pos = _player.global_position
+		_stuck_ref_pos = _player.global_position
+		_stuck_ref_t = _sim_time
+		_last_progress_t = _sim_time
+		return
 	var ext_v: Variant = _player.get("ext")
 	if not (ext_v is Dictionary):
 		push_error("Autopilot: Player hat kein ext")
@@ -212,7 +230,11 @@ func _physics_process(delta: float) -> void:
 	_alive = bool(st.get("alive", true))
 	if not _alive:
 		_set_neutral(ext)
+		_was_dead = true
 		return
+	if _was_dead:
+		_was_dead = false
+		_rewind_waypoint()
 	_last_pos = _player.global_position
 	var grenades: int = int(st.get("grenades", 0))
 	if _last_grenades >= 0 and grenades < _last_grenades:
@@ -231,9 +253,17 @@ func _physics_process(delta: float) -> void:
 	_pick_target()
 	_update_noise(delta)
 
-	# ---- Zustand: Deckung
+	# ---- Zustand: Schleichen (Level-Hook autopilot_stealth(): Schleich-Level ohne Alarm)
 	var under_fire: bool = _sim_time - _last_damage_t < 2.0
-	var can_cover: bool = _sim_time >= _no_cover_until
+	var stealth: bool = _stealth_active() and not under_fire
+	var sneak: Dictionary = {}
+	if stealth:
+		_cover_mode = false
+		_gren_state = false
+		sneak = _stealth_plan(cam, delta)
+
+	# ---- Zustand: Deckung
+	var can_cover: bool = _sim_time >= _no_cover_until and not stealth
 	if can_cover and _target != null and not _cover_mode and _sim_time - _cover_decided_for > 6.0:
 		_cover_decided_for = _sim_time
 		if _rng.randf() < float(_prof["cover"]):
@@ -259,8 +289,13 @@ func _physics_process(delta: float) -> void:
 	if _target != null:
 		target_dist = (_target.global_position - cam.global_position).length()
 
+	if stealth:
+		crouch = true
 	if _gren_state:
 		pass  # Granatenwurf: stehen bleiben
+	elif stealth and not bool(sneak["route"]):
+		move_world = sneak["move"]
+		wants_move = bool(sneak["wants"])
 	elif _cover_mode:
 		var to_cover: Vector3 = _cover_pos - _player.global_position
 		to_cover.y = 0.0
@@ -270,7 +305,7 @@ func _physics_process(delta: float) -> void:
 			sprint = to_cover.length() > 4.0
 		else:
 			crouch = under_fire or health < max_health * 0.7
-	elif _target != null and target_dist < float(_prof["fire_range"]) and _sim_time >= _force_advance_until:
+	elif not stealth and _target != null and target_dist < float(_prof["fire_range"]) and _sim_time >= _force_advance_until:
 		# stehen und schiessen; Veteranen strafen leicht
 		if _prof["cover"] >= 0.8 and target_dist > 8.0 and under_fire:
 			if _sim_time > _strafe_until:
@@ -293,7 +328,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			move_world = flat.normalized()
 			wants_move = true
-			sprint = _vis.is_empty() and flat.length() > 6.0 and _skill != "novice"
+			sprint = _vis.is_empty() and flat.length() > 6.0 and _skill != "novice" and not stealth
 
 	# Entstecken
 	if _sim_time < _unstick_until:
@@ -326,6 +361,10 @@ func _physics_process(delta: float) -> void:
 		aim_point = _gren_point
 		have_aim = true
 		combat_aim = true
+	elif stealth:
+		if sneak["look"] is Vector3:
+			aim_point = sneak["look"]
+			have_aim = true
 	elif _target != null:
 		aim_point = _aim_point_of(_target)
 		have_aim = true
@@ -357,7 +396,7 @@ func _physics_process(delta: float) -> void:
 	# ---- Feuern
 	var fire: bool = false
 	var aim_btn: bool = false
-	if _target != null and not _gren_state and not reloading and ammo > 0:
+	if _target != null and not stealth and not _gren_state and not reloading and ammo > 0:
 		var cone: float = minf(float(_prof["fire_cone"]), maxf(0.35, 1.3 * rad_to_deg(atan(0.45 / maxf(target_dist, 1.0)))))
 		if true_err < cone and target_dist < float(_prof["fire_range"]):
 			if _sim_time >= _fire_off_until:
@@ -379,8 +418,9 @@ func _physics_process(delta: float) -> void:
 			ext["reload"] = true
 			_reload_cd = 0.8
 
-	# ---- Granaten
-	_update_grenade(ext, grenades, true_err, cam)
+	# ---- Granaten (beim Schleichen nie)
+	if not stealth:
+		_update_grenade(ext, grenades, true_err, cam)
 
 	if _debug and _target != null and int(_sim_time * 6.0) != int((_sim_time - delta) * 6.0):
 		print("[ap] t=%.1f dist=%.1f err=%.2f yaw=%.2f pit=%.2f cone=%s fire=%s vel=%s ammo=%d" % [_sim_time, target_dist, true_err, angs.x, angs.y, str(_prof["fire_cone"]), str(fire), str(_look_vel), ammo])
@@ -401,6 +441,147 @@ func _set_neutral(ext: Dictionary) -> void:
 	_look_vel = Vector2.ZERO
 
 
+# --------------------------------------------------------------------------- Schleichen
+
+## Schleich-Level melden ueber autopilot_stealth(), ob gerade geschlichen werden soll (kein Alarm).
+## Kommt der Bot dabei 30 s nicht voran, gibt er das Schleichen fuer 25 s auf (Lauf soll fertig werden).
+func _stealth_active() -> bool:
+	var on: bool = _level != null and _level.has_method("autopilot_stealth") and bool(_level.call("autopilot_stealth"))
+	if on and _sim_time >= _sneak_giveup_until and _sim_time - _last_progress_t > 30.0:
+		_sneak_giveup_until = _sim_time + 25.0
+		_last_progress_t = _sim_time
+		print("[autopilot] Schleichen aufgegeben bei t=%.1f (wp %d)" % [_sim_time, _wp_idx])
+	on = on and _sim_time >= _sneak_giveup_until
+	if on != _sneak_was:
+		_sneak_was = on
+		print("[autopilot] Schleichen %s bei t=%.1f" % ["an" if on else "aus", _sim_time])
+	return on
+
+
+## Schleich-Entscheidung: zurueckweichen (Verdacht steigt), Takedown anschleichen (ahnungslose Wache nah),
+## warten (Wache schaut her) oder geduckt der Route folgen ("route" = true).
+func _stealth_plan(cam: Camera3D, delta: float) -> Dictionary:
+	var res: Dictionary = {"route": true, "move": Vector3.ZERO, "wants": false, "look": null}
+	var pp: Vector3 = _player.global_position
+	var threat: Node3D = null
+	var threat_s: float = 0.0
+	var prey: Node3D = null
+	var prey_d: float = 9.0
+	var watcher: Node3D = null
+	var watcher_d: float = 15.0
+	for n in get_tree().get_nodes_in_group("enemy"):
+		var e: Node3D = n as Node3D
+		if e == null or (e.has_method("is_alive") and not e.is_alive()):
+			continue
+		var b: Variant = e.get("stealth")
+		if not (b is Object) or not (b as Object).has_method("get_suspicion"):
+			continue
+		var to: Vector3 = e.global_position - pp
+		var dy: float = absf(to.y)
+		if dy > 3.0:
+			continue
+		to.y = 0.0
+		var d: float = to.length()
+		if d > 30.0 or d < 0.05:
+			continue
+		var s: float = float((b as Object).call("get_suspicion"))
+		if s > threat_s:
+			threat_s = s
+			threat = e
+		if bool((b as Object).call("is_aware")):
+			continue
+		var efwd: Vector3 = -e.global_transform.basis.z
+		efwd.y = 0.0
+		efwd = efwd.normalized()
+		var facing: float = efwd.dot(-to / d)   # > 0: Wache schaut in unsere Richtung
+		var sees: bool = bool(e.get("_los"))
+		var chest: Vector3 = e.global_position + Vector3.UP * 1.1
+		if d < prey_d and dy < 1.2 and (facing < 0.3 or not sees) and _sim_time >= float(_chase_skip.get(e.get_instance_id(), 0.0)) 				and _los(cam.global_position, chest):
+			prey = e
+			prey_d = d
+		elif d < watcher_d and facing > 0.35 and sees:
+			watcher = e
+			watcher_d = d
+	# 0) Level-Hook autopilot_hold(): Einweisung abwarten (geduckt stehen bleiben, z. B. vor dem Abstieg)
+	if threat_s < 0.25 and _level != null and _level.has_method("autopilot_hold") and bool(_level.call("autopilot_hold")):
+		_last_progress_t = _sim_time
+		res["route"] = false
+		_sneak_log("einweisung", null, 0.0)
+		return res
+	# 1) Verdacht steigt: aus dem Blick zurueckweichen
+	if threat != null and threat_s >= 0.25 and threat_s < 1.0 and _sim_time >= _sneak_retreat_until:
+		_sneak_retreat_until = _sim_time + 1.8
+		_sneak_threat = threat
+	if _sim_time < _sneak_retreat_until and _sneak_threat != null and is_instance_valid(_sneak_threat):
+		var away: Vector3 = pp - _sneak_threat.global_position
+		away.y = 0.0
+		var back: Vector3 = away.normalized()
+		if _wp_idx > 0:
+			var prev: Vector3 = _waypoints[mini(_wp_idx - 1, _waypoints.size() - 1)] - pp
+			prev.y = 0.0
+			if prev.length() > 0.8 and prev.normalized().dot(back) > -0.2:
+				back = prev.normalized()
+		res["route"] = false
+		res["move"] = back
+		res["wants"] = true
+		res["look"] = _sneak_threat.global_position + Vector3.UP * 1.4
+		_sneak_log("zurueck", _sneak_threat, threat_s)
+		return res
+	# 2) Ahnungslose Wache in Reichweite: anschleichen (Takedown loest das Level per try_auto aus) --
+	#    aber nicht, solange eine zweite Wache hersieht (ausser das Opfer ist schon fast erreicht)
+	#    Holt der Bot sie in 5 s nicht ein (Streife laeuft weiter und dreht am Wendepunkt um), 20 s in Ruhe lassen.
+	#    (Zeit laeuft weiter, auch wenn der Bot zwischen zwei Streifen wechselt; ohne Ziel klingt sie ab.)
+	if prey == null:
+		_chase_t = maxf(0.0, _chase_t - delta)
+	if prey != null and prey_d > 3.0:
+		_chase_t += delta
+		if _chase_t > 5.0:
+			_chase_skip[prey.get_instance_id()] = _sim_time + 20.0
+			_sneak_log("abbrechen", prey, prey_d)
+			_chase_t = 0.0
+			prey = null
+	if prey != null and (watcher == null or watcher == prey or prey_d < 3.0):
+		var tp: Vector3 = prey.global_position - pp
+		tp.y = 0.0
+		res["route"] = false
+		res["move"] = tp.normalized() if tp.length() > 1.0 else Vector3.ZERO
+		res["wants"] = tp.length() > 1.0
+		res["look"] = prey.global_position + Vector3.UP * 1.1
+		_sneak_wait_t = 0.0
+		_sneak_log("anschleichen", prey, prey_d)
+		return res
+	# 3) Wache schaut her: kurz abwarten (hoechstens 8 s am Stueck), dann trotzdem weiter
+	#    Kommt sie naeher als 8 m, langsam zurueck (vorheriger Wegpunkt), statt in ihrem Blick zu stehen.
+	if watcher != null and _sneak_wait_t < 8.0:
+		_sneak_wait_t += delta
+		res["route"] = false
+		res["look"] = watcher.global_position + Vector3.UP * 1.4
+		if watcher_d < 8.0:
+			var off: Vector3 = pp - watcher.global_position
+			off.y = 0.0
+			var bk: Vector3 = off.normalized()
+			if _wp_idx > 0:
+				var pv: Vector3 = _waypoints[mini(_wp_idx - 1, _waypoints.size() - 1)] - pp
+				pv.y = 0.0
+				if pv.length() > 0.8 and pv.normalized().dot(bk) > -0.2:
+					bk = pv.normalized()
+			res["move"] = bk
+			res["wants"] = true
+		_sneak_log("warten", watcher, watcher_d)
+		return res
+	if watcher == null:
+		_sneak_wait_t = maxf(0.0, _sneak_wait_t - delta * 0.5)
+	_sneak_log("route", null, 0.0)
+	return res
+
+
+func _sneak_log(mode: String, who: Node3D, v: float) -> void:
+	if mode == _sneak_mode:
+		return
+	_sneak_mode = mode
+	print("[autopilot] schleichen: %s t=%.1f pos=%s %s %.2f" % [mode, _sim_time, str(_player.global_position.snapped(Vector3.ONE * 0.1)), str(who.global_position.snapped(Vector3.ONE * 0.1)) if who != null else "", v])
+
+
 # --------------------------------------------------------------------------- Route / Stuck
 
 func _current_waypoint() -> Vector3:
@@ -410,6 +591,26 @@ func _current_waypoint() -> Vector3:
 		return _end_pos
 	return _last_pos
 
+
+## Nach dem Respawn am Checkpoint liegt der aktuelle Wegpunkt oft weit voraus (im Kampf erreicht);
+## die Luftlinie dorthin fuehrt dann durch Waende (bunker: Korridor -> Lagezentrum, wp 17). Daher
+## auf den naechstgelegenen bereits erreichten Wegpunkt zurueckspringen und die Route neu ablaufen.
+func _rewind_waypoint() -> void:
+	var last: int = mini(_wp_idx, _waypoints.size() - 1)
+	var best: int = -1
+	var best_d: float = INF
+	for i in range(last + 1):
+		var d: Vector3 = _waypoints[i] - _player.global_position
+		var dist: float = Vector2(d.x, d.z).length() + absf(d.y) * 2.0
+		if dist < best_d:
+			best_d = dist
+			best = i
+	if best >= 0 and best < _wp_idx:
+		print("[autopilot] Respawn: Wegpunkt %d -> %d" % [_wp_idx, best])
+		_wp_idx = best
+		_route_done_time = -1.0
+		_stuck_streak = 0
+		_last_progress_t = _sim_time
 
 func _advance_waypoint() -> void:
 	_wp_idx += 1
@@ -827,6 +1028,9 @@ func _finish(result: String) -> void:
 		f.store_string(JSON.stringify(data, "\t"))
 		f.close()
 	print("[autopilot] FERTIG result=%s deaths=%d sim=%.1fs telemetry=%s" % [result, _t_deaths.size(), _sim_time, path])
+	var rv := get_node_or_null("/root/DebugServer/Review")   # nur mit --review (game/debug/review.gd)
+	if rv != null:
+		rv.call("finish", result, _t_deaths.size(), _sim_time)
 	get_tree().quit()
 
 

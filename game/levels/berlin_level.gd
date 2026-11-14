@@ -106,6 +106,24 @@ func _later(t: float, f: Callable) -> void:
 func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	Events.story_radio.emit(speaker, text, dur)
 
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key, siehe story_ui.gd say()).
+func _say_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+## Funk frei (laufende Zeile + Warteschlange)? Fuer Ansagen, die nicht hinter einem Gespraech haengen sollen.
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f ausfuehren, sobald der Funk frei ist (hoechstens max_wait s warten).
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_busy() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
+
 func _obj(text: String) -> void:
 	Events.story_objective.emit(text)
 
@@ -826,6 +844,11 @@ func _build_markers() -> void:
 		["assault", 3, 6.0, 0.05, -244.0], ["heavy", 3, -2.0, 0.05, -236.0], ["drone", 3, -8.0, 7.0, -220.0], ["drone", 3, 10.0, 8.0, -228.0],
 		["assault", 4, -6.0, 0.05, -273.0], ["rifleman", 4, 7.0, 0.05, -274.0], ["rifleman", 4, -12.0, 0.05, -268.0],
 		["heavy", 4, 10.0, 0.05, -275.0],
+		# Verstaerkung (mehr Gegner): Boulevard-Flanken, Platz-Rand, Treppe Sendezentrum
+		["rifleman", 1, -8.0, 0.05, -76.0], ["rifleman", 1, 8.0, 0.05, -94.0], ["marksman", 1, -10.0, 0.05, -96.0], ["rifleman", 1, -12.0, 0.05, -80.0],
+		["rifleman", 2, -6.0, 0.05, -132.0], ["assault", 2, 6.0, 0.05, -138.0], ["rifleman", 2, 6.0, 0.05, -159.0], ["rifleman", 2, -9.0, 0.05, -150.0],
+		["rifleman", 3, 16.0, 0.05, -204.0], ["rifleman", 3, -20.0, 0.05, -196.0],
+		["rifleman", 4, -13.0, 0.05, -264.0],
 		# gepanzerte Soldaten + Juggernaut vor dem Sendezentrum (Finale nach dem Buehnenanschlag)
 		["armored", 2, -4.0, 0.05, -158.0], ["armored", 3, 8.0, 0.05, -231.0], ["armored", 4, -14.0, 0.05, -276.0],
 		["juggernaut", 4, 0.0, 0.05, -281.0],
@@ -1073,7 +1096,7 @@ func _blast() -> void:
 	_later(2.8, func() -> void: _spawn_wave(1))
 	_later(4.0, func() -> void: _say(SD.WEBER, "Explosion an der Bühne! Haltet die Stellung, ich kläre die Lage.", 3.2))
 	_later(4.5, func() -> void: _loop_2d("amb_battle", -16.0))
-	_later(7.0, _start_coup)
+	_later(7.0, _when_radio_free.bind(_start_coup, 5.0))   # Putsch-Durchsage erst, wenn Webers Lagemeldung durch ist
 
 func _start_coup() -> void:
 	for i in _screens.size():
@@ -1085,10 +1108,10 @@ func _start_coup() -> void:
 	fx.call("add_searchlight", Vector3(19.0, 25.5, -140.0), 30.0, -16.0, 35.0, 0.26, 45.0)
 	fx.call("add_searchlight", Vector3(10.0, 31.0, -286.0), 180.0, -14.0, 30.0, 0.2, 55.0)
 	_say(PA, "Bürger Berlins. Ausländische Kräfte haben unsere Feier angegriffen. Die Ordnungsfront übernimmt ab sofort den Schutz des Landes.", 6.0)
-	_later(6.5, func() -> void: _say(SD.LENA, "Das sind unsere Leute – mit Armbinden. Ordnungsfront! Die schießen auf alles, was sich bewegt.", 4.0))
-	_later(11.0, func() -> void:
-		_say(SD.WEBER, "Das ist ein Putsch. Das Sendezentrum am Ende der Achse – solange sie senden, glaubt ihnen das Land. Schaltet es ab.", 5.0)
-		_obj("Kämpf dich zum Sendezentrum durch"))
+	# Gespraech: im selben Frame eingereiht -> StoryUI spielt die Zeilen nacheinander, jede direkt nach der vorigen
+	_say(SD.LENA, "Das sind unsere Leute – mit Armbinden. Ordnungsfront! Die schießen auf alles, was sich bewegt.", 4.0)
+	_say(SD.WEBER, "Das ist ein Putsch. Das Sendezentrum am Ende der Achse – solange sie senden, glaubt ihnen das Land. Schaltet es ab.", 5.0)
+	_later(11.0, func() -> void: _obj("Kämpf dich zum Sendezentrum durch"))
 	_spawn_tank()
 
 # ------------------------------------------------------------------ Ablauf: Kampf
@@ -1096,7 +1119,7 @@ func _start_coup() -> void:
 func _on_cp_boulevard() -> void:
 	_checkpoint("cp_boulevard")
 	_say(PA, "Bleibt in euren Häusern. Wer sich fügt, hat nichts zu befürchten.", 3.6)
-	_later(3.8, func() -> void: _say(SD.LENA, "Klingt, als hätten sie die Durchsage schon vor der Feier aufgenommen.", 3.2))
+	_say_opt(SD.LENA, "Klingt, als hätten sie die Durchsage schon vor der Feier aufgenommen.", 3.2, {"max_age": 3.0})
 
 func _spawn_heli() -> void:
 	var pts: Array[Vector3] = [Vector3(30.0, 30.0, -118.0), Vector3(0.0, 27.0, -150.0), Vector3(-40.0, 34.0, -195.0), Vector3(-150.0, 60.0, -260.0)]
@@ -1174,20 +1197,20 @@ func _on_wave3() -> void:
 		_later(6.0, func() -> void:
 			if is_instance_valid(_tank) and not _ending:
 				_tank.call("set_target", _player()))
-		_later(3.0, func() -> void: _say(SD.LENA, "Panzer auf dem Platz! Bleib in Deckung – Kugeln bringen da nichts.", 3.4))
+		_later(3.0, func() -> void: _say_opt(SD.LENA, "Panzer auf dem Platz! Bleib in Deckung – Kugeln bringen da nichts.", 3.4, {"priority": 1, "max_age": 6.0}))
 
 func _on_cp_plaza() -> void:
 	_checkpoint("cp_plaza")
 	_obj("Überquere den Platz – Sendezentrum am Nordende")
 	_say(PA, "Ordnung. Stärke. Das letzte Reich beginnt heute Nacht.", 3.4)
-	_later(3.8, func() -> void: _say(SD.LENA, "„Das letzte Reich.“ Gefeiert mit Sprengstoff unter der Bühne.", 3.2))
-	_later(8.0, func() -> void: _say(SD.WEBER, "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin – ich warte auf euch.", 4.0))
+	_say_opt(SD.LENA, "„Das letzte Reich.“ Gefeiert mit Sprengstoff unter der Bühne.", 3.2, {"max_age": 3.0})   # Antwort auf die Durchsage, sonst weg
+	_say(SD.WEBER, "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin – ich warte auf euch.", 4.0)
 
 func _on_cp_tower() -> void:
 	_checkpoint("cp_tower")
 	_obj("Triff Weber im Funkraum")
 	_say(SD.WEBER, "Kommt rein, Kerner. Nur du. Aksoy sichert den Eingang.", 3.4)
-	_later(3.8, func() -> void: _say(SD.LENA, "Warum nur du? Und wie ist er vor uns da reingekommen? Jonas – pass auf.", 4.0))
+	_say(SD.LENA, "Warum nur du? Und wie ist er vor uns da reingekommen? Jonas – pass auf.", 4.0)
 	if _tank != null and is_instance_valid(_tank):
 		_tank.call("set_target", null)
 

@@ -109,15 +109,17 @@ func _setup_environment() -> void:
 	env.fog_sky_affect = 0.75
 	env.fog_aerial_perspective = 0.3
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.008
-	env.volumetric_fog_albedo = Color(0.82, 0.83, 0.86)
-	env.volumetric_fog_emission = Color(0.006, 0.005, 0.007)
+	# Volumetrischer Dunst: frueher hell (Albedo 0.82, GI-Injektion) -> alles jenseits der Nebellaenge wurde zur
+	# weissen Silhouette vor schwarzem Himmel. Jetzt dunkler, duenner und auch auf den Himmel angewandt.
+	env.volumetric_fog_density = 0.0055
+	env.volumetric_fog_albedo = Color(0.4, 0.41, 0.45)
+	env.volumetric_fog_emission = Color(0.004, 0.0035, 0.004)
 	env.volumetric_fog_emission_energy = 1.0
-	env.volumetric_fog_anisotropy = 0.45
-	env.volumetric_fog_length = 120.0
-	env.volumetric_fog_gi_inject = 0.4
-	env.volumetric_fog_ambient_inject = 0.1
-	env.volumetric_fog_sky_affect = 0.0
+	env.volumetric_fog_anisotropy = 0.5
+	env.volumetric_fog_length = 160.0
+	env.volumetric_fog_gi_inject = 0.0
+	env.volumetric_fog_ambient_inject = 0.03
+	env.volumetric_fog_sky_affect = 0.6
 	env.glow_enabled = true
 	env.glow_hdr_threshold = 0.9
 	env.glow_intensity = 0.95
@@ -145,6 +147,13 @@ func _setup_environment() -> void:
 	add_child(moon)
 	VfxEnv.apply_render_quality(get_viewport())
 	PostFx.apply(self, "night_city")
+	# Nach PostFx.apply (das Profil setzt Glow/Exposure neu): Lampen und Fenster sollen nicht "bluehen".
+	# Erst klar ueberhelle Pixel (Lampenkoepfe, Blitze) bekommen einen schmalen Schein.
+	env.glow_hdr_threshold = 2.4
+	env.glow_intensity = 0.35
+	env.glow_bloom = 0.0
+	env.glow_strength = 0.8
+	env.tonemap_exposure = 1.25
 
 func _build_ground() -> void:
 	World.ground(self)
@@ -195,6 +204,15 @@ func _build_markers() -> void:
 		["rifleman", 7, Vector3(9.6, 60.05, 4.0)], ["rifleman", 7, Vector3(-9.6, 60.05, 9.5)], ["heavy", 7, Vector3(-9.6, 60.05, -4.0)],
 		["assault", 8, Vector3(-9.6, 60.05, 6.0)], ["armored", 8, Vector3(9.6, 60.05, 8.0)], ["rifleman", 8, Vector3(9.6, 60.05, -2.0)],
 		["rifleman", 9, Vector3(20.0, 0.05, -24.0)], ["rifleman", 9, Vector3(28.0, 0.05, -20.0)], ["assault", 9, Vector3(14.0, 0.05, -30.0)],
+		# Verstaerkung (mehr Gegner): Messe-Flanken, Turmfuss, Treppen, Plattform, Sendesaal, Lkw-Trupp
+		["rifleman", 0, Vector3(-8.0, 0.05, 72.0)], ["rifleman", 0, Vector3(12.0, 0.05, 64.0)],
+		["rifleman", 1, Vector3(-8.0, 0.05, 20.0)], ["rifleman", 1, Vector3(8.0, 0.05, 24.0)], ["assault", 1, Vector3(-2.0, 0.05, 32.0)],
+		["rifleman", 2, World.corner_in(7) + Vector3(0, 0.05, 0)],
+		["rifleman", 3, Vector3(3.0, 18.05, 8.0)],
+		["assault", 4, World.corner_ex(11) + Vector3(0, 0.05, 0)],
+		["rifleman", 5, Vector3(-4.0, 60.05, 4.0)], ["rifleman", 5, Vector3(-7.0, 60.05, -4.0)],
+		["rifleman", 6, Vector3(-10.0, 60.05, -1.0)], ["rifleman", 7, Vector3(-10.0, 60.05, -7.0)], ["rifleman", 8, Vector3(-10.0, 60.05, 1.0)],
+		["rifleman", 9, Vector3(23.0, 0.05, -17.0)], ["rifleman", 9, Vector3(17.0, 0.05, -26.0)],
 	]
 	for i in spawns.size():
 		var s: Array = spawns[i]
@@ -277,6 +295,25 @@ func _ready() -> void:
 
 func _say(speaker: String, text: String, dur: float = 0.0) -> void:
 	Events.story_radio.emit(speaker, text, dur)
+
+## Funkzeile mit StoryUI-Optionen (max_age/valid/priority/cut/key/drop_live, siehe story_ui.gd say()).
+## Zeilen im selben Frame bilden ein Gespraech: jede kommt direkt nach ihrer Vorgaengerin.
+func _say_opt(speaker: String, text: String, dur: float, opts: Dictionary) -> void:
+	get_tree().call_group(&"story_ui", &"say", speaker, text, dur, opts)
+
+## Restdauer laufender + wartender Funkzeilen.
+func _radio_busy() -> float:
+	var ui := get_tree().get_first_node_in_group(&"story_ui")
+	if ui != null and ui.has_method("busy_left"):
+		return float(ui.call("busy_left"))
+	return 0.0
+
+## f ausfuehren, sobald der Funk frei ist (hoechstens max_wait s warten).
+func _when_radio_free(f: Callable, max_wait: float = 6.0) -> void:
+	if _radio_busy() <= 0.3 or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_free.bind(f, max_wait - 0.25))
 
 var _last_objective: String = ""
 
@@ -375,13 +412,16 @@ func _enter_gallery() -> void:
 	_checkpoint("cp_gallery")
 	_spawn_wave(4)
 	_objective("Über die Wartungsstege im Stahlgitter nach oben – 60 Meter")
-	_say(SD.LENA, "Du bist draußen am Gitter, ich seh dich vom Lkw aus. Nicht nach unten schauen, Jonas.", 5.0)
-	_later(14.0, func() -> void:
+	_say_opt(SD.LENA, "Du bist draußen am Gitter, ich seh dich vom Lkw aus. Nicht nach unten schauen, Jonas.", 5.0,
+		{"priority": 1, "max_age": 4.0, "valid": func() -> bool: return phase == "gallery"})
+	_later(14.0, _when_radio_free.bind(func() -> void:
 		if phase == "gallery":
-			_say(SD.RIEDHAMMER, "Bürger Berlins. Die Ordnung kehrt zurück. Wer heute Nacht seine Tür verschlossen hält, hat nichts zu fürchten.", 7.0))
-	_later(30.0, func() -> void:
+			_say_opt(SD.RIEDHAMMER, "Bürger Berlins. Die Ordnung kehrt zurück. Wer heute Nacht seine Tür verschlossen hält, hat nichts zu fürchten.", 7.0,
+				{"max_age": 3.0, "valid": func() -> bool: return phase == "gallery"}), 8.0))
+	_later(30.0, _when_radio_free.bind(func() -> void:
 		if phase == "gallery":
-			_say(SD.LENA, "Er ist auf allen Frequenzen. Radio, Lautsprecherwagen, sogar die Straßenbahnanzeigen.", 5.0))
+			_say_opt(SD.LENA, "Er ist auf allen Frequenzen. Radio, Lautsprecherwagen, sogar die Straßenbahnanzeigen.", 5.0,
+				{"max_age": 3.0, "valid": func() -> bool: return phase == "gallery"}), 8.0))
 
 func _enter_top() -> void:
 	if phase in ["top", "hold", "broadcast", "heli", "descent", "done"]:
@@ -391,15 +431,17 @@ func _enter_top() -> void:
 	_spawn_wave(5)
 	_objective("In den Sendesaal – ans Sendepult")
 	_say(SD.RIEDHAMMER, "Die sogenannten Loyalen sind Söldner einer fremden Macht. Meldet sie. Die Garde schützt euch.", 6.5)
-	_say(SD.LENA, "Das Pult im Sendesaal. Halt den Schalter, bis ich seine Leitung überschrieben hab.", 5.0)
+	_say_opt(SD.LENA, "Das Pult im Sendesaal. Halt den Schalter, bis ich seine Leitung überschrieben hab.", 5.0,
+		{"priority": 2, "valid": func() -> bool: return phase == "top"})
 
 func _enter_hold() -> void:
 	_set_phase("hold")
 	_hold_active = true
 	_hold_label.visible = true
 	_objective("Halte [E] am Sendepult – Riedhammers Sendung unterbrechen (0 %)")
-	_say(SD.LENA, "Ich bin drin. Halt durch, das dauert. Die merken das sofort.", 4.5)
-	_say(SD.RIEDHAMMER, "Ab Mitternacht gilt das Standrecht. Wer sich der Garde widersetzt –", 5.0)
+	_say_opt(SD.LENA, "Ich bin drin. Halt durch, das dauert. Die merken das sofort.", 4.5, {"priority": 1, "cut": true})
+	_say_opt(SD.RIEDHAMMER, "Ab Mitternacht gilt das Standrecht. Wer sich der Garde widersetzt –", 5.0,
+		{"max_age": 3.0, "valid": func() -> bool: return phase == "hold"})
 
 func _tick_hold(delta: float) -> void:
 	var holding := false
@@ -424,10 +466,12 @@ func _tick_hold(delta: float) -> void:
 		_spawn_wave(6)
 	if hold_progress >= 0.45 and not _waves_spawned.has(7):
 		_spawn_wave(7)
-		_say(SD.LENA, "Halbe Strecke. Von der Terrasse kommen noch mehr!", 3.5)
+		_say_opt(SD.LENA, "Halbe Strecke. Von der Terrasse kommen noch mehr!", 3.5,
+			{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return phase == "hold"})
 	if hold_progress >= 0.75 and not _waves_spawned.has(8):
 		_spawn_wave(8)
-		_say(SD.FALK, "Kappt die Leitung im Sendesaal! Sofort!", 3.5)
+		_say_opt(SD.FALK, "Kappt die Leitung im Sendesaal! Sofort!", 3.5,
+			{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return phase == "hold"})
 	if hold_progress >= 1.0:
 		_enter_broadcast()
 
@@ -447,7 +491,7 @@ func _enter_broadcast() -> void:
 func _enter_heli() -> void:
 	_set_phase("heli")
 	_objective("Kampfhubschrauber! Panzerfaust im Sendesaal – hol ihn runter (3 Treffer)")
-	_say(SD.LENA, "Jonas, Hubschrauber von Westen! Im Sendesaal liegt eine Panzerfaust, Kisten daneben.", 5.0)
+	_say_opt(SD.LENA, "Jonas, Hubschrauber von Westen! Im Sendesaal liegt eine Panzerfaust, Kisten daneben.", 5.0, {"priority": 1, "cut": true})
 	_say(SD.FALK, "Kerner. Ich hab mir gedacht, dass Sie das sind. Schöne Aussicht da oben, nicht? Genießen Sie sie.", 6.5)
 	_spawn_heli()
 
@@ -492,7 +536,7 @@ func _on_heli_destroyed() -> void:
 	if _heli_dead:
 		return
 	_heli_dead = true
-	_say(SD.LENA, "Er ist runter! Er brennt!", 3.0)
+	_say_opt(SD.LENA, "Er ist runter! Er brennt!", 3.0, {"priority": 2, "cut": true})
 	_later(4.0, _enter_descent)
 
 func heli_node() -> Node3D:
@@ -508,7 +552,8 @@ func _enter_descent() -> void:
 	_lift_state = "open"
 	_set_gate("deck_gate", false)
 	_say(SD.FALK, "Alle Einheiten zum Funkturm. Riegelt den Fuß ab. Niemand kommt da runter.", 5.0)
-	_say(SD.LENA, "Fassadenlift an der Ostseite! Neunzig Sekunden, Jonas, dann ist unten zu.", 5.0)
+	_say_opt(SD.LENA, "Fassadenlift an der Ostseite! Neunzig Sekunden, Jonas, dann ist unten zu.", 5.0,
+		{"priority": 2, "drop_live": true, "valid": func() -> bool: return _lift_state == "open"})
 
 func _tick_descent(delta: float) -> void:
 	if _timeout_pending:
@@ -538,7 +583,7 @@ func _tick_lift(delta: float) -> void:
 				_lift_state = "closing"
 				_lift_t = 0.0
 				_set_gate("deck_gate", true)
-				_say(SD.KERNER, "Bin im Lift. Runter!", 2.5)
+				_say_opt(SD.KERNER, "Bin im Lift. Runter!", 2.5, {"priority": 1, "max_age": 2.0})
 		"closing":
 			_lift_t += delta
 			if _lift_t > 0.8:
@@ -556,12 +601,12 @@ func _tick_lift(delta: float) -> void:
 				_vanguard = true
 				_spawn_wave(9)
 				_spawn_trucks()
-				_say(SD.LENA, "Falks Vorhut am Fuß, Lkw von Süden! Ich geb dir Deckung!", 4.0)
+				_say_opt(SD.LENA, "Falks Vorhut am Fuß, Lkw von Süden! Ich geb dir Deckung!", 4.0, {"priority": 1, "max_age": 3.0})
 			if p.y <= 0.0:
 				_lift_state = "bottom"
 				_set_gate("exit_gate", false)
 				_show_truck_beacon()
-				_say(SD.LENA, "Unten! Raus und zu mir – Lkw steht vorn links, ich blink dich an!", 3.5)
+				_say_opt(SD.LENA, "Unten! Raus und zu mir – Lkw steht vorn links, ich blink dich an!", 3.5, {"priority": 1, "cut": true})
 
 func _spawn_trucks() -> void:
 	for i in 2:
@@ -649,9 +694,9 @@ func _on_truck() -> void:
 	_done = true
 	_set_phase("done")
 	_objective("Entkommen")
-	_say(SD.LENA, "Drin! Halt dich fest!", 2.5)
+	_say_opt(SD.LENA, "Drin! Halt dich fest!", 2.5, {"priority": 2, "cut": true})
 	_say(SD.KERNER, "Fahr. Und Lena – gute Sendung.", 3.0)
-	_on_level_end()
+	_later(0.5, _when_radio_free.bind(_on_level_end, 8.0))
 
 func _on_player_respawned() -> void:
 	if player != null:
@@ -669,7 +714,8 @@ func _on_player_respawned() -> void:
 		_set_gate("exit_gate", true)
 		if _beacon != null:
 			_beacon.visible = false
-		_say(SD.LENA, "Noch mal, Jonas. Der Lift ist wieder oben.", 3.0)
+		_say_opt(SD.LENA, "Noch mal, Jonas. Der Lift ist wieder oben.", 3.0,
+			{"priority": 1, "cut": true, "max_age": 2.0, "valid": func() -> bool: return _lift_state == "open"})
 
 # ================================================================== Physik/Optik
 
@@ -685,7 +731,7 @@ func _physics_process(delta: float) -> void:
 		"hold":
 			_tick_hold(delta)
 		"broadcast":
-			if _pt > 15.0:
+			if _pt > 15.0 and (_radio_busy() <= 0.3 or _pt > 25.0):
 				_enter_heli()
 		"heli":
 			_tick_heli(delta)

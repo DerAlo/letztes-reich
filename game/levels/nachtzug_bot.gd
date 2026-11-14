@@ -4,6 +4,9 @@ extends RefCounted
 ##   walk -> Wegpunkte ablaufen, optional kaempfen; "prone" = hinlegen und stillhalten (Tunnel)
 ## Die Tuer-MG-Phase uebernimmt der RailRideBot (rail_ride.gd).
 ## Schusslinien-Pruefung: nie feuern, wenn Reisende (no_shoot) oder Lena in der Linie sind.
+## Deckung (14.11.2026): liefert die Aufgabe "cover" (Punkte hinter Kisten), zieht sich der Bot bei
+## wenig Leben dorthin zurueck, duckt sich, laedt nach und wartet die Regeneration ab - wie ein Mensch,
+## statt im offenen Gang nachzuladen. "crouch_fight" = geduckt schiessen (Gegner treffen x0.7).
 
 var lv: Node3D
 var pl: Node3D
@@ -25,6 +28,14 @@ var _blocked_t: float = 0.0
 var _side: float = 1.0
 var _cur_yaw: float = 0.0
 var _cur_pitch: float = 0.0
+var _recover: bool = false
+var _recover_t: float = 0.0
+var _cover_pt: Vector3 = Vector3.ZERO
+var _crouch_fight: bool = false
+var _block_name: String = ""
+var _lena_aside_ms: int = 0       ## Lena per "Dort hin" zur Seite geschickt (0 = nein)
+var _idle_t: float = 0.0           ## Zeit am Routenende ohne sichtbares Ziel (-> Abteile absuchen)
+var _skip: Dictionary = {}          ## Ziel -> Zeit (ms), bis zu der es wegen blockierter Linie ignoriert wird
 
 var _err_deg: float = 1.5
 var _react: float = 0.45
@@ -55,6 +66,8 @@ func setup(level: Node3D, player: Node3D) -> void:
 
 func _on_respawn() -> void:
 	_route_key = ""
+	_recover = false
+	_lena_aside_ms = 0
 	_target = null
 	_engage = null
 	if pl != null and is_instance_valid(pl):
@@ -84,6 +97,12 @@ func tick(delta: float) -> void:
 			e["weapon"] = 1
 		_walk(e, task, delta)
 	_reload_if_empty(e)
+	# nach dem "Zur Seite"-Befehl wieder folgen lassen (wie ein Spieler, der [H] Folgen drueckt)
+	if _lena_aside_ms > 0 and Time.get_ticks_msec() > _lena_aside_ms + 6000:
+		_lena_aside_ms = 0
+		var c: Object = lv.get("_lena_c")
+		if c != null:
+			c.call("order_follow")
 
 func _weapon_id() -> String:
 	var w: Node = pl.get("weapon")
@@ -124,6 +143,22 @@ func _walk(e: Dictionary, task: Dictionary, delta: float) -> void:
 		_ri = _nearest_ahead(path)
 		_stuck_t = 0.0
 		_stuck_ref = pl.global_position
+	_crouch_fight = bool(task.get("crouch_fight", false))
+	var covers: Array = task.get("cover", [])
+	if not covers.is_empty() and not prone:
+		if _recover:
+			if _recover_tick(e, delta):
+				return
+		elif _hp_frac() < 0.5 and _engage != null and is_instance_valid(_engage) and bool(_engage.call("is_alive")):
+			var c: Variant = _pick_cover(covers)
+			if c != null:
+				_cover_pt = c
+				_recover = true
+				_recover_t = 0.0
+				print("[nz-bot] Deckung bei %s (Leben %.0f %%)" % [str(_cover_pt), _hp_frac() * 100.0])
+				return
+	elif _recover:
+		_recover = false
 	if bool(task.get("fight", false)):
 		_scan_t -= delta
 		if _scan_t <= 0.0:
@@ -139,8 +174,13 @@ func _walk(e: Dictionary, task: Dictionary, delta: float) -> void:
 		_stuck_ref = pl.global_position
 		return
 	if _ri >= path.size():
+		_idle_t += delta
+		var doors: Array = task.get("search_doors", [])
+		if not doors.is_empty() and _idle_t > 3.0 and _search(e, doors, float(task.get("search_x", 0.5)), delta):
+			return
 		_turn_to(0.0, -3.0, delta)
 		return
+	_idle_t = 0.0
 	var tgt: Vector3 = path[_ri]
 	var pos := pl.global_position
 	var flat := Vector2(tgt.x - pos.x, tgt.z - pos.z)
@@ -163,6 +203,82 @@ func _walk(e: Dictionary, task: Dictionary, delta: float) -> void:
 		print("[nz-bot] haengt bei %s -> Wegpunkt %d" % [str(pos), _ri])
 		pl.global_position = tgt + Vector3(0, 0.1, 0)
 		_stuck_t = 0.0
+
+## Routenende, aber noch Gegner da (z. B. im Abteil verschanzt, ohne Sicht vom Gang): wie ein Spieler
+## den Gang bis vor die Abteiltuer gehen und hineinschauen. Gang bei x = sx, Abteile bei x < -0.1.
+func _search(e: Dictionary, doors: Array, sx: float, delta: float) -> bool:
+	var pos := pl.global_position
+	var best: Node3D = null
+	var bd := 20.0
+	for n in pl.get_tree().get_nodes_in_group("enemy"):
+		if not (n is Node3D) or (n as Node).is_in_group("vehicle") or not bool(n.call("is_alive")):
+			continue
+		var d := (n as Node3D).global_position.distance_to(pos)
+		if d < bd:
+			bd = d
+			best = n
+	if best == null:
+		return false
+	var ep := best.global_position
+	var dz: float = doors[0]
+	for z: float in doors:
+		if absf(z - ep.z) < absf(dz - ep.z):
+			dz = z
+	var tgt := Vector3(sx, pos.y, dz) if absf(pos.z - dz) > 0.3 and pos.x > -0.1 else Vector3(ep.x, pos.y, dz)
+	var flat := Vector2(tgt.x - pos.x, tgt.z - pos.z)
+	if flat.length() < 0.25:
+		_turn_to(rad_to_deg(atan2(-(ep.x - pos.x), -(ep.z - pos.z))), -3.0, delta)
+		return true
+	var yaw := rad_to_deg(atan2(-flat.x, -flat.y))
+	var err := _turn_to(yaw, -4.0, delta)
+	e["move"] = Vector2(0.0, 0.7 if err < 35.0 else 0.0)
+	return true
+
+func _hp_frac() -> float:
+	return float(pl.get("health")) / maxf(float(pl.get("max_health")), 1.0)
+
+## Naechster Deckungspunkt auf Hoehe des Spielers oder dahinter (Gegner kommen von -Z).
+func _pick_cover(covers: Array) -> Variant:
+	var pos := pl.global_position
+	var best: Variant = null
+	var bd := 14.0
+	for c: Vector3 in covers:
+		if c.z < pos.z - 1.0 or absf(c.y - pos.y) > 1.4:
+			continue
+		var d := Vector2(c.x - pos.x, c.z - pos.z).length()
+		if d < bd:
+			bd = d
+			best = c
+	return best
+
+## Rueckzug in Deckung: rueckwaerts hinlaufen (Blick bleibt nach vorn), dort ducken, nachladen,
+## bis ~90 % Leben regeneriert sind. true = Bot ist beschaeftigt.
+func _recover_tick(e: Dictionary, delta: float) -> bool:
+	_recover_t += delta
+	var pos := pl.global_position
+	var flat := Vector2(_cover_pt.x - pos.x, _cover_pt.z - pos.z)
+	var hp := _hp_frac()
+	if (hp >= 0.9 and flat.length() < 0.6) or _recover_t > 14.0:
+		_recover = false
+		print("[nz-bot] Deckung verlassen nach %.1f s (Leben %.0f %%)" % [_recover_t, hp * 100.0])
+		return false
+	_turn_to(0.0, -2.0, delta)
+	_stuck_ref = pos
+	if flat.length() > 0.3:
+		# Weltrichtung in Eingabe (x = rechts, y = vor) relativ zum Blick umrechnen
+		var yr := deg_to_rad(_cur_yaw)
+		var fwd := Vector2(-sin(yr), -cos(yr))
+		var right := Vector2(cos(yr), -sin(yr))
+		var d := flat.normalized()
+		e["move"] = Vector2(d.dot(right), d.dot(fwd)) * (1.0 if flat.length() > 0.8 else 0.5)
+		if _recover_t > 6.0:
+			pl.global_position = Vector3(_cover_pt.x, pos.y, _cover_pt.z)
+	else:
+		e["crouch"] = true
+		var w: Node = pl.get("weapon")
+		if w != null and not bool(w.get("reloading")) and int(w.get("ammo_mag")) < int(w.get("mag_size")) * 0.8:
+			e["reload"] = true
+	return true
 
 func _nearest_ahead(path: Array) -> int:
 	var pos := pl.global_position
@@ -199,6 +315,8 @@ func _shoot_at(e: Dictionary, t: Node3D, delta: float, prone: bool) -> void:
 	var pitch := rad_to_deg(atan2(dv.y, Vector2(dv.x, dv.z).length())) + _err.y * shrink * 0.6
 	var err := _turn_to(yaw, pitch, delta)
 	e["aim"] = true
+	if _crouch_fight and not prone:
+		e["crouch"] = true
 	if _aim_t < _react or err > 2.5:
 		return
 	# Schusslinie frei? Die tatsaechliche Blickrichtung zaehlt (nicht das Ziel).
@@ -208,14 +326,39 @@ func _shoot_at(e: Dictionary, t: Node3D, delta: float, prone: bool) -> void:
 		_blocked_t += delta
 		if _blocked_t > 1.0 and not prone:
 			e["move"] = Vector2(_side, 0.0)
-		if _blocked_t > 3.0:
-			print("[nz-bot] Schusslinie blockiert -> %s, Spieler %s" % [str(t.name), str(pl.global_position.snapped(Vector3.ONE * 0.1))])
+		if _block_name == "Lena" and _blocked_t > 1.2 and _lena_aside_ms == 0:
+			_lena_aside(t)
+		if _blocked_t > 2.0:
+			# Mensch wuerde das naechste freie Ziel nehmen statt seitlich vor einem Pulk hin und her zu treten
+			print("[nz-bot] Schusslinie blockiert (%s) -> %s %s, Spieler %s" % [_block_name, str(t.name), str(t.global_position.snapped(Vector3.ONE * 0.1)), str(pl.global_position.snapped(Vector3.ONE * 0.1))])
 			_side = -_side
 			_blocked_t = 1.0
+			_skip[t.get_instance_id()] = Time.get_ticks_msec() + 3000
+			_engage = null
+			_scan_t = 0.0
 		return
 	_blocked_t = 0.0
 	_burst_t += delta
 	e["fire"] = fmod(_burst_t, 0.7) < 0.28
+
+## Squad-Befehl "Dort hin" wie ein Spieler: Lena auf die andere Gangseite, weg von der Schusslinie.
+func _lena_aside(t: Node3D) -> void:
+	var c: Object = lv.get("_lena_c")
+	var lena: Node3D = lv.get("lena")
+	if c == null or lena == null or not is_instance_valid(lena):
+		return
+	var a := pl.global_position
+	var b := t.global_position
+	var lp := lena.global_position
+	var k := clampf((lp.z - a.z) / (b.z - a.z), 0.0, 1.0) if absf(b.z - a.z) > 0.1 else 0.0
+	var line_x := lerpf(a.x, b.x, k)
+	var inside := a.y < 3.0
+	var lo := -0.2 if inside else -0.8
+	var hi := 1.3 if inside else 0.8
+	var nx := lo if absf(lo - line_x) > absf(hi - line_x) else hi
+	if bool(c.call("order_move", Vector3(nx, lp.y, lp.z))):
+		_lena_aside_ms = Time.get_ticks_msec()
+		print("[nz-bot] Lena zur Seite (x %.1f -> %.1f)" % [lp.x, nx])
 
 func _aim_point(t: Node3D) -> Vector3:
 	if t.has_method("get_aim_point"):
@@ -233,6 +376,9 @@ func _line_clear(from: Vector3, to: Vector3, target: Node3D) -> bool:
 	for n in guarded:
 		if not (n is Node3D) or n == pl or n == target:
 			continue
+		# Reisende 0,75 m Sicherheitsabstand; an Lena (Profi, unverwundbar) schiesst ein Mensch auch
+		# knapp vorbei - mit 0,75 m stand der Bot minutenlang, wenn ein Gegner neben ihr stand.
+		var clear_r := 0.4 if (n as Node).is_in_group("friendly") and not (n as Node).is_in_group("no_shoot") else 0.75
 		var pts: Array = []
 		if (n as Node).has_method("clearance_points"):
 			pts = n.call("clearance_points")
@@ -243,13 +389,15 @@ func _line_clear(from: Vector3, to: Vector3, target: Node3D) -> bool:
 			var tt := (p - from).dot(seg) / len2
 			if tt <= 0.0 or tt >= 1.0:
 				continue
-			if (from + seg * tt).distance_to(p) < 0.75:
+			if (from + seg * tt).distance_to(p) < clear_r:
+				_block_name = str((n as Node).name)
 				return false
 	var q := PhysicsRayQueryParameters3D.create(from, to, 1 | 4, [pl.get_rid()])
 	var hit := pl.get_world_3d().direct_space_state.intersect_ray(q)
 	if not hit.is_empty():
 		var c: Object = hit.get("collider")
 		if c is Node and ((c as Node).is_in_group("no_shoot") or (c as Node).is_in_group("friendly")):
+			_block_name = str((c as Node).name)
 			return false
 	return true
 
@@ -258,10 +406,16 @@ func _find_threat(rng_max: float) -> Node3D:
 	var from := cam.global_position
 	var best: Node3D = null
 	var bd := rng_max
+	var now := Time.get_ticks_msec()
+	var fallback: Node3D = null
 	for n in pl.get_tree().get_nodes_in_group("enemy"):
 		if not (n is Node3D) or (n as Node).is_in_group("vehicle"):
 			continue
 		if not bool(n.call("is_alive")):
+			continue
+		if int(_skip.get(n.get_instance_id(), 0)) > now:
+			if fallback == null:
+				fallback = n
 			continue
 		var p := (n as Node3D).global_position + Vector3.UP * 1.2
 		var d := from.distance_to(p)
@@ -272,4 +426,4 @@ func _find_threat(rng_max: float) -> Node3D:
 			continue
 		bd = d
 		best = n
-	return best
+	return best if best != null else fallback

@@ -8,7 +8,8 @@ extends Node
 enum S { CALM, SUSPICIOUS, INVESTIGATE, SEARCH, BODY, RETURN, COMBAT, DEAD }
 
 const SHOW_AT := 0.35          ## ab hier "verdaechtig" (Bark, stehen bleiben)
-const MIN_SUSPECT_TIME := 0.9  ## so lange dauert es mindestens vom Verdacht bis zum Alarm (ausser sehr nah)
+const MIN_SUSPECT_TIME := 1.3  ## so lange dauert es mindestens vom Verdacht bis zum Alarm (ausser sehr nah)
+const INSTANT_DIST := 3.5     ## naeher dran: Entdeckung ohne Mindest-Vorwarnzeit
 const CONE_FULL := 52.0
 const CONE_HALF := 80.0
 const FEEL_RADIUS := 1.6
@@ -300,7 +301,7 @@ func _perceive(delta: float) -> void:
 	# Entdeckt
 	if suspicion >= 1.0 and rate > 0.0:
 		var d := enemy._dist_to_player()
-		if state != S.SUSPICIOUS or _state_t >= MIN_SUSPECT_TIME or d < 6.0:
+		if state != S.SUSPICIOUS or _state_t >= MIN_SUSPECT_TIME or d < INSTANT_DIST:
 			_spot()
 			return
 	# Geraeusche (laufen, rennen)

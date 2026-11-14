@@ -184,6 +184,24 @@ static func _hangars(b, d, body: StaticBody3D) -> void:
 		# Dachoberlichter (Waermeverlust)
 		for k in 3:
 			b.box(Vector3(cx - 18.0 + k * 18.0, hw + 9.4, cz), Vector3(3, 0.4, dep - 6), H_ROOF + 0.05, 0.0, -1.0, 0.02, 1.0)
+		# Stahlbinder unter dem Bogendach zeichnen sich als Waermebruecken ab, Giebelkanten, Dachluefter
+		for k4 in 8:
+			var rz := cz - dep * 0.5 + 2.0 + k4 * (dep - 4.0) / 7.0
+			b.cyl(Vector3(cx, hw, rz), w * 0.5 + 0.4, 0.6, H_ROOF + 0.028, 20, -1.0, basis, 0.015)
+		for ez: float in [-1.0, 1.0]:
+			b.cyl(Vector3(cx, hw, cz + ez * (dep * 0.5 - 0.2)), w * 0.5 + 0.55, 0.5, H_ROOF - 0.02, 20, -1.0, basis, 0.015)
+		for k5 in 2:
+			var vx := cx - 9.0 + k5 * 18.0
+			b.box(Vector3(vx, hw + 9.9, cz - 8.0 + k5 * 16.0), Vector3(2.2, 1.2, 2.2), H_VENT - 0.08, 0.0, H_VENT, 0.03, 1.0)
+		# Laengsseiten: Stahlstuetzen, Oberlichtband (beheizte Halle), Fallrohre
+		for sx: float in [-1.0, 1.0]:
+			var fx := cx + sx * (w * 0.5 + 0.2)
+			for k6 in 8:
+				var pz := cz - dep * 0.5 + 1.0 + k6 * (dep - 2.0) / 7.0
+				b.box(Vector3(fx, hw * 0.5, pz), Vector3(0.45, hw, 0.6), H_WALL + 0.012, 0.0, H_WALL + 0.02, 0.02, 1.0)
+				if k6 < 7:
+					b.box(Vector3(fx, 10.0, pz + (dep - 2.0) / 14.0), Vector3(0.2, 1.3, 3.6), 0.37, 0.0, 0.39, 0.03, 0.0)
+			b.box(Vector3(fx, 0.35, cz), Vector3(0.5, 0.7, dep), H_CONC, 0.0, -1.0, 0.02, 1.0)
 		# Tore nach Sueden (+z): Hangar 2 offen -> warmes Inneres sichtbar
 		if i == 1:
 			b.box(Vector3(cx, 6.5, cz + dep * 0.5 + 0.05), Vector3(w - 6, 13, 0.3), 0.46, 0.0, 0.4, 0.05, 0.0)
@@ -193,12 +211,32 @@ static func _hangars(b, d, body: StaticBody3D) -> void:
 			d.box(Vector3(cx, 0.1, cz + dep * 0.5 + 9), Vector3(w - 10, 0.1, 18), 0.315, 0.0, -1.0, 0.02, 0.0)
 		else:
 			for k2 in 6:
-				b.box(Vector3(cx - w * 0.5 + 5 + k2 * 10.0, 6.0, cz + dep * 0.5 + 0.3), Vector3(9.4, 12, 0.5), H_WALL - 0.035, 0.0, H_WALL - 0.01, 0.02, 1.0)
+				var px := cx - w * 0.5 + 5 + k2 * 10.0
+				var ph := H_WALL - 0.035 + (fposmod(sin(px * 12.9898) * 43758.55, 1.0) - 0.5) * 0.012
+				b.box(Vector3(px, 6.0, cz + dep * 0.5 + 0.3), Vector3(9.4, 12, 0.5), ph, 0.0, ph + 0.025, 0.02, 1.0)
+				# Torblaetter: Querriegel und Fugen, Warmluft-Schlitz unten
+				for r in 3:
+					b.box(Vector3(px, 2.5 + r * 3.8, cz + dep * 0.5 + 0.6), Vector3(9.2, 0.25, 0.12), ph + 0.018, 0.0, -1.0, 0.01, 1.0)
+				b.box(Vector3(px + 4.85, 6.0, cz + dep * 0.5 + 0.58), Vector3(0.18, 12, 0.1), H_WALL - 0.07, 0.0, -1.0, 0.01, 0.0)
+				d.box(Vector3(px, 0.08, cz + dep * 0.5 + 0.62), Vector3(9.0, 0.16, 0.08), 0.42, 0.0, -1.0, 0.02, 0.0)
+			# Schlupftuer mit warmem Lichtspalt, Laufschiene, Torlampen mit Lichtfleck
+			b.box(Vector3(cx - w * 0.5 + 5, 1.1, cz + dep * 0.5 + 0.6), Vector3(1.0, 2.2, 0.1), H_WIN - 0.04, 0.0, -1.0, 0.02, 0.0)
+			b.box(Vector3(cx, 12.3, cz + dep * 0.5 + 0.7), Vector3(w + 2.0, 0.6, 0.6), H_WALL + 0.01, 0.0, -1.0, 0.02, 1.0)
+			for lx: float in [-1.0, 1.0]:
+				d.box(Vector3(cx + lx * (w * 0.5 - 4.0), 12.9, cz + dep * 0.5 + 0.9), Vector3(0.6, 0.4, 0.5), H_LAMP)
+				d.box(Vector3(cx + lx * (w * 0.5 - 4.0), 0.08, cz + dep * 0.5 + 4.0), Vector3(6.0, 0.06, 6.0), 0.3, 0.0, -1.0, 0.02, 0.0)
 		# Anbau (Werkstatt, beheizt)
 		b.box(Vector3(cx, 3.0, cz - dep * 0.5 - 5), Vector3(w * 0.7, 6, 10), H_WALL + 0.03, 0.0, -1.0, 0.03, 1.0)
 		for k3 in 5:
 			b.box(Vector3(cx - w * 0.3 + k3 * w * 0.15, 3.4, cz - dep * 0.5 - 10.1), Vector3(2.2, 1.2, 0.2), H_WIN, 0.0, -1.0, 0.02, 0.0)
 		b.box(Vector3(cx + 10, 7.5, cz - dep * 0.5 - 6), Vector3(1.4, 3, 1.4), H_VENT)
+		# Anbau: Attika, Klimageraete, Heizungskamin (Abgasfahne warm), beheizte Tuer
+		b.box(Vector3(cx, 6.25, cz - dep * 0.5 - 10.0), Vector3(w * 0.7 + 0.3, 0.5, 0.3), H_WALL - 0.01)
+		for k7 in 3:
+			b.box(Vector3(cx - 14.0 + k7 * 7.0, 6.6, cz - dep * 0.5 - 4.0), Vector3(2.0, 1.2, 1.6), H_VENT - 0.12, 0.0, H_VENT - 0.05, 0.03, 1.0)
+		b.cyl(Vector3(cx - 16.0, 8.0, cz - dep * 0.5 - 7.0), 0.35, 4.0, H_VENT - 0.1, 8, H_VENT + 0.12)
+		b.box(Vector3(cx + 4.0, 1.1, cz - dep * 0.5 - 10.1), Vector3(1.2, 2.2, 0.2), H_WIN - 0.02, 0.0, -1.0, 0.02, 0.0)
+		d.box(Vector3(cx + 4.0, 2.6, cz - dep * 0.5 - 10.4), Vector3(0.4, 0.3, 0.3), H_LAMP)
 		_col(body, Vector3(cx, hw * 0.5 + 2.0, cz), Vector3(w, hw + 4.0, dep))
 
 static func _tower(b, d, body: StaticBody3D) -> void:
@@ -496,7 +534,8 @@ static func _forest(root: Node3D) -> void:
 				scl.append(_rng.randf_range(1.0, 1.6))
 			z += 12.0
 		x += 12.0
-	# Baumreihen an Feldwegen
+	# Baumreihen an Feldwegen (Laubbaeume)
+	var n_wood := pts.size()
 	for k in 12:
 		var a := Vector3(_rng.randf_range(-2000, 2000), 0, _rng.randf_range(-1800, 1100))
 		var dirv := Vector3(cos(0.21 + (PI * 0.5 if k % 2 == 0 else 0.0)), 0, sin(0.21 + (PI * 0.5 if k % 2 == 0 else 0.0)))
@@ -509,23 +548,84 @@ static func _forest(root: Node3D) -> void:
 			pts.append(p)
 			heat.append(_rng.randf())
 			scl.append(_rng.randf_range(0.9, 1.25))
-	var tm := GSMesh.new()
-	tm.cyl(Vector3(0, 2.5, 0), 0.35, 5.0, 0.3, 5)
-	tm.sphere(Vector3(0, 9.0, 0), Vector3(7.5, 9.0, 7.5), 0.33, 0.29, 0.06)
-	tm.sphere(Vector3(1.2, 11.5, 0.8), Vector3(4.5, 5.0, 4.5), 0.31, 0.28, 0.06)
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_custom_data = true
-	mm.mesh = tm.commit()
-	mm.instance_count = pts.size()
+	var n_forest := n_wood
+	# Baumarten (Brandenburg): Kiefern ueberwiegen, Fichtenhorste, Laubholz an Raendern und Wegen.
+	# Eigener Zufallsstrom fuer die Artwahl, damit _rng (Stellung/Drehung) unveraendert bleibt.
+	var fa := FastNoiseLite.new()
+	fa.seed = 4021
+	fa.frequency = 0.0045
+	var vr := RandomNumberGenerator.new()
+	vr.seed = 515
+	var meshes: Array = _tree_meshes()
+	var lists: Array = []
+	for _m in meshes:
+		lists.append([])
 	for i in pts.size():
+		var kind := 2   # Laub
+		if i < n_forest:
+			var a := fa.get_noise_2d(pts[i].x, pts[i].z) + vr.randf_range(-0.3, 0.3)
+			kind = 2 if a < -0.3 else (1 if a > 0.28 else 0)
+		var vi := kind * 2 + (vr.randi() & 1)
 		var s := scl[i]
-		var xf := Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.85, 1.15), s)), pts[i])
-		mm.set_instance_transform(i, xf)
-		mm.set_instance_custom_data(i, Color(heat[i], 0.5, 0.0, 0.0))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = "Forest"
-	mmi.multimesh = mm
-	mmi.material_override = GSMesh.mat("forest")
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mmi)
+		var yaw := _rng.randf() * TAU
+		var sy := _rng.randf_range(0.85, 1.15)
+		if kind == 0:
+			sy *= 1.05
+		var xf := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s * sy, s)), pts[i])
+		lists[vi].append([xf, heat[i]])
+	for vi in meshes.size():
+		var l: Array = lists[vi]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
+		mm.mesh = meshes[vi]
+		mm.instance_count = l.size()
+		for j in l.size():
+			mm.set_instance_transform(j, l[j][0])
+			mm.set_instance_custom_data(j, Color(l[j][1], 0.5, 0.0, 0.0))
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Forest%d" % vi
+		mmi.multimesh = mm
+		mmi.material_override = GSMesh.mat("forest")
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mmi)
+
+## Waermebild-Baeume: [Kiefer a, Kiefer b, Fichte a, Fichte b, Laub a, Laub b].
+## Kronen sind waermer als der naechtliche Boden (Blattmasse speichert, Himmel kuehlt die Oberseite).
+static func _tree_meshes() -> Array:
+	var out: Array = []
+	for v in 2:
+		# Kiefer: hoher, kahler Stamm, flache unregelmaessige Schirmkrone aus 3-4 Klumpen
+		var m := GSMesh.new()
+		m.cyl(Vector3(0, 6.0, 0), 0.26, 12.0, 0.30, 5, 0.31, Basis(Vector3.FORWARD, 0.04 - v * 0.07), 0.03, 0.6)
+		m.cyl(Vector3(0.9, 11.0, 0.3), 0.1, 3.0, 0.31, 4, -1.0, Basis(Vector3.FORWARD, -0.9), 0.03)
+		m.lump(Vector3(0.2, 13.4, 0), Vector3(6.2, 2.6, 5.4), 0.335, 0.285, 0.06, 3 + v, 0.35)
+		m.lump(Vector3(2.2, 12.4, -1.1), Vector3(4.0, 2.0, 3.8), 0.34, 0.29, 0.06, 7 + v, 0.35, 7, 4)
+		m.lump(Vector3(-1.7, 12.8 + v * 0.8, 1.5), Vector3(4.4, 2.3, 4.0), 0.34, 0.29, 0.06, 11 + v, 0.35, 7, 4)
+		if v == 1:
+			m.lump(Vector3(-0.6, 14.6, -1.4), Vector3(3.2, 1.8, 3.0), 0.33, 0.28, 0.06, 17, 0.3, 6, 4)
+		out.append(m.commit())
+	for v in 2:
+		# Fichte: schlanker Kegel aus gezackten, haengenden Etagen
+		var m := GSMesh.new()
+		m.cyl(Vector3(0, 1.0, 0), 0.24, 2.0, 0.31, 5)
+		var tiers := 6 + v
+		for t in tiers:
+			var f := float(t) / float(tiers)
+			var y0 := 1.0 + f * (13.5 + v)
+			var r := 3.3 * (1.0 - f * 0.86) * (1.0 + 0.08 * sin(float(t * 5 + v)))
+			m.star_cone(y0, 3.6 - f * 1.2, r, lerpf(0.345, 0.31, f), lerpf(0.33, 0.29, f), 0.05, 7, t * 3 + v,
+					Vector3(0.15 * sin(float(t + v)), 0, 0.15 * cos(float(t * 2))))
+		out.append(m.commit())
+	for v in 2:
+		# Laubbaum: kurzer Stamm, zwei Hauptaeste, breite Krone aus mehreren Klumpen
+		var m := GSMesh.new()
+		m.cyl(Vector3(0, 2.6, 0), 0.38, 5.2, 0.31, 5, 0.32, Basis(), 0.03, 0.7)
+		m.cyl(Vector3(0.9, 6.0, 0.2), 0.18, 3.6, 0.32, 4, -1.0, Basis(Vector3.FORWARD, -0.5), 0.03, 0.6)
+		m.cyl(Vector3(-0.8, 6.2, -0.4), 0.16, 3.4, 0.32, 4, -1.0, Basis(Vector3(0.4, 0, 1).normalized(), 0.55), 0.03, 0.6)
+		m.lump(Vector3(0, 9.4, 0), Vector3(7.4, 5.6, 7.0), 0.34, 0.29, 0.07, 21 + v, 0.3)
+		m.lump(Vector3(2.4, 10.4 - v, 1.0), Vector3(4.8, 4.4, 4.6), 0.335, 0.29, 0.07, 25 + v, 0.32, 7, 4)
+		m.lump(Vector3(-2.3, 10.0, -1.4), Vector3(5.0, 4.2, 4.4), 0.335, 0.29, 0.07, 29 + v, 0.32, 7, 4)
+		m.lump(Vector3(0.4, 12.2 + v * 0.6, -0.3), Vector3(4.6, 3.4, 4.4), 0.32, 0.28, 0.07, 33 + v, 0.3, 7, 4)
+		out.append(m.commit())
+	return out

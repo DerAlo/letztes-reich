@@ -82,17 +82,37 @@ const ALIGN := [
 	["UpperLeg.R", "LowerLeg.R", "leg"], ["LowerLeg.R", "Foot.R", "leg"], ["Foot.R", "Toes.R", "side"],
 ]
 
-## [Name, Quelle, Clip, Loop, Boden, Ziel-Geschwindigkeit] (siehe bake_soldier_mh.gd)
+## [Name, Quelle, Clip, Loop, Boden, Schrittlaengen-Faktor] (siehe bake_soldier_mh.gd)
+## Fortbewegungs-Schleifen einer Sync-Gruppe (loco_sync.gd): gleiche Phase (links setzt bei t=0 auf) und Laenge
+const SYNC := ["walk", "run_fwd", "sprint", "run_back", "run_left", "run_right", "crouch_walk",
+	"run_fl", "run_fr", "sprint_fl", "sprint_fr", "run_l70", "run_r70", "sprint_l70", "sprint_r70",
+	"run_bl", "run_br", "run_bl70", "run_br70"]
+const LocoSync = preload("res://game/enemies/tools/loco_sync.gd")
+
 const ANIMS := [
 	["idle", "ual", "Idle_Loop", true, "lock", 0.0],
-	["walk", "ual", "Walk_Loop", true, "lock", 1.4],
-	["run_fwd", "swat", "CharacterArmature|Run", true, "clamp", 2.4],
-	["sprint", "ual", "Jog_Fwd_Loop", true, "clamp", 4.2],
+	["walk", "ual", "Walk_Loop", true, "lock", 0.0],
+	["run_fwd", "ual", "Jog_Fwd_Loop", true, "clamp", 0.5],
+	["sprint", "ual", "Sprint_Loop", true, "clamp", 0.69],
+	# Schraeglaeufe 45/70 Grad: Vorwaertslauf mit gedrehtem Unterkoerper (7. Spalte: Richtungs-Warp in Grad, + = links)
+	["run_fl", "ual", "Jog_Fwd_Loop", true, "clamp", 0.5, 45.0],
+	["run_fr", "ual", "Jog_Fwd_Loop", true, "clamp", 0.5, -45.0],
+	["sprint_fl", "ual", "Sprint_Loop", true, "clamp", 0.69, 45.0],
+	["sprint_fr", "ual", "Sprint_Loop", true, "clamp", 0.69, -45.0],
+	["run_l70", "ual", "Jog_Fwd_Loop", true, "clamp", 0.5, 70.0],
+	["run_r70", "ual", "Jog_Fwd_Loop", true, "clamp", 0.5, -70.0],
+	["sprint_l70", "ual", "Sprint_Loop", true, "clamp", 0.69, 70.0],
+	["sprint_r70", "ual", "Sprint_Loop", true, "clamp", 0.69, -70.0],
+	# Rueckwaerts-schraeg (135/110 Grad): Rueckwaertslauf mit gedrehtem Unterkoerper (+ Grad = nach rechts hinten)
+	["run_bl", "swat", "CharacterArmature|Run_Back", true, "clamp", 0.0, -45.0],
+	["run_br", "swat", "CharacterArmature|Run_Back", true, "clamp", 0.0, 45.0],
+	["run_bl70", "swat", "CharacterArmature|Run_Back", true, "clamp", 0.0, -70.0],
+	["run_br70", "swat", "CharacterArmature|Run_Back", true, "clamp", 0.0, 70.0],
 	["run_back", "swat", "CharacterArmature|Run_Back", true, "clamp", 0.0],
 	["run_left", "swat", "CharacterArmature|Run_Left", true, "clamp", 0.0],
 	["run_right", "swat", "CharacterArmature|Run_Right", true, "clamp", 0.0],
 	["crouch_idle", "ual", "Crouch_Idle_Loop", true, "lock", 0.0],
-	["crouch_walk", "ual", "Crouch_Fwd_Loop", true, "lock", 0.9],
+	["crouch_walk", "ual", "Crouch_Fwd_Loop", true, "lock", 0.0],
 	["hit_1", "ual", "Hit_Chest", false, "", 0.0],
 	["hit_2", "ual", "Hit_Head", false, "", 0.0],
 	["hit_3", "swat", "CharacterArmature|HitRecieve", false, "", 0.0],
@@ -665,6 +685,11 @@ func _bake(srcs: Dictionary) -> void:
 	var hips: int = ni["Hips"]
 	var foot := [ni["Foot.L"], ni["Foot.R"]]
 	var toes := [ni["Toes.L"], ni["Toes.R"]]
+	var spine := []
+	for nm in ["Abdomen", "Torso", "Chest"]:
+		if ni.has(nm):
+			spine.append(ni[nm])   # Richtungs-Warp (LocoSync.yaw_warp)
+	var legs := [[ni["UpperLeg.L"], ni["LowerLeg.L"], ni["Foot.L"]], [ni["UpperLeg.R"], ni["LowerLeg.R"], ni["Foot.R"]]]   # Schrittlaengen-Warp (LocoSync.warp_legs)
 	var align := {}
 	for a in ALIGN:
 		align[a[0]] = a
@@ -723,6 +748,7 @@ func _bake(srcs: Dictionary) -> void:
 
 	var lib := AnimationLibrary.new()
 	var speeds := {}
+	var loco := {"cycle": LocoSync.CYCLE}
 	var ground := [nrest[foot[0]].origin.y, nrest[foot[1]].origin.y, nrest[toes[0]].origin.y, nrest[toes[1]].origin.y]
 	print("Boden-Referenz (Ruhe): Knoechel %.3f/%.3f Zehen %.3f/%.3f" % ground)
 	for spec in ANIMS:
@@ -758,6 +784,11 @@ func _bake(srcs: Dictionary) -> void:
 		var low := 99.0
 		var high := -99.0
 		var rec := [[], []]
+		var dv := Vector2(drift.x, drift.z) * k / sa.length if drift.length() > 0.05 else Vector2.ZERO
+		if spec.size() > 6:   # Wurzel-Drift mitdrehen (Richtungs-Warp, Drehung um +Y)
+			var th := deg_to_rad(float(spec[6]))
+			dv = Vector2(dv.x * cos(th) + dv.y * sin(th), -dv.x * sin(th) + dv.y * cos(th))
+		var gs := []   # je Frame globale Posen (erst alle Frames, dann Fuss-Verriegelung, dann Keys)
 		for f in frames + 1:
 			var t := minf(f / FPS, sa.length)
 			var sg := _src_globals(s, sa, t)
@@ -776,13 +807,23 @@ func _bake(srcs: Dictionary) -> void:
 						var d := sg[si].origin - s.rest[si].origin - drift * (t / sa.length)
 						tt.origin = tp[i].origin + d * k
 				g[i] = tt
+			if float(spec[5]) > 0.0:
+				LocoSync.warp_legs(g, parents, order, legs, float(spec[5]))
+			if spec.size() > 6:
+				LocoSync.yaw_warp(g, parents, order, hips, spine, float(spec[6]))
+			gs.append(g)
+		if spec[0] in SYNC and spec[1] == "swat":   # SWAT-Laeufe: Standbein gleitet im Quell-Clip
+			LocoSync.lock_feet(gs, parents, order, legs, toes, ground, dv, FPS)
+		for f in frames + 1:
+			var t := minf(f / FPS, sa.length)
+			var g: Array[Transform3D] = gs[f]
 			var clear := 99.0
 			var fc := [99.0, 99.0]
 			for j in 2:
 				fc[j] = minf(g[foot[j]].origin.y - ground[j], g[toes[j]].origin.y - ground[2 + j])
 				clear = minf(clear, fc[j])
 			for j in 2:
-				rec[j].append([fc[j], g[foot[j]].origin.z])
+				rec[j].append([fc[j], g[foot[j]].origin.x, g[foot[j]].origin.z])
 			var off := 0.0
 			if gmode == "lock" or (gmode == "clamp" and clear < 0.0):
 				off = -clear
@@ -797,44 +838,19 @@ func _bake(srcs: Dictionary) -> void:
 				a.rotation_track_insert_key(rt[i], t, l.basis.orthonormalized().get_rotation_quaternion())
 				if i == hips:
 					a.position_track_insert_key(pt, t, l.origin)
-		if spec[3] and not speeds.has(spec[0]):
-			var vs: Array[float] = []
-			for tol in [0.02, 0.04, 0.07]:
-				if vs.size() > 2:
-					break
-				vs.clear()
-				for j in 2:
-					var mn := 99.0
-					for r in rec[j]:
-						mn = minf(mn, r[0])
-					for fi in range(1, rec[j].size()):
-						if rec[j][fi][0] < mn + tol and rec[j][fi - 1][0] < mn + tol:
-							vs.append(-(rec[j][fi][1] - rec[j][fi - 1][1]) * FPS)
-			if vs.size() > 2:
-				vs.sort()
-				speeds[spec[0]] = vs[vs.size() / 2]
-		if OS.get_cmdline_user_args().has("--dump=" + String(spec[0])):
-			for fi in rec[0].size():
-				print("  f%02d L %.3f z %.3f | R %.3f z %.3f" % [fi, rec[0][fi][0], rec[0][fi][1], rec[1][fi][0], rec[1][fi][1]])
-		var natural: float = speeds.get(spec[0], 0.0)
-		if spec[5] > 0.0 and natural > 0.1:
-			var fac: float = natural / spec[5]
-			for tr in a.get_track_count():
-				# Keys neu aufbauen statt track_set_key_time: das sortiert beim Strecken (fac > 1) um und hat die
-				# Keys verwuerfelt (Zeiten > Clip-Laenge, Beine springen pro Frame bis 110 Grad -> "Clownschuhe" im Lauf)
-				var nk := a.track_get_key_count(tr)
-				var kt: Array[float] = []
-				var kv: Array = []
-				for kk in nk:
-					kt.append(a.track_get_key_time(tr, kk) * fac)
-					kv.append(a.track_get_key_value(tr, kk))
-				for kk in range(nk - 1, -1, -1):
-					a.track_remove_key(tr, kk)
-				for kk in nk:
-					a.track_insert_key(tr, kt[kk], kv[kk])
-			a.length *= fac
-			speeds[spec[0]] = spec[5]
-			print("%s: Tempo x%.2f (natuerlich %.2f m/s -> %.2f m/s)" % [spec[0], 1.0 / fac, natural, spec[5]])
+		if gmode == "clamp" and low > 0.002 and low < 90.0:
+			# niedrigster Bodenkontakt des Zyklus genau auf den Boden (sonst schwebt der Laeufer im Standbein)
+			var sh: Vector3 = (lrest[parents[hips]] as Transform3D).basis.inverse() * Vector3(0, -low, 0) if parents[hips] >= 0 else Vector3(0, -low, 0)
+			for ki in a.track_get_key_count(pt):
+				a.track_set_key_value(pt, ki, (a.track_get_key_value(pt, ki) as Vector3) + sh)
+			high -= low
+			low = 0.0
+		if spec[0] in SYNC:
+			var sy: Dictionary = LocoSync.sync_loop(a, rec, FPS, dv)
+			a = sy["anim"]
+			loco[spec[0]] = {"vel": sy["vel"], "stride": sy["stride"]}
+			speeds[spec[0]] = (sy["vel"] as Vector2).length()
+			print("  sync %-11s vel=%s stride=%.2f m (Zyklus %.2f s, links auf bei %.2f s)" % [spec[0], sy["vel"], sy["stride"], sy["len"], sy["t0"]])
 		lib.add_animation(spec[0], a)
 		print("%-12s <- %-28s len=%.2f speed=%.2f foot_clear=[%.3f..%.3f]" % [spec[0], spec[2], sa.length, speeds.get(spec[0], 0.0), low, high])
 
@@ -844,6 +860,7 @@ func _bake(srcs: Dictionary) -> void:
 	rig.add_child(ap)
 	ap.owner = rig
 	rig.set_meta("loco_speed", speeds)
+	rig.set_meta("loco", loco)
 	rig.set_meta("kind", "op")
 	var ps := PackedScene.new()
 	ps.pack(rig)

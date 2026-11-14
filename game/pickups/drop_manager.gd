@@ -99,14 +99,19 @@ func _on_checkpoint(id: String) -> void:
 	if root == null:
 		return
 	var b: Basis = player.global_basis
-	var pos: Vector3 = player.global_position + b * Vector3(1.4, 0.0, -0.6)
-	# Nicht in eine Wand stellen: zur Seite prüfen
+	# Nicht in eine Wand stellen und nicht über eine Dachkante hinaus (sonst schwebt die Kiste in der Luft,
+	# weil Pickup._snap unter ihr keinen Boden findet): Kandidaten der Reihe nach prüfen.
 	var space := player.get_world_3d().direct_space_state
-	var q := PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.5, pos + Vector3.UP * 0.5, 1)
-	var res: Dictionary = space.intersect_ray(q)
-	if not res.is_empty():
-		pos = player.global_position + b * Vector3(-1.4, 0.0, -0.6)
-		q = PhysicsRayQueryParameters3D.create(player.global_position + Vector3.UP * 0.5, pos + Vector3.UP * 0.5, 1)
-		if not space.intersect_ray(q).is_empty():
-			pos = player.global_position + b * Vector3(0.0, 0.0, 1.2)
+	var eye: Vector3 = player.global_position + Vector3.UP * 0.5
+	var pos: Vector3 = player.global_position + b * Vector3(0.0, 0.0, 1.2)
+	for off: Vector3 in [Vector3(1.4, 0.0, -0.6), Vector3(-1.4, 0.0, -0.6), Vector3(0.0, 0.0, 1.2),
+			Vector3(1.0, 0.0, 0.4), Vector3(-1.0, 0.0, 0.4), Vector3(0.7, 0.0, 0.0), Vector3(-0.7, 0.0, 0.0)]:
+		var c: Vector3 = player.global_position + b * off
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, c + Vector3.UP * 0.5, 1)).is_empty():
+			continue
+		var down := PhysicsRayQueryParameters3D.create(c + Vector3.UP * 0.8, c + Vector3.DOWN * 1.0, 1)
+		if space.intersect_ray(down).is_empty():
+			continue
+		pos = c
+		break
 	Pickup.spawn_crate(root, pos, player.rotation_degrees.y + 90.0, false)

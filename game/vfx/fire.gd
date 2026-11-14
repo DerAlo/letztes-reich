@@ -68,7 +68,8 @@ func _build() -> void:
 	_flames.one_shot = false
 	_flames.explosiveness = 0.0
 	_flames.randomness = 0.3
-	_flames.emitting = true
+	_flames.emitting = flame_amount > 0   # 0 = nur Rauch (z. B. Heli-Schadensstufe 1)
+	_flames.visible = flame_amount > 0
 	_flames.visibility_aabb = AABB(Vector3(-6, -1, -6) * s, Vector3(12, 14, 12) * s)
 	add_child(_flames)
 

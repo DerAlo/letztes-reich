@@ -32,12 +32,57 @@ func _build_terminal() -> void:
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.04, 0.04, 0.045)
 	dark.roughness = 0.5
-	# Pult, Gehaeuse, Bildschirm, Tastatur
-	_box(Vector3(1.4, 0.06, 0.75), Vector3(0, 0.92, 0), metal)
-	_box(Vector3(1.36, 0.88, 0.7), Vector3(0, 0.45, 0.02), dark)
-	_box(Vector3(0.9, 0.6, 0.08), Vector3(0, 1.32, 0.22), dark)
-	_box(Vector3(0.1, 0.32, 0.1), Vector3(0, 1.04, 0.24), metal)
-	_box(Vector3(0.62, 0.025, 0.2), Vector3(0, 0.965, -0.12), dark)
+	# Einbrennlack der Bundeswehr-/Behoerdentechnik: graubeige, Schalterfelder dunkel
+	var enamel := StandardMaterial3D.new()
+	enamel.albedo_color = Color(0.4, 0.4, 0.36)
+	enamel.roughness = 0.45
+	enamel.metallic = 0.15
+	var beige := StandardMaterial3D.new()
+	beige.albedo_color = Color(0.56, 0.54, 0.47)
+	beige.roughness = 0.5
+	var key_m := StandardMaterial3D.new()
+	key_m.albedo_color = Color(0.13, 0.13, 0.13)
+	key_m.roughness = 0.4
+	var lamp_g := StandardMaterial3D.new()
+	lamp_g.albedo_color = Color(0, 0, 0)
+	lamp_g.emission_enabled = true
+	lamp_g.emission = Color(0.2, 1.0, 0.35)
+	lamp_g.emission_energy_multiplier = 2.0
+	var lamp_a := lamp_g.duplicate() as StandardMaterial3D
+	lamp_a.emission = Color(1.0, 0.55, 0.1)
+	# Pult (Front = -Z): Arbeitsplatte, Unterschrank mit Tueren, Lueftungsgitter, Sockel
+	_box(Vector3(1.4, 0.05, 0.75), Vector3(0, 0.925, 0), enamel)
+	_box(Vector3(1.4, 0.012, 0.75), Vector3(0, 0.951, 0), metal)
+	_box(Vector3(1.36, 0.8, 0.66), Vector3(0, 0.5, 0.04), enamel)
+	_box(Vector3(1.3, 0.1, 0.6), Vector3(0, 0.05, 0.06), dark)
+	for x: float in [-0.34, 0.34]:
+		_box(Vector3(0.64, 0.74, 0.008), Vector3(x, 0.5, -0.292), enamel)
+		_box(Vector3(0.03, 0.12, 0.02), Vector3(x + (0.27 if x < 0.0 else -0.27), 0.62, -0.302), metal)
+	_box(Vector3(0.008, 0.76, 0.012), Vector3(0, 0.5, -0.296), dark)
+	for k in 6:
+		_box(Vector3(0.5, 0.012, 0.012), Vector3(-0.34, 0.2 + k * 0.03, -0.297), dark)
+	# Bedienfeld links auf der Platte: Kippschalter und Meldeleuchten
+	_box(Vector3(0.3, 0.1, 0.22), Vector3(-0.5, 1.0, -0.1), dark)
+	for i in 5:
+		_box(Vector3(0.014, 0.03, 0.014), Vector3(-0.6 + i * 0.05, 1.06, -0.15), metal)
+		_box(Vector3(0.016, 0.016, 0.01), Vector3(-0.6 + i * 0.05, 1.02, -0.212), lamp_g if i != 3 else lamp_a)
+	# Bandlaufwerk rechts: Gehaeuse, zwei Spulen, Schlitz
+	_box(Vector3(0.34, 0.3, 0.32), Vector3(0.5, 1.1, 0.16), beige)
+	for x: float in [0.43, 0.57]:
+		_cyl(0.055, 0.012, Vector3(x, 1.16, -0.006), dark)
+		_cyl(0.015, 0.016, Vector3(x, 1.16, -0.014), metal)
+	_box(Vector3(0.2, 0.012, 0.01), Vector3(0.5, 1.0, -0.002), dark)
+	# Sichtgeraet: Roehrengehaeuse mit Ruecken, Rahmen, Fuss
+	_box(Vector3(0.9, 0.62, 0.06), Vector3(0, 1.32, 0.21), beige)
+	_box(Vector3(0.72, 0.5, 0.26), Vector3(0, 1.31, 0.36), beige)
+	_box(Vector3(0.84, 0.56, 0.02), Vector3(0, 1.32, 0.18), dark)
+	_box(Vector3(0.12, 0.34, 0.12), Vector3(0, 1.08, 0.3), metal)
+	_box(Vector3(0.016, 0.016, 0.01), Vector3(0.38, 1.05, 0.177), lamp_g)
+	# Tastatur mit Tasten
+	_box(Vector3(0.62, 0.03, 0.2), Vector3(0, 0.97, -0.12), beige)
+	for row in 4:
+		for i in 14:
+			_box(Vector3(0.032, 0.012, 0.032), Vector3(-0.27 + i * 0.0415, 0.99, -0.18 + row * 0.04), key_m)
 	var scr := MeshInstance3D.new()
 	var q := QuadMesh.new()
 	q.size = Vector2(0.82, 0.52)
@@ -76,6 +121,20 @@ func _build_terminal() -> void:
 	cs.position = Vector3(0, 0.5, 0)
 	sb.add_child(cs)
 	add_child(sb)
+
+## Zylinder mit Achse entlang Z (Spulen, Knoepfe an der Frontplatte).
+func _cyl(r: float, h: float, pos: Vector3, m: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = r
+	cm.bottom_radius = r
+	cm.height = h
+	cm.radial_segments = 16
+	mi.mesh = cm
+	mi.material_override = m
+	mi.position = pos
+	mi.rotation_degrees.x = 90.0
+	add_child(mi)
 
 func _box(size: Vector3, pos: Vector3, m: Material) -> void:
 	var mi := MeshInstance3D.new()

@@ -79,6 +79,23 @@ const SCRIPTS := {
 	],
 }
 
+## Funk-Optionen fuer einzelne SCRIPTS-Zeilen (Schluessel = Text), siehe StoryUI.say():
+## Zeilen eines Eintrags laufen als Gespraech direkt nacheinander; diese Optionen regeln, was
+## verworfen wird oder vorgeht, wenn der Spieler schneller ist als das Gespraech.
+const LINE_OPTS := {
+	# curfew: Einweisung nur direkt im Anschluss; die Ortsansage am Kontrollpunkt hat Vorrang
+	"Jonas, ich bin auf dem Dach gegenüber. Ab hier gilt Ausgangssperre – wer sich bewegt, wird erschossen.": {"priority": 1},
+	"Dann sollte mich besser keiner sehen.": {"priority": 1, "max_age": 2.0},
+	"Bleib in den Schatten, geh in die Hocke. Die Schalldämpferpistole ist leise, Gewehrfeuer hört das ganze Viertel. Von hinten kannst du sie mit [F] lautlos ausschalten.": {"priority": 1},
+	"Vorne ist ein Kontrollpunkt mit Flutlicht. Links durch die Höfe ist es dunkler – aber da läuft auch einer Streife.": {"priority": 2},
+	"Bürger Berlins: Die Ausgangssperre dient Ihrem Schutz. Verstöße werden ohne Vorwarnung geahndet.": {"max_age": 2.0},
+	"Du bist drin. Vorsicht: Löst du hier drin Alarm aus, löschen sie die Server. Dann ist alles weg.": {"priority": 1, "cut": true},
+	"Verstanden. Kein Lärm.": {"priority": 1, "max_age": 2.0},
+	# Ortsansage nur, solange der Spieler noch auf dem Platz ist
+	"Der Platz. Drohne in der Luft, Scheinwerfer auf dem Anbau. Rechts hinten die Lieferzufahrt – das Rolltor steht halb offen.": {"priority": 1, "max_age": 4.0},
+	"Kerner? Hier unten. Folgen Sie dem Licht – die Gleise entlang.": {"priority": 1, "max_age": 4.0},
+}
+
 ## Endsequenz nach Berlin (Teil 1) (Texttafeln, je [text, sekunden]).
 const ENDING := [
 	["Weber hatte den Funk. Er wusste, wo wir standen. Jeder Schritt, jede Nacht.", 4.5],

@@ -6,10 +6,10 @@
 script = ExtResource("1_jugg")
 armor_kind = "juggernaut"
 visor_pass = 0.1
-explosion_mult = 0.6
+explosion_mult = 0.9
 zone_pad = 1.3
 enemy_type = "juggernaut"
-max_health = 1000.0
+max_health = 650.0
 body_scale = 1.25
 heavy_armor = true
 head_damage_multiplier = 2.0

@@ -1,7 +1,7 @@
 extends Node3D
 ## Standbild-Render der Fahrzeugmodelle (nicht headless), fuer Vorher/Nachher-Vergleiche.
 ## Godot --path . --resolution 1600x900 res://game/vehicles/tools/model_shot.tscn -- --out=C:/tmp/t.png
-##   --what=tank|heli  --faction=ru|reich|eu  --view=q|side|front|back|top|close  [--frames=30]
+##   --what=tank|heli|ifv  --faction=ru|reich|eu  --view=q|side|front|back|top|close  [--frames=30]
 
 const VfxEnv = preload("res://game/vfx/vfx_env.gd")
 
@@ -35,8 +35,13 @@ func _ready() -> void:
 	add_child(ground)
 	var what := _arg("what", "tank")
 	var faction := _arg("faction", "ru")
-	var path := "res://game/vehicles/%s.tscn" % ("helicopter" if what == "heli" else "tank")
-	var v: Node3D = (load(path) as PackedScene).instantiate()
+	var v: Node3D
+	if what == "ifv":
+		# Schuetzenpanzer "Rabe" (nur Skript, keine Szene)
+		v = (load("res://game/vehicles/ifv/ifv.gd") as GDScript).new()
+	else:
+		var path := "res://game/vehicles/%s.tscn" % ("helicopter" if what == "heli" else "tank")
+		v = (load(path) as PackedScene).instantiate()
 	v.set_meta("faction", faction)
 	v.set("faction", faction)
 	if what == "heli":

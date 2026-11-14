@@ -46,6 +46,26 @@ const LOCO_POINTS := [
 	["idle", Vector2(0, 0)], ["walk", Vector2(0, 2.4)], ["run_fwd", Vector2(0, 4.2)],
 	["run_back", Vector2(0, -2.6)], ["run_left", Vector2(-2.6, 0)], ["run_right", Vector2(2.6, 0)],
 ]
+## Sync-Fortbewegung (MH/Operator, Bake-Meta "loco", tools/loco_sync.gd): alle Lauf-Schleifen haben dieselbe
+## Laenge und Phase (links setzt bei t=0 auf); Dreiecke fest vorgegeben, Idle getrennt per Blend2.
+const SYNC_LOCO := ["walk", "run_fwd", "sprint", "run_back", "run_left", "run_right"]
+const SYNC_TRIS := [[0, 1, 5], [0, 1, 4], [1, 2, 5], [1, 2, 4], [0, 5, 3], [0, 4, 3]]
+const SYNC_IN := [0, 5, 3, 4]    # Innenrand (langsamstes Tempo je Richtung): walk, right, back, left
+const SYNC_OUT := [2, 5, 3, 4]   # Aussenrand (schnellstes Tempo je Richtung): sprint, right, back, left
+const SYNC_MID := [1, 5, 3, 4]   # Aussenrand ohne Sprint (schraeg: Sprint nicht mit Seitlauf mischen)
+## Mit gebackenen Schraeglaeufen (Bake-Spalte Richtungs-Warp, 45 und 70 Grad): 18 Punkte, Indizes 6..13 =
+## run_fl, run_fr, sprint_fl, sprint_fr, run_l70, run_r70, sprint_l70, sprint_r70. Schraeg mischen dann nur noch
+## Clips derselben Quelle (UAL-Lauf/-Sprint); erst ab 70 Grad kommt der SWAT-Seitlauf dazu.
+const SYNC_LOCO_X := ["walk", "run_fwd", "sprint", "run_back", "run_left", "run_right", "run_fl", "run_fr",
+	"sprint_fl", "sprint_fr", "run_l70", "run_r70", "sprint_l70", "sprint_r70", "run_bl", "run_br", "run_bl70", "run_br70"]
+## Rueckwaerts-schraeg (14..17): run_bl/run_br 135 Grad, run_bl70/run_br70 110 Grad (gedrehter Rueckwaertslauf)
+const SYNC_TRIS_X := [[0, 1, 7], [1, 9, 7], [1, 2, 9], [0, 7, 11], [7, 9, 13], [7, 13, 11], [0, 11, 5], [11, 13, 5],
+	[0, 5, 17], [0, 17, 15], [0, 15, 3],
+	[0, 1, 6], [1, 8, 6], [1, 2, 8], [0, 6, 10], [6, 8, 12], [6, 12, 10], [0, 10, 4], [10, 12, 4],
+	[0, 4, 16], [0, 16, 14], [0, 14, 3]]
+## Aussenrand: sprint, sprint_fr, sprint_r70, right, run_br70, run_br, back, run_bl, run_bl70, left, sprint_l70, sprint_fl
+const SYNC_OUT_X := [2, 9, 13, 5, 17, 15, 3, 14, 16, 4, 12, 8]
+const LEAN_MAX := 0.13           # rad Oberkoerper-Vorlage im vollen Lauf (zusaetzlich zur Clip-Haltung)
 const HIT_BONES := ["Hips", "Abdomen", "Torso", "Chest", "Neck", "Head"]
 ## Ragdoll: [Knochen, End-Knochen (Laenge), Radius, Masse, Gelenk ("root"/"cone"/"hinge"), swing, twist]
 const RAGDOLL := [
@@ -88,6 +108,13 @@ var _muzzle_fx: Node3D = null   # Muendungsfeuer (game/graphics/muzzle_fx.gd)
 var _flash_prev: float = 0.0
 var _weapon_attach: BoneAttachment3D = null
 var _loco := Vector2.ZERO
+## Sync-Fortbewegung: je SYNC_LOCO-Punkt Mischposition (natuerliche Geschwindigkeit) und Sync-Geschwindigkeit
+## (m/s bei TimeScale 1); leer = altes SWAT-Blendspace
+var _sp: Array[Vector2] = []
+var _ss: Array[Vector2] = []
+var _crouch_ss: float = 1.0
+var _snap_t := -1.0   # _snap_dir: gewaehlter Winkel (rad) im Band Seitlauf..Rueckwaerts-schraeg, -1 = ausserhalb
+var _snap_s := -1.0   # _snap_dir: zeitlich geglaetteter Winkel
 var _last_flinch: float = 0.0
 var _aim_w: float = 0.0
 var _reload_left: float = -1.0
@@ -772,13 +799,26 @@ func _config_ik() -> void:
 	weapon.transform = ik.grip_r.affine_inverse()
 
 func _build_tree() -> void:
-	if not _trees.has(kind):
-		_trees[kind] = _make_tree_root(rig.get_meta("loco_speed", {}) if kind == "mh" or kind == "op" else {})
+	var meta: Dictionary = rig.get_meta("loco", {}) if kind == "mh" or kind == "op" else {}
+	if meta.has("sprint"):
+		var cyc := float(meta.get("cycle", 0.8))
+		for n in (SYNC_LOCO_X if meta.has("run_br70") else SYNC_LOCO):
+			var d: Dictionary = meta[n]
+			var v: Vector2 = d["vel"]
+			var p := Vector2(-v.x, v.y)   # Rig-Raum (+Z vorn, +X links) -> Mischraum (x rechts, y vorn)
+			_ss.append(p.normalized() * float(d["stride"]) / cyc)
+			if n == "walk":
+				p = p.normalized() * maxf(p.length(), 1.5)   # Gehen deckt zuegiges Gehen ab (Kadenz per TimeScale)
+			_sp.append(p)
+		_crouch_ss = maxf(float(meta.get("crouch_walk", {}).get("stride", 1.3)) / cyc, 0.1)
+	var key := kind + ":" + variant if not _sp.is_empty() else kind
+	if not _trees.has(key):
+		_trees[key] = _make_tree_root(_sp)
 	anim_tree = AnimationTree.new()
 	anim_tree.name = "AnimationTree"
 	rig.add_child(anim_tree)
 	anim_tree.anim_player = NodePath("../AnimationPlayer")
-	anim_tree.tree_root = _trees[kind]
+	anim_tree.tree_root = _trees[key]
 	anim_tree.active = true
 	anim_tree.set("parameters/life/transition_request", "alive")
 
@@ -787,28 +827,52 @@ static func _anim(n: String) -> AnimationNodeAnimation:
 	a.animation = n
 	return a
 
-## speeds leer = SWAT-Rig (LOCO_POINTS); sonst MH-Rig mit gemessenen Clip-Geschwindigkeiten (Bake-Meta
-## "loco_speed": Animation -> m/s, Fussgleiten minimal) und zusaetzlichem Sprint-Punkt.
-static func _make_tree_root(speeds: Dictionary = {}) -> AnimationNodeBlendTree:
+## sp leer = SWAT-Rig (LOCO_POINTS, Auto-Dreiecke); sonst Sync-Fortbewegung: Mischpunkte sp (SYNC_LOCO),
+## feste Dreiecke, sync=true (alle Schleifen laufen phasengleich weiter) und TimeScale-Knoten, ueber die
+## set_loco() die Kadenz an die echte Geschwindigkeit koppelt (kein Fussgleiten, kein Strecken einzelner Clips).
+static func _make_tree_root(sp: Array[Vector2] = []) -> AnimationNodeBlendTree:
 	var bt := AnimationNodeBlendTree.new()
 	var loco := AnimationNodeBlendSpace2D.new()
-	loco.min_space = Vector2(-5, -5)
-	loco.max_space = Vector2(5, 5)
-	var pts: Array = LOCO_POINTS
-	if not speeds.is_empty():
-		pts = [["idle", Vector2.ZERO], ["walk", Vector2(0, float(speeds.get("walk", 1.4)))],
-			["run_fwd", Vector2(0, float(speeds.get("run_fwd", 2.4)))], ["sprint", Vector2(0, float(speeds.get("sprint", 4.2)))],
-			["run_back", Vector2(0, -2.6)], ["run_left", Vector2(-2.6, 0)], ["run_right", Vector2(2.6, 0)]]
-	for p in pts:
-		loco.add_blend_point(_anim(p[0]), p[1], -1, StringName(p[0]))
-	bt.add_node("loco", loco, Vector2(0, 0))
-	var cr := AnimationNodeBlendSpace1D.new()
-	cr.min_space = 0.0
-	cr.max_space = 4.0
-	cr.add_blend_point(_anim("crouch_idle"), 0.0, -1, &"crouch_idle")
-	cr.add_blend_point(_anim("crouch_walk"), float(speeds.get("crouch_walk", 1.6)), -1, &"crouch_walk")
-	bt.add_node("crouch", cr, Vector2(0, 200))
-	bt.add_node("crouch_mix", AnimationNodeBlend2.new(), Vector2(250, 100))
+	loco.min_space = Vector2(-6, -6)
+	loco.max_space = Vector2(6, 6)
+	if sp.is_empty():
+		for p in LOCO_POINTS:
+			loco.add_blend_point(_anim(p[0]), p[1], -1, StringName(p[0]))
+		bt.add_node("loco", loco, Vector2(0, 0))
+		var cr := AnimationNodeBlendSpace1D.new()
+		cr.min_space = 0.0
+		cr.max_space = 4.0
+		cr.add_blend_point(_anim("crouch_idle"), 0.0, -1, &"crouch_idle")
+		cr.add_blend_point(_anim("crouch_walk"), 1.6, -1, &"crouch_walk")
+		bt.add_node("crouch", cr, Vector2(0, 200))
+		bt.add_node("crouch_mix", AnimationNodeBlend2.new(), Vector2(250, 100))
+		bt.connect_node("crouch_mix", 0, "loco")
+		bt.connect_node("crouch_mix", 1, "crouch")
+	else:
+		loco.auto_triangles = false
+		loco.sync = true
+		var names: Array = SYNC_LOCO_X if sp.size() == SYNC_LOCO_X.size() else SYNC_LOCO
+		for i in names.size():
+			loco.add_blend_point(_anim(names[i]), sp[i], -1, StringName(names[i]))
+		for t in (SYNC_TRIS_X if sp.size() == SYNC_LOCO_X.size() else SYNC_TRIS):
+			loco.add_triangle(t[0], t[1], t[2])
+		bt.add_node("loco", loco, Vector2(0, 0))
+		bt.add_node("loco_ts", AnimationNodeTimeScale.new(), Vector2(150, 0))
+		bt.add_node("a_idle", _anim("idle"), Vector2(150, -100))
+		bt.add_node("move", AnimationNodeBlend2.new(), Vector2(300, 0))
+		bt.add_node("a_crouch_idle", _anim("crouch_idle"), Vector2(0, 150))
+		bt.add_node("a_crouch_walk", _anim("crouch_walk"), Vector2(0, 250))
+		bt.add_node("crouch_ts", AnimationNodeTimeScale.new(), Vector2(150, 250))
+		bt.add_node("crouch_move", AnimationNodeBlend2.new(), Vector2(300, 200))
+		bt.add_node("crouch_mix", AnimationNodeBlend2.new(), Vector2(450, 100))
+		bt.connect_node("loco_ts", 0, "loco")
+		bt.connect_node("move", 0, "a_idle")
+		bt.connect_node("move", 1, "loco_ts")
+		bt.connect_node("crouch_ts", 0, "a_crouch_walk")
+		bt.connect_node("crouch_move", 0, "a_crouch_idle")
+		bt.connect_node("crouch_move", 1, "crouch_ts")
+		bt.connect_node("crouch_mix", 0, "move")
+		bt.connect_node("crouch_mix", 1, "crouch_move")
 	var hs := AnimationNodeTransition.new()
 	for h in ["hit_1", "hit_2", "hit_3"]:
 		hs.add_input(h)
@@ -829,8 +893,6 @@ static func _make_tree_root(speeds: Dictionary = {}) -> AnimationNodeBlendTree:
 	bt.add_node("life", life, Vector2(750, 150))
 	bt.add_node("a_death_1", _anim("death_1"), Vector2(500, 350))
 	bt.add_node("a_death_2", _anim("death_2"), Vector2(500, 450))
-	bt.connect_node("crouch_mix", 0, "loco")
-	bt.connect_node("crouch_mix", 1, "crouch")
 	for i in 3:
 		bt.connect_node("hit_sel", i, "a_hit_%d" % (i + 1))
 	bt.connect_node("hit", 0, "crouch_mix")
@@ -849,9 +911,7 @@ func tick(delta: float) -> void:
 	var lv := e.global_transform.basis.inverse() * e.velocity
 	var target_loco := Vector2(lv.x, -lv.z) / maxf(vis_scale, 0.01)   # Schrittlaenge skaliert mit dem sichtbaren Rig, nicht mit der Kollision (body_scale)
 	_loco = _loco.lerp(target_loco, clampf(delta * 8.0, 0.0, 1.0))
-	anim_tree.set("parameters/loco/blend_position", _loco)
-	anim_tree.set("parameters/crouch/blend_position", _loco.length())
-	anim_tree.set("parameters/crouch_mix/blend_amount", e._stance)
+	set_loco(_loco, e._stance)
 	if e._flinch > _last_flinch + 0.3:
 		anim_tree.set("parameters/hit_sel/transition_request", "hit_%d" % e.rng.randi_range(1, 3))
 		anim_tree.set("parameters/hit/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
@@ -898,6 +958,119 @@ func tick(delta: float) -> void:
 		if e._flash_timer > _flash_prev:
 			_muzzle_fx.call("fire")
 	_flash_prev = e._flash_timer
+
+## Fortbewegung setzen (v: Rig-skalierte Geschwindigkeit, x rechts / y vorn; stance 0 stehend .. 1 geduckt).
+## Auch fuer Debug-Werkzeuge (feet_shot/pose_shot/run_shot).
+func set_loco(v: Vector2, stance: float) -> void:
+	_loco = v
+	var spd := v.length()
+	if ik != null:
+		ik.lean = LEAN_MAX * smoothstep(1.8, 5.5, spd) * (1.0 - stance) * (1.0 - 0.5 * ik.aim_weight)
+	if _sp.is_empty():
+		anim_tree.set("parameters/loco/blend_position", v)
+		anim_tree.set("parameters/crouch/blend_position", spd)
+		anim_tree.set("parameters/crouch_mix/blend_amount", stance)
+		return
+	var ts := 1.0
+	var yaw_fix := 0.0
+	if spd > 0.01:
+		var d := _snap_dir(v / spd)
+		# Richtungs-Warp zur Laufzeit: weicht die Clip-Richtung (Fang-Baender um den Seitlauf, bis ~12 Grad) von der
+		# echten Laufrichtung ab, das Modell um den Rest drehen -> Fuesse laufen exakt mit, statt quer zu rutschen
+		# (Oberkoerper/Waffe zielen per IK im Skelett-Raum und gleichen das aus)
+		yaw_fix = wrapf(atan2(v.x, v.y) - atan2(d.x, d.y), -PI, PI)
+		# Aussenrand: mit Schraeglaeufen bis Schraeg-Sprint; ohne (alte Rigs) Sprint nur nahe geradeaus
+		var r_in := _ray_hull(d, SYNC_IN)
+		var r_hi := _ray_hull(d, SYNC_OUT_X) if _sp.size() == SYNC_LOCO_X.size() 			else lerpf(_ray_hull(d, SYNC_MID), _ray_hull(d, SYNC_OUT), smoothstep(0.82, 0.97, d.y))
+		if d.y < 0.0 and _sp.size() == SYNC_LOCO_X.size():
+			# rueckwaerts/rueckwaerts-schraeg nie mit dem (Vorwaerts-)Gehen mischen: auf dem Aussenrand bleiben,
+			# langsameres Tempo nur ueber die Kadenz (TimeScale) -> Standbein bleibt verriegelt
+			r_in = maxf(r_hi, r_in)
+		var p := d * clampf(spd, r_in, maxf(r_hi, r_in))
+		ts = clampf(spd / maxf(_sync_speed(p), 0.1), 0.25, 2.0)
+		anim_tree.set("parameters/loco/blend_position", p)
+	var move := smoothstep(0.05, 0.6, spd)
+	rig.rotation.y = PI - yaw_fix * move * (1.0 - stance)
+	anim_tree.set("parameters/loco_ts/scale", ts)
+	anim_tree.set("parameters/move/blend_amount", move)
+	anim_tree.set("parameters/crouch_ts/scale", clampf(spd / _crouch_ss, 0.25, 2.0))
+	anim_tree.set("parameters/crouch_move/blend_amount", move)
+	anim_tree.set("parameters/crouch_mix/blend_amount", stance)
+
+## SWAT-Seitlauf (Kreuzschritt) und die UAL-/Rueckwaerts-Laeufe passen beim Mischen nicht zusammen (Fuesse
+## rutschen bis 3 m/s). Darum zwischen dem Seitlauf (90 Grad) und den gedrehten 70-Grad-Laeufen davor/dahinter nur
+## in einem schmalen Winkelband ueberblenden (Phase ist synchron, der Wechsel bleibt sauber).
+func _snap_dir(d: Vector2) -> Vector2:
+	if _sp.size() != SYNC_LOCO_X.size() or is_zero_approx(d.x):
+		return d
+	var r := d.x > 0.0
+	var a := atan2(absf(d.x), d.y)   # 0 = vorn, PI = hinten
+	var side := _ang(_sp[5 if r else 4])
+	var f70 := _ang(_sp[11 if r else 10])
+	var b70 := _ang(_sp[17 if r else 16])
+	if a > f70 and a < side:
+		a = lerpf(f70, side, smoothstep(0.35, 0.65, (a - f70) / (side - f70)))
+	elif a > side and a < b70:
+		# hinter dem Seitlauf: gar nicht ueber den Winkel mischen, sondern den naeheren Clip waehlen (mit
+		# Hysterese) und ueber die Zeit ueberblenden (Restfehler <= 12 Grad, statt Kreuzschritt-Gemisch)
+		var near := side if a - side < b70 - a else b70
+		if _snap_t >= 0.0 and absf(a - _snap_t) < absf(a - near) + 0.06 and (_snap_t == side or _snap_t == b70):
+			near = _snap_t
+		_snap_t = near
+		_snap_s = near if _snap_s < 0.0 else lerpf(_snap_s, near, 0.15)
+		a = _snap_s
+		return Vector2(sin(a) * (1.0 if r else -1.0), cos(a))
+	_snap_t = -1.0
+	_snap_s = -1.0
+	return Vector2(sin(a) * (1.0 if r else -1.0), cos(a))
+
+static func _ang(p: Vector2) -> float:
+	return atan2(absf(p.x), p.y)
+
+## Abstand vom Ursprung bis zum Rand des Vierecks hull (Indizes in _sp) in Richtung d.
+func _ray_hull(d: Vector2, hull: Array) -> float:
+	var best := 0.0
+	for i in hull.size():
+		var a: Vector2 = _sp[hull[i]]
+		var b: Vector2 = _sp[hull[(i + 1) % hull.size()]]
+		var e := b - a
+		var den := d.cross(e)
+		if absf(den) < 1e-6:
+			continue
+		var t := a.cross(e) / den
+		var u := a.cross(d) / den
+		if t > 0.0 and u >= -1e-4 and u <= 1.0 + 1e-4:
+			best = maxf(best, t)
+	return best
+
+## Geschwindigkeit des gemischten Laufzyklus bei TimeScale 1 an Mischposition p (baryzentrisch wie BlendSpace2D).
+func _sync_speed(p: Vector2) -> float:
+	for t in (SYNC_TRIS_X if _sp.size() == SYNC_LOCO_X.size() else SYNC_TRIS):
+		var a := _sp[t[0]]
+		var b := _sp[t[1]]
+		var c := _sp[t[2]]
+		var den := (b - a).cross(c - a)
+		if absf(den) < 1e-6:
+			continue
+		var wb := (p - a).cross(c - a) / den
+		var wc := (b - a).cross(p - a) / den
+		var wa := 1.0 - wb - wc
+		if wa >= -1e-3 and wb >= -1e-3 and wc >= -1e-3:
+			# Laufschleifen (alles ausser Gehen, Index 0) sind gedrehte Varianten derselben Bewegung: beim Mischen
+			# dreht sich die Laufrichtung, die Schrittlaenge bleibt -> Betraege mischen statt Vektoren (sonst ist die
+			# Sync-Geschwindigkeit zwischen zwei Punkten bis 8 % zu klein = Kadenz zu hoch = Fuesse rutschen)
+			var w := [wa, wb, wc]
+			var walk := Vector2.ZERO
+			var run := Vector2.ZERO
+			var mag := 0.0
+			for q in 3:
+				if t[q] == 0:
+					walk += _ss[0] * w[q]
+				else:
+					run += _ss[t[q]] * w[q]
+					mag += _ss[t[q]].length() * w[q]
+			return (walk + run.normalized() * mag).length() if run.length() > 1e-4 else walk.length()
+	return _ss[1].length()
 
 func start_reload() -> void:
 	_reload_left = RELOAD_TIME

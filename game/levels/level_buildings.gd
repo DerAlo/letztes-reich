@@ -141,7 +141,7 @@ static func _add_mesh(parent: Node3D, b: Geo.BoxBatch, m: Material) -> void:
 
 ## Haeuserblock. side: -1 links, +1 rechts. z_near > z_far. Rueckgabe: Infos je Feld.
 ## opts: brick(bool), tint(Color), damage(0..1), collapse_bays(Vector2i: erstes, letztes Feld),
-##       lit(float Anteil leuchtender Fenster)
+##       lit(float Anteil leuchtender Fenster), win(String Fensterprofil fuer FK.window_mat, Standard "day")
 static func build(parent: Node3D, side: int, z_near: float, z_far: float, floors: int, depth: float, opts: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var length := z_near - z_far
 	var bays := maxi(1, roundi(length / 3.6))
@@ -240,7 +240,7 @@ static func build(parent: Node3D, side: int, z_near: float, z_far: float, floors
 	_add_mesh(body, trim, trim_mat())
 	_add_mesh(body, mass, mass_mat())
 	parts.build(body, part_mats(), [], {"wood": 90.0, "metal": 110.0})
-	var gl := wins.build_node(FK.window_mat("day"))
+	var gl := wins.build_node(FK.window_mat(String(opts.get("win", "day"))))
 	if gl != null:
 		body.add_child(gl)
 	for d: Array in decal_list:
