@@ -190,7 +190,10 @@ static func messe(lv: Node3D) -> Dictionary:
 	var hall_m := City.hall_mat(Color(0.62, 0.6, 0.57), 6.4, 8.6, 0.31, 0.34)
 	var entry_m := City.hall_mat(Color(0.55, 0.54, 0.52), 4.7, 6.3, 0.77, 0.4)
 	var fin_m := FacadeKit.facade_mat("concrete", Color(0.58, 0.57, 0.55), {"grime_amount": 0.7, "streaks": 0.6})
-	var cap_m := Geo.flat(Color(0.11, 0.11, 0.12), 0.45, 0.6)
+	# Attika/Vordachkante: dunkel beschichtetes Blech mit Abrieb (Optik 3, vorher flach dunkelgrau)
+	var cap_m: Material = Geo.flat(Color(0.11, 0.11, 0.12), 0.45, 0.6)
+	if ResourceLoader.exists("res://assets/environment/bunker/textures/painted_steel/diffuse.jpg"):
+		cap_m = _pbr("res://assets/environment/bunker/textures/painted_steel", Color(0.3, 0.3, 0.32), 0.35, 1.0, 0.3)
 	var roof_m := Geo.mat("rusty_metal_02", Color(0.32, 0.3, 0.3), 0.15, 1.0, 0.4)
 	var hb := Geo.batch()
 	var eb := Geo.batch()

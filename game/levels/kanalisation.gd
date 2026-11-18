@@ -79,6 +79,8 @@ func _ready() -> void:
 		return
 	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
 		add_child(load("res://game/levels/tools/villa_shots.gd").new())
+	# Innenraum-Kram (nur Optik, verzoegert per Raycast an freie Wandstuecke)
+	load("res://game/levels/interior_clutter.gd").scatter(self, AABB(), 30, "sewer", 7105)
 	var pl := _player()
 	if pl != null:
 		_base_speed = [pl.walk_speed, pl.sprint_speed, pl.crouch_speed]
@@ -328,14 +330,14 @@ func _build_ground() -> void:
 	mats["brick"] = Geo.mat("brick_wall_02", Color(0.42, 0.33, 0.28), 0.3, 1.0)
 	mats["brick_wet"] = Geo.mat("brick_wall_02", Color(0.3, 0.25, 0.21), 0.3, 0.55)
 	mats["floor"] = Geo.mat("asphalt_02", Color(0.3, 0.29, 0.27), 0.3, 0.7)
-	mats["sludge"] = Geo.flat(Color(0.09, 0.085, 0.06), 0.9)
+	mats["sludge"] = DK.tex("res://assets/environment/river/textures/brown_mud_02", Color(0.3, 0.28, 0.22), 0.4, 0.35)   # Optik 3: nasser Schlamm
 	mats["metal"] = Geo.mat("rusty_metal_02", Color(0.3, 0.3, 0.3), 0.5, 1.0)
 	mats["pipe"] = Geo.mat("rusty_metal_02", Color(0.4, 0.37, 0.33), 1.2, 0.9, 0.5)
 	mats["pipe_red"] = Geo.mat("rusty_metal_02", Color(0.6, 0.18, 0.13), 1.2, 0.9, 0.3)
-	mats["rack"] = Geo.flat(Color(0.045, 0.05, 0.055), 0.4, 0.6)
-	mats["warn"] = Geo.flat(Color(0.75, 0.55, 0.04), 0.6)
-	mats["crate"] = Geo.flat(Color(0.22, 0.24, 0.16), 0.85)
-	mats["crate2"] = Geo.flat(Color(0.3, 0.24, 0.15), 0.85)
+	mats["rack"] = Geo.mat("rusty_metal_02", Color(0.12, 0.12, 0.125), 1.0, 0.8, 0.6)   # Optik 3: statt Flachschwarz
+	mats["warn"] = DK.tex("res://assets/environment/bunker/textures/painted_steel", Color(1.25, 0.92, 0.12), 0.5, 0.8)   # Optik 3: Warnlack auf Blech
+	mats["crate"] = DK.tex("res://assets/environment/river/textures/green_metal_rust", Color(0.62, 0.66, 0.5), 0.7, 1.0)   # Optik 3: olivgruene Blechkiste
+	mats["crate2"] = DK.tex("res://assets/environment/textures/weathered_planks", Color(0.72, 0.6, 0.46), 0.6, 1.0)   # Optik 3: Holzkiste
 	mats["fluor"] = BP.unshaded(Color(2.2, 2.4, 2.5))
 	mats["fluor_off"] = Geo.flat(Color(0.5, 0.52, 0.52), 0.4)
 	mats["amber"] = BP.unshaded(Color(3.4, 1.7, 0.35))
@@ -366,6 +368,35 @@ func _build_ground() -> void:
 	w.metallic = 0.2
 	w.metallic_specular = 0.7
 	mats["water"] = w
+	# Optik 3: truebes Abwasser mit Stroemung, Kraeuselung und treibenden Schlammfladen (Shader)
+	const MUD := "res://assets/environment/river/textures/brown_mud_02"
+	if ResourceLoader.exists(MUD + "/diffuse.jpg"):
+		var sm := ShaderMaterial.new()
+		sm.shader = load("res://game/levels/kanal_water.gdshader")
+		sm.set_shader_parameter("mud_tex", load(MUD + "/diffuse.jpg"))
+		sm.set_shader_parameter("mud_nrm", load(MUD + "/normal.jpg"))
+		var rn := FastNoiseLite.new()
+		rn.frequency = 0.06
+		rn.seed = 7
+		var rt := NoiseTexture2D.new()
+		rt.width = 256
+		rt.height = 256
+		rt.seamless = true
+		rt.as_normal_map = true
+		rt.bump_strength = 6.0
+		rt.noise = rn
+		sm.set_shader_parameter("ripple_nrm", rt)
+		var mn := FastNoiseLite.new()
+		mn.frequency = 0.012
+		mn.fractal_octaves = 4
+		mn.seed = 31
+		var mt := NoiseTexture2D.new()
+		mt.width = 256
+		mt.height = 256
+		mt.seamless = true
+		mt.noise = mn
+		sm.set_shader_parameter("scum_mask", mt)
+		mats["water"] = sm
 
 func _build_street() -> void:
 	var bd := BP.Builder.new(mats)
@@ -1106,6 +1137,7 @@ func _build_markers() -> void:
 		Vector3(0.0, Y_WALK, -106.0), Vector3(0.0, Y_WALK, -111.0), Vector3(0.6, Y_WALK, -112.8),
 		Vector3(1.4, Y_WALK, -115.0), Vector3(1.4, Y_WALK, -126.0), Vector3(1.4, Y_WALK, -138.0),
 		Vector3(1.0, Y_WALK, -143.0), Vector3(-1.5, Y_WALK, -152.0), Vector3(-2.5, Y_WALK, -159.0),
+		Vector3(-2.5, Y_WALK, -164.4),  # um die Kiste bei (-1.0, -162.5) herum (sonst STUCK im Depot)
 		Vector3(0.0, Y_WALK, -168.0), Vector3(0.0, Y_WALK, -172.2), Vector3(0.0, Y_WALK, -176.5),
 		Vector3(0.0, Y_WALK, -178.6), Vector3(0.0, 0.0, -184.5),
 	]
@@ -1284,7 +1316,9 @@ func _intro() -> void:
 	_later(1.2, func() -> void:
 		_say(StoryData.VOSS, "Bis hier hab ich dich gebracht, Jonas. Der Schacht am Ende führt in den alten Sammler unter dem Reichstag – da unten ist es stockfinster.")
 		_say_opt(StoryData.LENA, "Nimm das Nachtsichtgerät. Die Lampe siehst du besser – aber jeder Gardist sieht dich auch.", {})
-		_say_opt(StoryData.VOSS, "Ich bleibe am Einstieg und halte den Funk. Unten keine Hast. Wasser trägt jedes Geräusch.", {"valid": _no_alarm}))
+		# Fuellzeile: entfaellt, sobald der Spieler den Sammler erreicht (Falks Gardefunk hat dann Vorrang, sonst 15 s Verzug)
+		_say_opt(StoryData.VOSS, "Ich bleibe am Einstieg und halte den Funk. Unten keine Hast. Wasser trägt jedes Geräusch.",
+			{"valid": func() -> bool: return _no_alarm() and not _said.has("sammler")}))
 
 func _on_sammler() -> void:
 	if _said.has("sammler"):

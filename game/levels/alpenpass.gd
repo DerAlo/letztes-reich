@@ -490,6 +490,12 @@ func _build_ground() -> void:
 	mats["steel_dark"] = Geo.flat(Color(0.12, 0.12, 0.13), 0.45, 0.7)
 	mats["steel_grey"] = Geo.flat(Color(0.3, 0.31, 0.32), 0.5, 0.75)
 	mats["cabin"] = Geo.flat(Color(0.62, 0.1, 0.08), 0.5, 0.2)
+	# Optik 3: Kabine als lackiertes Blech mit Paneelfugen/Abrieb; Objekt-Triplanar, damit die Textur mitfaehrt
+	if ResourceLoader.exists("res://assets/environment/bunker/textures/painted_steel/diffuse.jpg"):
+		var cm := (preload("res://game/levels/overwatch_world_kit.gd").pbr("res://assets/environment/bunker/textures/painted_steel",
+				Color(1.15, 0.2, 0.15), 0.9, 0.9, 0.2) as StandardMaterial3D).duplicate() as StandardMaterial3D
+		cm.uv1_world_triplanar = false
+		mats["cabin"] = cm
 	mats["glass_d"] = Geo.flat(Color(0.08, 0.1, 0.12), 0.1, 0.6)
 	mats["warn"] = Geo.flat(Color(0.8, 0.6, 0.05), 0.6)
 	mats["red_white"] = Geo.flat(Color(0.75, 0.12, 0.1), 0.6)
@@ -1640,9 +1646,10 @@ func _start_phase4() -> void:
 	_phase = 4
 	_obj("Wechte über der Rinne beschießen – Lawine auslösen, bevor Falk sprengt")
 	_say(SD.BRANDT, "Bewegung in der Rinne westlich von euch. Graue Mäntel – Falks Garde-Jäger. Die wollen zur Bergstation, vor euch.")
-	_say_opt(SD.FALK, "Weber gehört mir. Wer sich mir in den Weg stellt, bleibt im Schnee.", 0.0,
-		{"drop_live": true, "valid": func() -> bool: return not _avalanche})
+	# Erst die Anweisung (Wechte), dann Falks Drohung – sonst ist die Erklaerung bei schneller Lawine weg
 	_say_opt(SD.LENA, "Über der Rinne hängt eine Wechte. Ein Treffer, und der ganze Hang kommt runter.", 0.0,
+		{"drop_live": true, "valid": func() -> bool: return not _avalanche})
+	_say_opt(SD.FALK, "Weber gehört mir. Wer sich mir in den Weg stellt, bleibt im Schnee.", 0.0,
 		{"drop_live": true, "valid": func() -> bool: return not _avalanche})
 	_target("cornice")["seen"] = true
 	spot.set("salvos_left", maxi(int(spot.get("salvos_left")), 4))
@@ -2279,7 +2286,10 @@ func _physics_process(delta: float) -> void:
 	if _phase == 1 and _counter_t > 0.0:
 		_counter_t -= delta
 		if _counter_t <= 0.0:
-			_spawn_counter()
+			# Gegenstoss nicht mitten in Lenas Mörserzug-Zeile/Einweisung (die "cut"-Meldung riss sie ab):
+			# erst wenn der Funk frei ist und die Einweisung (wartet ebenfalls auf freien Funk) gelaufen ist
+			_when_radio_free(func() -> void:
+				_later(0.6, _when_radio_free.bind(_spawn_counter, 10.0)), 12.0)
 	_tick_t -= delta
 	if _tick_t <= 0.0:
 		_tick_t = 0.5

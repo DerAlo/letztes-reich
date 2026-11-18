@@ -507,7 +507,9 @@ func _tick_sentries(delta: float) -> void:
 		var st: float = float(s["startle"])
 		if st > 0.0:
 			s["startle"] = st - delta
-			a.set("crouch", true)
+			# Posten auf Laufsteg/Dach bleiben stehen und suchen: geduckt verschwanden sie komplett hinter dem
+			# (kugelfesten) Gelaender – der Laufsteg-Posten war im Review 55 s lang nicht zu treffen.
+			a.set("crouch", not bool(s["elev"]))
 			a.set("has_goal", false)
 			continue
 		a.set("crouch", false)
@@ -543,8 +545,16 @@ func _tick_phase_sentries(delta: float) -> void:
 		if _mark_wait <= 0.0 and (_radio_busy() <= 0.3 or _mark_wait < -6.0):
 			_mark_next()
 	else:
+		var mt0 := _mark_t
 		_mark_t += delta
-		if _mark_t > 55.0:
+		if mt0 < 24.0 and _mark_t >= 24.0:
+			# Hilfe nach langem Fehlversuch: Lena beschreibt den Posten noch einmal (vorhandene Zeile)
+			for s in _sentries:
+				if s["a"] == _mark:
+					var mk: Node3D = _mark
+					_radio_opt(SD.LENA, str(s["desc"]), 4.5,
+						{"priority": 1, "drop_live": true, "valid": func() -> bool: return _mark == mk and _alive(mk)})
+		if _mark_t > 45.0:
 			# Ausweichpfad: Voss' Leute uebernehmen den Posten leise
 			_radio(SD.VOSS, "Den nehmen wir. Messer.", 2.5)
 			_mark.call("take_damage", 999.0, null, _mark.global_position + Vector3.UP, Vector3.UP)

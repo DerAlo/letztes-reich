@@ -1045,16 +1045,73 @@ func _apply_window() -> void:
 	_apply_viewport()
 
 
-## --bg: Test-/Autopilot-Laeufe klein, ohne Fokus, unten rechts in der Ecke (Nutzer arbeitet nebenher).
+## --bg: Test-/Autopilot-Laeufe klein, ohne Fokus, unten rechts (Nutzer arbeitet nebenher und schaut zu).
+## Parallele Laeufe werden gekachelt (Slot-Dateien im Temp-Ordner, belegt solange der Prozess lebt),
+## Titel zeigt das Level. --bg-size=WxH aendert die Groesse (Standard 640x360).
 func _apply_bg_window() -> void:
-	var wh := Vector2i(480, 270)
+	var wh := Vector2i(640, 360)
+	var bs := str(Game.arg("bg-size", ""))
+	if "x" in bs:
+		var p := bs.split("x")
+		wh = Vector2i(maxi(160, int(p[0])), maxi(90, int(p[1])))
 	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	DisplayServer.window_set_size(wh)
 	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
-	DisplayServer.window_set_position(usable.position + usable.size - wh - Vector2i(8, 40))
-	print("[graphics] --bg: Fenster %s @ %s" % [DisplayServer.window_get_size(), DisplayServer.window_get_position()])
+	var slot := _bg_claim_slot()
+	var per_row := maxi(1, (usable.size.x - 8) / (wh.x + 8))
+	var col := slot % per_row
+	var row := slot / per_row
+	var pos := usable.position + usable.size - Vector2i(8, 70) - wh \
+		- Vector2i(col * (wh.x + 8), row * (wh.y + 40))
+	DisplayServer.window_set_position(pos)
+	DisplayServer.window_set_title("Letztes Reich – Test: %s" % str(Game.arg("level", "Menü")))
+	print("[graphics] --bg: Fenster %s @ %s (Slot %d)" % [DisplayServer.window_get_size(), DisplayServer.window_get_position(), slot])
+
+
+## Freien Kachel-Slot belegen: Datei <temp>/lr_bg_slot_N.txt mit "PID Zeit"; der Besitzer erneuert sie
+## alle 2 s (Herzschlag). Slot frei, wenn Datei fehlt, aelter als 8 s ist oder uns selbst gehoert.
+## (OS.is_process_running kennt unter Windows nur selbst gestartete Prozesse, daher Herzschlag.)
+var _bg_slot_path := ""
+
+func _bg_claim_slot() -> int:
+	if _bg_slot_path != "":
+		return int(_bg_slot_path.get_file().get_basename().trim_prefix("lr_bg_slot_"))
+	var dir := OS.get_environment("TEMP")
+	if dir == "":
+		dir = OS.get_user_data_dir()
+	var me := OS.get_process_id()
+	var now := int(Time.get_unix_time_from_system())
+	for i in 8:
+		var path := dir.path_join("lr_bg_slot_%d.txt" % i)
+		if FileAccess.file_exists(path):
+			var f := FileAccess.open(path, FileAccess.READ)
+			if f != null:
+				var parts := f.get_as_text().strip_edges().split(" ")
+				f.close()
+				var pid := int(parts[0])
+				var t := int(parts[1]) if parts.size() > 1 else 0
+				if pid != me and now - t < 8:
+					continue
+		_bg_slot_path = path
+		_bg_heartbeat()
+		var tm := Timer.new()
+		tm.wait_time = 2.0
+		tm.process_mode = Node.PROCESS_MODE_ALWAYS
+		tm.ignore_time_scale = true
+		tm.timeout.connect(_bg_heartbeat)
+		add_child(tm)
+		tm.start()
+		return i
+	return 0
+
+
+func _bg_heartbeat() -> void:
+	var w := FileAccess.open(_bg_slot_path, FileAccess.WRITE)
+	if w != null:
+		w.store_string("%d %d" % [OS.get_process_id(), int(Time.get_unix_time_from_system())])
+		w.close()
 
 
 func _apply_vsync() -> void:

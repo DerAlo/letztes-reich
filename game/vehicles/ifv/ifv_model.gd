@@ -116,6 +116,11 @@ static func _build_marder(root: Node3D, inst: Node3D) -> Dictionary:
 	parts["mantlet"] = mantlet
 	parts["barrel"] = barrel
 	parts["mg_mount"] = mg
+	# Rohr: Kruemmung des duennen Zylinders wuerde ueberall Kantenabrieb (blankes Metall) ausloesen
+	for n in barrel.find_children("*", "MeshInstance3D", true, false):
+		(n as MeshInstance3D).set_instance_shader_parameter("wear_mul", 0.15)
+	if barrel is MeshInstance3D:
+		(barrel as MeshInstance3D).set_instance_shader_parameter("wear_mul", 0.15)
 	parts["ramp"] = hull.get_node_or_null("RearRamp")
 	var wl: Array[Node3D] = []
 	var wr: Array[Node3D] = []
@@ -250,7 +255,9 @@ static func _build_procedural(root: Node3D) -> Dictionary:
 	parts["barrel"] = barrel
 	var bk := MK.new()
 	_build_barrel(bk)
-	bk.emit(barrel, paint, "BarrelShell").set_instance_shader_parameter("y_offset", TURRET_POS.y + MANTLET_POS.y)
+	var bs := bk.emit(barrel, paint, "BarrelShell")
+	bs.set_instance_shader_parameter("y_offset", TURRET_POS.y + MANTLET_POS.y)
+	bs.set_instance_shader_parameter("wear_mul", 0.15)
 	var muzzle := Marker3D.new()
 	muzzle.position = Vector3(0, 0, -3.3)
 	barrel.add_child(muzzle)

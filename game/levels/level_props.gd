@@ -8,6 +8,7 @@ const FireScene: PackedScene = preload("res://game/vfx/fire.tscn")
 const TankWreck = preload("res://game/vehicles/models/tank_wreck_model.gd")
 const CarModel = preload("res://game/vehicles/models/car_model.gd")
 const WreckModel = preload("res://game/vehicles/models/wreck_model.gd")
+const WreckScans = preload("res://game/vehicles/models/wreck_scans.gd")
 const PH = preload("res://game/levels/ph_props.gd")
 
 static func _rot(yaw_deg: float) -> Basis:
@@ -60,7 +61,7 @@ static func vehicle(parent: Node3D, pos: Vector3, yaw_deg: float, kind: String, 
 	var b := Geo.static_body(pos, yaw_deg)
 	var root := Node3D.new()
 	b.add_child(root)
-	if kind == "car" and not burnt and not flipped:
+	if kind == "car" and not burnt and not flipped and (int(fposmod(pos.x * 0.37 + pos.z * 0.71, 10.0) * 7.0) % 2 == 0 or not WreckScans.available("golf")):
 		# geparktes Auto unter Abdeckplane (Poly Haven "covered_car", CC0), Kollision wie bisher
 		var ps: PackedScene = load("res://assets/environment/street/models/covered_car/covered_car.gltf")
 		if ps != null:
@@ -81,14 +82,47 @@ static func vehicle(parent: Node3D, pos: Vector3, yaw_deg: float, kind: String, 
 		total_h += cab_h
 	elif kind == "truck":
 		total_h = ride + 2.5
+	if not burnt and not flipped and kind != "bus":
+		# intakte Fahrzeuge als Modell (Sketchfab, CC-BY 4.0): Golf V, Sprinter, Lkw LCT 3000; jeder zweite
+		# Pkw bleibt unter der Abdeckplane. Kollision wie bisher, Fallback: prozedurales CarModel.
+		var sel := int(fposmod(pos.x * 0.37 + pos.z * 0.71, 10.0) * 7.0)
+		var ik := "golf" if kind == "car" and sel % 2 == 1 else ("sprinter" if kind == "van" else ("lct3000" if kind == "truck" else ""))
+		if ik != "" and WreckScans.place(root, ik, length, 180.0 if sel % 3 == 0 else 0.0) > 0.0:
+			if ik == "lct3000":
+				WreckScans.repaint(root, "lct3000_Bodymat", _paint(color))
+			root.rotation_degrees.z = roll_deg
+			Geo.add_box_shape(b, Vector3(0, total_h / 2.0, 0), Vector3(width, total_h, length))
+			parent.add_child(b)
+			_cover_sides(covers, pos, yaw_deg, width / 2.0, length / 2.0, 1.0, true)
+			return b
 	if burnt:
 		# ausgebrannt: Loft-Karosserie ohne Scheiben/Reifen auf nackten Felgen, Brandrost/Asche-Shader (WreckModel)
 		var seed_v := fposmod(pos.x * 0.37 + pos.z * 0.71, 10.0)
-		var mh := WreckModel.build_vehicle(root, kind, color, seed_v)
-		root.rotation_degrees.z = roll_deg
-		if flipped:
-			root.rotation_degrees.z = 180.0 + roll_deg
-			root.position.y = mh - 0.03
+		# modellierte Wracks (Sketchfab, CC-BY 4.0): Pkw zwei Varianten, Transporter, Bus, Lkw (auch auf dem Dach)
+		var scan := ""
+		if kind == "car":
+			scan = "car_a" if int(seed_v * 7.0) % 2 == 0 else "car_b"
+		else:
+			scan = kind   # "van", "bus", "truck"
+		var sh := -1.0
+		if scan != "":
+			sh = WreckScans.place(root, scan, length, 180.0 if int(seed_v * 13.0) % 2 == 0 else 0.0)
+		if sh > 0.0:
+			root.rotation_degrees.z = roll_deg
+			if flipped:
+				# Dach eingedrueckt: Karosserie liegt mit der Guertellinie auf (WreckScans.FLIP_SINK)
+				var crush := WreckScans.flip_sink(scan, sh)
+				root.rotation_degrees.z = 180.0 + roll_deg
+				root.position.y = sh - 0.05 - crush
+				# Kollision folgt der sichtbaren Hoehe, bleibt aber deckungshoch (>= 1 m)
+				sh = maxf(sh - crush, minf(1.0, sh))
+			total_h = minf(sh, total_h)
+		else:
+			var mh := WreckModel.build_vehicle(root, kind, color, seed_v)
+			root.rotation_degrees.z = roll_deg
+			if flipped:
+				root.rotation_degrees.z = 180.0 + roll_deg
+				root.position.y = mh - 0.03
 		Geo.add_box_shape(b, Vector3(0, total_h / 2.0, 0), Vector3(width, total_h, length))
 		WreckModel.scorch(b, Vector2(width + 1.8, length + 1.6), fposmod(seed_v * 37.0, 30.0) - 15.0)
 		parent.add_child(b)

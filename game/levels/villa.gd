@@ -99,6 +99,8 @@ func _ready() -> void:
 	_ambience()
 	if str(Game.arg("shots", "")) != "":
 		add_child(load("res://game/levels/tools/villa_shots.gd").new())
+	# Innenraum-Kram (nur Optik, verzoegert per Raycast an freie Wandstuecke)
+	load("res://game/levels/interior_clutter.gd").scatter(self, AABB(Vector3(-12.0, -0.4, -32.0), Vector3(24.0, 3.4, 18.0)), 10, "villa", 7106)   # Villa EG (Umzugskartons: Evakuierung)
 	if _start_phase > 0:
 		_debug_start(_start_phase)
 	else:
@@ -578,6 +580,7 @@ func _physics_process(delta: float) -> void:
 	_t += delta
 	if not _ready_done:
 		return
+	_engine_couple(delta)
 	var pl := _player()
 	if pl == null:
 		return
@@ -662,15 +665,15 @@ func _end_cine() -> void:
 
 func _intro() -> void:
 	_obj("Aufklärung vom Hang: Drohne startet")
+	# v0.6 Funkstau: Frueher lief erst Brandts 8,6-s-Lagebild, dann Lenas Drohnen-Anweisung; die Drohne startete
+	# bei 9 s, die Markier-Meldungen (Graumaentel/Weber) kamen +8..10 s zu spaet. Jetzt: Lenas Anweisung zuerst,
+	# die Drohne startet, sobald sie fertig ist (Funk frei), Brandts Lagebild laeuft beim Abstieg (_recon_done).
 	_later(1.0, func() -> void:
-		# Prioritaet 1 (Erzaehlzeilen): die Drohnen-Meldungen (Graumaentel, Weber; ebenfalls Prio 1, ohne cut)
-		# warten, bis Lenas Anweisung durch ist, statt sie zu unterbrechen.
-		_say_opt(StoryData.BRANDT, "Kerner, Brandt hier. Ich kreise mit dem Hubschrauber drei Kilometer südlich über dem Wald. Die Villa gehört einem Strohmann des Konsortiums – Weber ist seit Mittag drin.", 0.0, {"priority": 1})
-		# Lena direkt im Anschluss (Gespraech im selben Frame)
 		_say_opt(StoryData.LENA, "Ich bin hinter dir am Hang. Schick zuerst die Drohne runter – ich will jede Wache und jede Kamera kennen, bevor du gehst.", 0.0, {"priority": 1}))
-	_later(9.0, func() -> void:
-		if _phase == 0 and drone != null and not bool(drone.get("active")):
-			_launch_drone())
+	_later(2.0, func() -> void:
+		_when_radio_free(func() -> void:
+			if _phase == 0 and drone != null and not bool(drone.get("active")):
+				_launch_drone(), 10.0))
 
 func _launch_drone() -> void:
 	var pl := _player()
@@ -734,6 +737,10 @@ func _recon_done() -> void:
 	# Kerner antwortet direkt (Gespraech im selben Frame); entfaellt, wenn inzwischen Alarm ist
 	_say_once_opt("go_down", StoryData.KERNER, "Verstanden. Ich geh runter.",
 		{"valid": func() -> bool: return not bool(director.get("alarm"))})
+	# Brandts Lagebild (frueher im Intro, dort blockierte es die Drohnen-Meldungen) beim ruhigen Abstieg;
+	# entfaellt bei Alarm oder sobald Kerner im Haus ist.
+	_say_once_opt("brandt_intro", StoryData.BRANDT, "Kerner, Brandt hier. Ich kreise mit dem Hubschrauber drei Kilometer südlich über dem Wald. Die Villa gehört einem Strohmann des Konsortiums – Weber ist seit Mittag drin.",
+		{"valid": func() -> bool: return _phase == 1 and not bool(director.get("alarm"))})
 	_ap_reset()
 
 func _approach_objective() -> String:
@@ -768,6 +775,8 @@ func _on_target_marked(_node: Node3D, kind: String) -> void:
 		_obj(_approach_objective())
 	match kind:
 		"jaeger":
+			if drone != null and int(drone.call("marked_count", "jaeger")) == 1:
+				drone.call("_flash_text", "FALKS POSTEN – BEIM ANGRIFF SIND SEINE LEUTE MARKIERT")
 			# Erzaehlzeile Prio 1 (kein max_age, kein cut): wartet hinter Lenas Drohnen-Anweisung (gleiche Prio,
 			# unterbricht sie nicht) und wird auch von Kerners Weber-Zeile nicht mehr abgeschnitten. Verfaellt erst,
 			# wenn Kerner schon im Haus ist.
@@ -839,15 +848,20 @@ func _library_scene() -> void:
 	# waehrend ein Countdown bis zum Zugriff der Jaeger laeuft (Stellung beziehen, nachladen).
 	_end_cine()
 	_obj("Falks Jäger rücken an – Stellung in der Bibliothek beziehen")
-	_start_countdown(STORM_WARN, "ZUGRIFF DER JÄGER IN %d s", _payoff_text())
 	# Alle Zeilen sofort einreihen (Reihenfolge bleibt: Weber verabschiedet sich, bevor Falk "Zugriff" funkt)
 	_say(StoryData.LENA, "Jonas, Fahrzeuge auf der Bundesstraße. Graue Mäntel. Das sind Falks Jäger.")
 	_say(StoryData.WEBER, "Fragen Sie sich lieber, wie die so schnell hier sein können.")
 	_say(StoryData.WEBER, "Riedhammer vertraut seinen Leitungen. Das war immer sein Fehler.")
+	var t_hier := _radio_busy()
 	_say(StoryData.WEBER, "Hier. Die Hälfte der Akte Nordlicht. Konten, Strohmänner, das Konsortium. Die andere Hälfte ist meine Lebensversicherung.")
 	_say(StoryData.WEBER, "Wir sehen uns in Berlin, Kerner.")
-	# Akte auf den Tisch, wenn Weber "Hier." sagt (ca. 17 s nach Beginn der Zeilen)
-	_later(STORM_WARN - 7.0, func() -> void:
+	# v0.6: Countdown an die echte Laenge der Zeilen koppeln (vorher fest 24 s, Webers Abschied lief aber ~32 s:
+	# Falks "Zugriff" und Lenas Warnung kamen 8 s NACH Sturmbeginn). Jetzt endet der Countdown mit Webers
+	# letzter Zeile, hoechstens 10 s laenger als frueher.
+	var warn := clampf(_radio_busy() + 0.3, STORM_WARN, STORM_WARN + 10.0)
+	_start_countdown(warn, "ZUGRIFF DER JÄGER IN %d s", _payoff_text())
+	# Akte auf den Tisch, wenn Weber "Hier." sagt
+	_later(clampf(t_hier + 0.4, 4.0, warn - 2.0), func() -> void:
 		if _phase != 3:
 			return
 		if not _weber.is_empty() and not _escape_started:
@@ -855,7 +869,7 @@ func _library_scene() -> void:
 		if pts.has("akte") and not _akte_taken:
 			(pts["akte"] as Node3D).visible = true)
 	# Countdown aus: Weber geht (waehrend seines Abschieds), die Jaeger stuermen
-	_later(STORM_WARN, func() -> void:
+	_later(warn, func() -> void:
 		if _phase != 3:
 			return
 		if pts.has("akte") and not _akte_taken:
@@ -867,9 +881,18 @@ func _library_scene() -> void:
 
 ## Lohn bzw. Preis der Annaeherung, beim Countdown eingeblendet (Schleichen soll spuerbar etwas bringen).
 func _payoff_text() -> String:
-	if _loud():
-		return "Alarm ausgelöst: Falk schickt mehr Jäger – und eine Nachhut an den Steg"
-	return "Unentdeckt geblieben: kleinerer Sturm, keine Nachhut am Steg"
+	var t := "Alarm ausgelöst: Falk schickt mehr Jäger – und eine Nachhut an den Steg" if _loud() 			else "Unentdeckt geblieben: kleinerer Sturm, keine Nachhut am Steg"
+	if _jaeger_intel():
+		t += "
+Graumäntel markiert: Lena verfolgt die Jäger – Angreifer sind markiert"
+	return t
+
+## Hat die Drohne Falks Posten an der Strasse markiert? (Lohn: Sturm-Angreifer erscheinen markiert)
+var _intel_cached: int = -1
+func _jaeger_intel() -> bool:
+	if _intel_cached < 0 and drone != null and _phase >= 3:
+		_intel_cached = 1 if int(drone.call("marked_count", "jaeger")) > 0 else 0
+	return _intel_cached == 1
 
 var _cd_layer: CanvasLayer
 var _cd_label: Label
@@ -1012,13 +1035,16 @@ func _weber_board(root: Node3D, door: Vector3) -> void:
 	_weber_tw = tw
 	tw.tween_callback(_face.bind(root, door))
 	tw.tween_interval(0.6)
-	tw.tween_property(root, "position", door, maxf(0.2, root.position.distance_to(door) / 0.8))
-	tw.tween_interval(0.35)
+	# Erst auf Steghoehe bis vor den Schwimmer gehen (Gehzyklus), dann in echten Stufen hinauf: Bein heben,
+	# Koerper nachziehen (vorher glitt er in einer Bewegung schraeg nach oben = "schwebt").
+	var base := Vector3(door.x, root.position.y, door.z)
+	tw.tween_property(root, "position", base, maxf(0.2, root.position.distance_to(base) / 0.8))
+	tw.tween_interval(0.25)
+	_climb_step(tw, root, door, 0, 0.55)
 	tw.tween_callback(_face.bind(root, cabin))
-	# hinaufsteigen (Trittstufe/Strebe): erst hoch, dann hinein
-	var mid := Vector3(lerpf(door.x, cabin.x, 0.35), cabin.y - 0.25, lerpf(door.z, cabin.z, 0.35))
-	tw.tween_property(root, "position", mid, 0.9).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(root, "position", cabin, 0.8).set_trans(Tween.TRANS_SINE)
+	var mid := Vector3(lerpf(door.x, cabin.x, 0.35), lerpf(door.y, cabin.y, 0.5), lerpf(door.z, cabin.z, 0.35))
+	_climb_step(tw, root, mid, 1, 0.6)
+	_climb_step(tw, root, cabin, 0, 0.6)
 	tw.tween_callback(func() -> void:
 		root.visible = false
 		_weber_boarded = true
@@ -1027,6 +1053,17 @@ func _weber_board(root: Node3D, door: Vector3) -> void:
 		if not _finished:
 			_set_throttle(0.18)
 			_start_engine(-12.0 if _phase < 5 else -6.0))
+
+## Eine Stufe hinauf: Bein (leg_l/leg_r) anheben, Koerper auf die naechste Hoehe ziehen, Bein absetzen.
+func _climb_step(tw: Tween, root: Node3D, to: Vector3, leg_i: int, dur: float) -> void:
+	var legs: Array = _weber.get("legs", [])
+	var leg: Node3D = legs[leg_i] as Node3D if leg_i < legs.size() else null
+	if leg != null:
+		tw.tween_property(leg, "rotation:x", 1.05, dur * 0.4).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(root, "position", to, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	if leg != null:
+		tw.parallel().tween_property(leg, "rotation:x", 0.0, dur).set_trans(Tween.TRANS_SINE)
+	tw.tween_interval(0.12)
 
 ## Propeller/Motor: neues Flugzeug (villa_seaplane.gd) hat "throttle", sonst altes Drehen ueber _prop_speed.
 func _set_throttle(v: float) -> void:
@@ -1045,13 +1082,28 @@ func _door_to(deg: float) -> void:
 	if deg == 0.0:
 		tw.tween_callback(func() -> void: _sfx_at("overwatch_door_slam", hinge.global_position, -8.0))
 
+## Motor-Drehzahl hoerbar: Tonhoehe folgt dem throttle des Wasserflugzeugs (Leerlauf ~0.8, Vollgas ~1.15).
+func _engine_couple(delta: float) -> void:
+	if _engine == null or not is_instance_valid(_engine) or not pts.has("plane"):
+		return
+	var plane: Node3D = pts["plane"] as Node3D
+	if plane == null or not ("throttle" in plane) or _engine.stream == null:
+		return
+	if _engine.pitch_scale > 1.3:   # Fallback-Bootsmotor (fest 1.45) nicht koppeln
+		return
+	var thr := clampf(float(plane.get("throttle")), 0.0, 1.0)
+	var target := lerpf(0.78, 1.15, sqrt(thr))
+	_engine.pitch_scale = lerpf(_engine.pitch_scale, target, clampf(delta * 1.2, 0.0, 1.0))
+
 func _start_engine(vol: float) -> void:
 	if not pts.has("plane"):
 		return
 	if _engine == null or not is_instance_valid(_engine):
-		_engine = _loop_3d("hafen_boat_engine", Vector3(0.0, 2.0, -3.0), vol, 10.0, 160.0, pts["plane"] as Node3D)
+		# echter Kolbenmotor+Propeller (veh_prop_plane); Drehzahl folgt in _physics_process dem throttle
+		var sn := "veh_prop_plane" if not Sfx.get_variants("veh_prop_plane").is_empty() else "hafen_boat_engine"
+		_engine = _loop_3d(sn, Vector3(0.0, 2.0, -3.0), vol, 10.0, 160.0, pts["plane"] as Node3D)
 		if _engine != null:
-			_engine.pitch_scale = 1.45
+			_engine.pitch_scale = 0.8 if sn == "veh_prop_plane" else 1.45
 	elif _engine != null:
 		create_tween().tween_property(_engine, "volume_db", vol, 1.5)
 
@@ -1105,10 +1157,14 @@ func _storm_spawn(wave: int) -> void:
 			list.append_array([["assault", Vector3(4.6, 0.05, -7.6)], ["marksman", Vector3(-17.8, 0.15, -21.5)]])
 		else:
 			list.append_array([["assault", Vector3(7.4, 0.05, -8.0)], ["assault", Vector3(-16.0, 0.15, -27.5)], ["officer", Vector3(-17.4, 0.15, -23.4)]])
+	var intel := _jaeger_intel()
 	for s: Array in list:
 		var e := _spawn_fighter(str(s[0]), s[1], tgt, true)
 		if e != null:
 			_storm.append(e)
+			if intel:
+				# Graumaentel vorher markiert: Lena kennt ihre Wagen, die Angreifer erscheinen markiert (Rauten durch Waende)
+				drone.call("mark_silent", e, "jaeger", "Jäger")
 
 func _storm_alive() -> int:
 	var n := 0

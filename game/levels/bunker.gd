@@ -24,6 +24,7 @@ const YL := -3.0         ## Fussboden der unteren Ebene
 const WK = preload("res://game/levels/overwatch_world_kit.gd")   ## pbr(): Poly-Haven-Texturordner
 const BK_TEX := "res://assets/environment/bunker/textures/"     ## Bunker-Texturen (Poly Haven, CC0)
 const SCREEN_SHADER = preload("res://game/levels/bunker_screen.gdshader")
+const WallGrime = preload("res://game/levels/wall_grime.gd")
 enum Scr { MAP, TEXT, RADAR, ALARM, PAPER }   ## Bildinhalt der Monitore (bunker_screen.gdshader, uniform mode)
 const PHOSPHOR := Color(0.35, 1.0, 0.55)   ## gruener Monitorphosphor
 const AMBER_P := Color(1.0, 0.6, 0.18)     ## Bernstein-Phosphor
@@ -78,6 +79,8 @@ func _ready() -> void:
 		return
 	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
 		add_child(load("res://game/levels/tools/villa_shots.gd").new())
+	# Innenraum-Kram (nur Optik, verzoegert per Raycast an freie Wandstuecke)
+	load("res://game/levels/interior_clutter.gd").scatter(self, AABB(), 55, "bunker", 7101)
 	_build_doors()
 	_build_figures()
 	Events.enemy_killed.connect(_on_enemy_killed)
@@ -337,11 +340,13 @@ func _wall_x(z: float, x0: float, x1: float, y0: float, y1: float, gaps: Array =
 		var g1: float = float(g[0]) + float(g[1]) * 0.5
 		if g0 > cur:
 			_bx(key, Vector3(cur, y0, z - t), Vector3(g0, y1, z + t))
+			_grime(Vector3(cur, 0, z), Vector3(g0, 0, z), y0, y1)
 		if y0 + float(g[2]) < y1:
 			_bx(key, Vector3(g0, y0 + float(g[2]), z - t), Vector3(g1, y1, z + t))
 		cur = g1
 	if cur < x1:
 		_bx(key, Vector3(cur, y0, z - t), Vector3(x1, y1, z + t))
+		_grime(Vector3(cur, 0, z), Vector3(x1, 0, z), y0, y1)
 
 ## Wand entlang z bei x (z0 > z1), Oeffnungen [[z_mitte, breite, hoehe], ...].
 func _wall_z(x: float, z0: float, z1: float, y0: float, y1: float, gaps: Array = [], key: String = "concrete") -> void:
@@ -354,11 +359,22 @@ func _wall_z(x: float, z0: float, z1: float, y0: float, y1: float, gaps: Array =
 		var g1: float = float(g[0]) + float(g[1]) * 0.5
 		if g0 > cur:
 			_bx(key, Vector3(x - t, y0, cur), Vector3(x + t, y1, g0))
+			_grime(Vector3(x, 0, cur), Vector3(x, 0, g0), y0, y1)
 		if y0 + float(g[2]) < y1:
 			_bx(key, Vector3(x - t, y0 + float(g[2]), g0), Vector3(x + t, y1, g1))
 		cur = g1
 	if cur < z0:
 		_bx(key, Vector3(x - t, y0, cur), Vector3(x + t, y1, z0))
+		_grime(Vector3(x, 0, cur), Vector3(x, 0, z0), y0, y1)
+
+## Gebrauchsspuren an einem Wandstueck a..b (wall_grime.gd, beide Seiten). Eigene Zufallsfolge.
+var _grime_rng: RandomNumberGenerator = null
+
+func _grime(a: Vector3, b: Vector3, y0: float, y1: float) -> void:
+	if _grime_rng == null:
+		_grime_rng = RandomNumberGenerator.new()
+		_grime_rng.seed = 5150
+	WallGrime.wall(self, a, b, y0, y1, _grime_rng, "bunker")
 
 ## Rampe (Kollision) + Stufen (Optik) zwischen (z_low, y_low) und (z_high, y_high), Breite x0..x1.
 func _stairs(x0: float, x1: float, z_low: float, y_low: float, z_high: float, y_high: float) -> void:
@@ -402,6 +418,11 @@ func _setup_environment() -> void:
 	env.sdfgi_enabled = true
 	env.sdfgi_energy = 0.6
 	env.ssil_intensity = 1.0
+	# Kontaktschatten an Unterzuegen, Rohrtrassen, Moebelfuessen (Grafik-Option "aus" schaltet es ab)
+	env.ssao_enabled = true
+	env.ssao_radius = 0.9
+	env.ssao_intensity = 1.8
+	env.ssao_light_affect = 0.15
 	# Innenraum: leichter Dunst. Dampf/Rauch nur lokal (FogVolumes in _build_atmosphere).
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.04, 0.035, 0.04)
@@ -1285,7 +1306,7 @@ func _control_nudge_say() -> void:
 	if pl != null and pl.global_position.distance_to(Vector3(0.0, YL, -104.0)) < 9.0:
 		return
 	_say_opt(StoryData.LENA, "Der Kontrollraum liegt ganz am Ende, hinter dem Lagezentrum. Die Lüftung zeigt zwei Wärmequellen da drin.", 0.0,
-		{"priority": 1, "valid": func() -> bool: return not _scene_started})
+		{"priority": 1, "drop_live": true, "valid": func() -> bool: return not _scene_started})   # bricht ab, sobald die Szene beginnt
 
 # ------------------------------------------------------------------ Story
 

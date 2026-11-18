@@ -44,6 +44,7 @@ uniform float track_metal = 0.12;
 uniform float spin = 0.0;
 uniform float snow_amount = 0.0;
 instance uniform float y_offset = 0.0;
+instance uniform float wear_mul = 1.0;                         // Rohr: duenner Zylinder zaehlt sonst komplett als Kante
 
 varying vec3 v_pos;
 varying vec3 v_n;
@@ -108,9 +109,9 @@ void fragment() {
 	float edge = smoothstep(edge_curv.x, edge_curv.y, curv) * smoothstep(0.3, 0.62, nf.g + ng.b * 0.35);
 	// Trittspuren: waagrechte Flaechen auf Deck/Turmdach (abgewetzt, leicht glaenzend)
 	float deck = smoothstep(0.85, 0.97, n0.y) * smoothstep(1.4, 1.8, h) * smoothstep(0.55, 0.8, ng.r + nf.b * 0.3);
-	float wear = clamp(edge * edge_wear + deck * deck_wear, 0.0, 1.0) * paint;
+	float wear = clamp(edge * edge_wear * wear_mul + deck * deck_wear, 0.0, 1.0) * paint;
 
-	float chip = smoothstep(0.86, 0.9, ng.b + (1.0 - chip_amount) * 0.1) * chip_amount;
+	float chip = smoothstep(0.86, 0.9, ng.b + (1.0 - chip_amount) * 0.1) * chip_amount * mix(0.3, 1.0, wear_mul);
 	chip = max(chip, smoothstep(0.55, 0.85, wear));
 	vec3 bare = metal_col * (0.65 + 0.9 * lum);
 	vec3 painted = mix(pc, pc * 1.25 + vec3(0.015), smoothstep(0.0, 0.5, wear) * 0.6);  // abgeriebener Lack hellt auf

@@ -1,0 +1,11 @@
+Model Information:
+* title:	Shrub tiles pack (3 vars, seamless)
+* source:	https://sketchfab.com/3d-models/shrub-tiles-pack-3-vars-seamless-ce2fce219f634f328abc6280b2409613
+* author:	LOLIPOP (https://sketchfab.com/lolipop_1707)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Shrub tiles pack (3 vars, seamless)" (https://sketchfab.com/3d-models/shrub-tiles-pack-3-vars-seamless-ce2fce219f634f328abc6280b2409613) by LOLIPOP (https://sketchfab.com/lolipop_1707) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

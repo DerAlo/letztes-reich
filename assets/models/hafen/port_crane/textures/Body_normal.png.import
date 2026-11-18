@@ -3,25 +3,26 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cpwr1hwpsn1ni"
-path="res://.godot/imported/Body_normal.png-3fc93056643c17bdf8bac0b8835eaae7.ctex"
+path.bptc="res://.godot/imported/Body_normal.png-3fc93056643c17bdf8bac0b8835eaae7.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/hafen/port_crane/textures/Body_normal.png"
-dest_files=["res://.godot/imported/Body_normal.png-3fc93056643c17bdf8bac0b8835eaae7.ctex"]
+dest_files=["res://.godot/imported/Body_normal.png-3fc93056643c17bdf8bac0b8835eaae7.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=false
 mipmaps/limit=-1
@@ -37,4 +38,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

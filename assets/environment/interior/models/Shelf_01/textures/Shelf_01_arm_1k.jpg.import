@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cadrtlc3g52pi"
-path="res://.godot/imported/Shelf_01_arm_1k.jpg-31959860f3b2f7eaadb3f40c2f90b2f9.ctex"
+path.s3tc="res://.godot/imported/Shelf_01_arm_1k.jpg-31959860f3b2f7eaadb3f40c2f90b2f9.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/environment/interior/models/Shelf_01/textures/Shelf_01_arm_1k.jpg"
-dest_files=["res://.godot/imported/Shelf_01_arm_1k.jpg-31959860f3b2f7eaadb3f40c2f90b2f9.ctex"]
+dest_files=["res://.godot/imported/Shelf_01_arm_1k.jpg-31959860f3b2f7eaadb3f40c2f90b2f9.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -37,4 +38,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://4kqbaxfunvs5"
-path="res://.godot/imported/rusted_wheel_rim_02_diff_1k.jpg-55bfc9356bd4b908264f36008635f2ab.ctex"
+path.s3tc="res://.godot/imported/rusted_wheel_rim_02_diff_1k.jpg-55bfc9356bd4b908264f36008635f2ab.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/props/vehicles_wreck/rusted_wheel_rim_02/textures/rusted_wheel_rim_02_diff_1k.jpg"
-dest_files=["res://.godot/imported/rusted_wheel_rim_02_diff_1k.jpg-55bfc9356bd4b908264f36008635f2ab.ctex"]
+dest_files=["res://.godot/imported/rusted_wheel_rim_02_diff_1k.jpg-55bfc9356bd4b908264f36008635f2ab.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -37,4 +38,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

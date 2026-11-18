@@ -1479,11 +1479,15 @@ func _p4() -> bool:
 	if not await _until(func() -> bool: return float(ride.get("path_s")) >= s_kai - 1.0 or _all_dead(req), 60.0):
 		return false
 	if not _all_dead(req):
-		_callout(SD.LENA, "Ich muss hier halten, bis der Kai frei ist. Mach schnell, Weber zieht davon!", req, 4.0, 1)
+		# v0.6: Halt sofort im Auftrag erklaeren (Lenas Zeile wartete bis +5 s hinter Boots-Warnungen),
+		# Lena mit Prio 2 vor den uebrigen Boots-Zurufen
+		_obj("Das Boot hält – Schützen am Ostkai (rechts, zwischen den Kränen) und Garde-Boote ausschalten")
+		_callout(SD.LENA, "Ich muss hier halten, bis der Kai frei ist. Mach schnell, Weber zieht davon!", req, 4.0, 2)
 	var ok: bool = await _clear(req, 110.0)
 	_drop_stops()
 	if not ok:
 		return false
+	_obj("Becken frei – Weber (blau) zur Hubbrücke folgen")
 	await _radio_wait(4.0)
 	_say(SD.LENA, "Becken ist frei. Weiter zur Hubbrücke!", 0.0, {"max_age": 3.0, "priority": 1})
 	return true

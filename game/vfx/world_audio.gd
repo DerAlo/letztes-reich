@@ -53,6 +53,7 @@ func _ready() -> void:
 	_siren.attenuation_filter_cutoff_hz = 2500.0
 	add_child(_siren)
 	_siren_t = randf_range(25.0, 50.0)
+	add_child(preload("res://game/audio/sound_core.gd").new())   # Sound-Overhaul v0.6 (Material, Raum, Schritte, Ambience)
 
 func _stream(sfx_name: String, loop: bool = false) -> AudioStream:
 	if _cache.has(sfx_name):
@@ -106,6 +107,9 @@ func play_3d(sfx_name: String, pos: Vector3, volume_db: float = 0.0, unit_size: 
 func explosion(pos: Vector3, scale: float = 1.0) -> void:
 	if not enabled:
 		return
+	if SoundCore.I:
+		SoundCore.I.explosion(pos, scale)
+		return
 	var lp := _listener_pos()
 	var d := 0.0 if lp == Vector3.INF else lp.distance_to(pos)
 	var sfx: String = EXPLOSIONS[randi() % EXPLOSIONS.size()]
@@ -125,6 +129,9 @@ func explosion(pos: Vector3, scale: float = 1.0) -> void:
 # --- Einschlaege / Querschlaeger / Vorbeiflug ----------------------------------
 
 func impact(pos: Vector3, surface: String) -> void:
+	if enabled and SoundCore.I:
+		SoundCore.I.impact(pos, surface)
+		return
 	if not enabled or not IMPACT_SETS.has(surface):
 		return
 	if _impact_budget > 10.0:

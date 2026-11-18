@@ -81,6 +81,8 @@ func _ready() -> void:
 		return
 	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
 		add_child(load("res://game/levels/tools/villa_shots.gd").new())
+	# Innenraum-Kram (nur Optik, verzoegert per Raycast an freie Wandstuecke)
+	load("res://game/levels/interior_clutter.gd").scatter(self, AABB(), 30, "house", 7104)
 	_build_exit_gate()
 	_equip_suppressed()
 	Events.player_respawned.connect(_on_player_respawned)
@@ -1631,7 +1633,8 @@ func _on_alarm_raised(reason: String, pos: Vector3, first: bool) -> void:
 	if not first:
 		return
 	_set_alarm_fx(true)
-	if _reinf_waves < 2 and _reinf_t < 0.0:
+	# Kerner schon im Tunnel bei Voss: Sirene/Alarmruf als Hintergrund, aber keine Verstaerkung und kein „sie haben dich“
+	if _reinf_waves < 2 and _reinf_t < 0.0 and not _in_tunnel:
 		_reinf_t = 8.0
 	match reason:
 		"body":
@@ -1645,6 +1648,8 @@ func _on_alarm_raised(reason: String, pos: Vector3, first: bool) -> void:
 		_:
 			_say_opt(StoryData.ORDNUNG, "Eindringling gesichtet! Alarm!", 0.0, {"priority": 1, "max_age": 3.0})
 	# Lena antwortet direkt nach dem Alarmruf (Gespraech im selben Frame) – nur solange der Alarm noch laeuft
+	if _in_tunnel:
+		return
 	_say_opt(StoryData.LENA, "Jonas, sie haben dich! Raus aus dem Licht – lauf, versteck dich, warte, bis sie aufgeben.", 0.0,
 		{"priority": 1, "max_age": 3.0, "valid": func() -> bool: return bool(director.get("alarm"))})
 
@@ -1840,7 +1845,9 @@ func _on_download_finished() -> void:
 
 ## Nach dem Download: zwei Wachen kommen durch das Rolltor und sehen nach (kein Alarm).
 func _send_late_patrol() -> void:
-	if _finished or not spawn_enemies:
+	# Spieler schon im Tunnel bei Voss: Die Streife wuerde nur noch eine Leiche im Anbau finden und einen
+	# Alarm ausloesen, der mitten ins Voss-Gespraech faellt und keine spielerische Folge mehr hat.
+	if _finished or not spawn_enemies or _in_tunnel:
 		return
 	for i in 2:
 		var x := 35.4 + i * 1.2

@@ -676,7 +676,8 @@ func _on_heli_down() -> void:
 		return
 	_heli_down = true
 	print("[river] Hubschrauber abgeschossen")
-	_radio_opt(StoryData.LENA, "Er geht runter! Direkt in den Fluss!", 3.5, {"priority": 1, "max_age": 3.0})
+	# max_age 5: nach Lenas Fliegerfaust-Zeile (3 s) wartet die Abschussmeldung ~3,2 s und fiel mit 3 s weg
+	_radio_opt(StoryData.LENA, "Er geht runter! Direkt in den Fluss!", 3.5, {"priority": 1, "max_age": 5.0})
 	_objective("Ueberquere die Bruecke")
 
 func _on_heli_crash() -> void:
@@ -855,6 +856,7 @@ func _start_tank() -> void:
 	else:
 		charge = RP.FallbackCharge.new()
 	charge.set("target", tank)
+	charge.add_to_group("bot_objective")   # Autopilot laeuft hin (Ladung setzt sich im Bot-Modus selbst)
 	tank.add_child(charge)
 	charge.position = Vector3(1.8, 0.9, 0.5)
 	# Rueckfall: Artillerie erledigt den Panzer, falls es zu lange dauert

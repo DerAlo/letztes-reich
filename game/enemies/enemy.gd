@@ -220,6 +220,24 @@ var stealth: Object = null
 
 ## Spielweite Zaehigkeit: alle Gegner halten 50 % mehr aus (Nutzerwunsch).
 const HEALTH_SCALE: float = 1.5
+## Schadensfaktor gegen ahnungslose Schleich-Wachen (stealth != null, IDLE, nicht aufmerksam).
+const SURPRISE_MULT: float = 2.5
+## s, um die ein Treffer den naechsten Schuss einer laufenden Salve verzoegert (Trefferreaktion).
+const HIT_STAGGER: float = 0.35
+## Niederhalten: Spielerkugeln, die knapp vorbeigehen, druecken die Trefferquote und verlaengern das Abtauchen.
+const SUPPRESS_ACC: float = 0.5        ## Trefferfaktor bei voller Niederhaltung
+const SUPPRESS_DECAY: float = 0.45     ## Abbau pro Sekunde
+## Eigene Bewegung kostet Praezision (Schiessen aus dem Laufen).
+const MOVING_SELF_ACC: float = 0.7
+## Granate in der Naehe: Ausweichen statt stehen bleiben.
+const GRENADE_EVADE_DIST: float = 6.5
+
+var _suppression: float = 0.0
+var _evade_t: float = 0.0
+var _evade_dir: Vector3 = Vector3.ZERO
+var _evade_delay: float = 0.0
+var _limp_t: float = 0.0               ## Beintreffer: kurz humpeln/stolpern
+var _last_hit_age: float = -100.0
 
 func _ready() -> void:
 	rng.randomize()
@@ -264,6 +282,12 @@ func take_hit_part(amount: float, source: Node, hit_position: Vector3, hit_norma
 		return
 	if headshot:
 		amount *= head_damage_multiplier
+	# Ueberraschung (nur Schleich-Wachen): ahnungsloser Posten, keine Deckung/Schutzhaltung -> ein sauberer
+	# Treffer mit der schallgedaempften Pistole schaltet ihn aus. Schleichen bringt so spuerbar etwas.
+	var surprised := stealth != null and state == State.IDLE and source != null and source.is_in_group("player") \
+			and stealth.has_method("is_aware") and not bool(stealth.call("is_aware"))   # breach_captor hat kein is_aware
+	if surprised:
+		amount *= SURPRISE_MULT
 	health -= amount
 	Events.enemy_damaged.emit(self, amount)
 	if VFX.is_bleeder(self):
@@ -283,7 +307,26 @@ func take_hit_part(amount: float, source: Node, hit_position: Vector3, hit_norma
 	_last_hit_dir = dir.normalized()
 	if health <= 0.0:
 		_die()
+		if surprised:
+			var w: Variant = source.get("weapon")
+			var h: Variant = source.get("hud")
+			if w is Node and bool((w as Node).get("suppressed")) and h is Node and (h as Node).has_method("toast"):
+				(h as Node).call("toast", "LAUTLOS AUSGESCHALTET", 1.6)
 		return
+	# Treffer bringt den Schuetzen aus dem Anschlag: der naechste Schuss der Salve kommt spaeter
+	# (Wirkungstreffer spuerbar, wer zuerst trifft, gewinnt eher das Duell)
+	# Trefferzonen: Beintreffer -> Stolpern/Humpeln, zwei Rumpftreffer kurz hintereinander -> laengeres Wanken
+	var hit_h := hit_position.y - global_position.y
+	var stagger := HIT_STAGGER
+	if not headshot and hit_h < 0.85:
+		_limp_t = maxf(_limp_t, 1.4)
+		stagger = HIT_STAGGER * 1.6
+	elif _age - _last_hit_age < 0.6:
+		stagger = HIT_STAGGER * 2.0
+	_last_hit_age = _age
+	_suppression = minf(_suppression + 0.35, 1.0)
+	if _burst_left > 0:
+		_shot_timer = maxf(_shot_timer, stagger)
 	_bark("hit")
 	_on_damaged(source, src_pos)
 
@@ -326,6 +369,7 @@ func _physics_process(delta: float) -> void:
 	_desired_velocity = Vector3.ZERO
 	_use_avoidance = false
 	_tick_state(delta)
+	_tick_reactions(delta)
 	_update_facing(delta)
 	_apply_motion(delta)
 	_animate(delta)
@@ -950,7 +994,42 @@ func hit_chance() -> float:
 	var w := clampf(_sight_time / maxf(warmup_time, 0.01), 0.0, 1.0)
 	p *= lerpf(warmup_floor, 1.0, w * w)
 	p *= accuracy_scale * global_accuracy_scale * type_accuracy * _Difficulty.enemy_accuracy()
+	# niedergehalten / selbst in Bewegung -> unruhiger Anschlag
+	p *= lerpf(1.0, SUPPRESS_ACC, _suppression)
+	p *= lerpf(1.0, MOVING_SELF_ACC, clampf(Vector2(velocity.x, velocity.z).length() / 3.0, 0.0, 1.0))
 	return clampf(p, 0.0, max_hit_chance)
+
+## Unterklassen ohne Deckungs-/Ausweichverhalten (Juggernaut) geben false zurueck.
+func _reacts_to_fire() -> bool:
+	return true
+
+## Spielerkugel ging knapp vorbei (weapon.gd). amount 0..1.
+func suppress(amount: float) -> void:
+	if state == State.DEAD or not _reacts_to_fire():
+		return
+	_suppression = minf(_suppression + amount, 1.0)
+	if _in_cover and _cover_phase == CoverPhase.HIDE:
+		_hide_timer = maxf(_hide_timer, 0.6 + _suppression * 0.9)
+
+## Reaktionen, die ueber dem Zustandsautomaten liegen: Granaten ausweichen, Humpeln, Niederhaltung abbauen.
+func _tick_reactions(delta: float) -> void:
+	_suppression = maxf(_suppression - SUPPRESS_DECAY * delta, 0.0)
+	if _limp_t > 0.0:
+		_limp_t -= delta
+		_desired_velocity *= 0.45
+	if _evade_delay > 0.0:
+		_evade_delay -= delta
+		if _evade_delay <= 0.0:
+			_evade_t = rng.randf_range(1.1, 1.5)
+	if _evade_t > 0.0:
+		_evade_t -= delta
+		_burst_left = 0
+		_stance_target = 0.0
+		_desired_velocity = _evade_dir * run_speed * (0.6 if _limp_t > 0.0 else 1.0)
+		if _evade_t <= 0.0 and _in_cover:
+			# Deckung ist womoeglich vom Splitterradius erfasst -> Zyklus neu
+			_cover_phase = CoverPhase.HIDE
+			_hide_timer = rng.randf_range(0.3, 0.7)
 
 func _fire_shot() -> void:
 	if _muzzle == null or _player == null:
@@ -1465,9 +1544,22 @@ func _scan_grenades() -> void:
 	if state == State.IDLE:
 		return
 	for g in get_tree().get_nodes_in_group("grenade"):
-		if not (g is Node3D) or g.has_meta("barked"):
+		if not (g is Node3D):
 			continue
-		if (g as Node3D).global_position.distance_to(global_position) < 8.0:
+		var gd := (g as Node3D).global_position.distance_to(global_position)
+		# Ausweichen: nur vor fremden Granaten, mit Reaktionszeit, nicht jeder bemerkt sie
+		if gd < GRENADE_EVADE_DIST and _evade_t <= 0.0 and _evade_delay <= 0.0 and _reacts_to_fire() \
+				and g.get("thrower") != self and rng.randf() < 0.8:
+			var away := global_position - (g as Node3D).global_position
+			away.y = 0.0
+			if away.length() < 0.2:
+				away = global_transform.basis.z
+			var side := away.normalized().cross(Vector3.UP) * rng.randf_range(-0.5, 0.5)
+			_evade_dir = (away.normalized() + side).normalized()
+			_evade_delay = rng.randf_range(0.25, 0.55) * _Difficulty.enemy_reaction()
+		if g.has_meta("barked"):
+			continue
+		if gd < 8.0:
 			if _bark("grenade"):
 				g.set_meta("barked", true)
 			return
@@ -1486,10 +1578,13 @@ func _notify_ally_death() -> void:
 	if best == null:
 		return
 	best.on_ally_died(self)
-	var who := best
-	get_tree().create_timer(rng.randf_range(0.6, 1.3)).timeout.connect(func() -> void:
-		if is_instance_valid(who) and who.is_alive():
-			who._bark("mandown"))
+	# gebundene Methode statt Lambda: der Tote kann vor Ablauf freigegeben werden ("Lambda capture freed"),
+	# die Verbindung zum Empfaenger loest Godot beim Freigeben selbst.
+	get_tree().create_timer(rng.randf_range(0.6, 1.3)).timeout.connect(best._bark_if_alive.bind("mandown"))
+
+func _bark_if_alive(situation: String) -> void:
+	if state != State.DEAD:
+		_bark(situation)
 
 ## Hook: ein Verbuendeter in der Naehe ist gefallen.
 func on_ally_died(_ally: Enemy) -> void:
@@ -1527,6 +1622,9 @@ func hesitate(seconds: float) -> void:
 func _play_sfx(sfx_name: String, at: Vector3 = Vector3.INF) -> void:
 	if sfx_name == "" or not is_inside_tree():
 		return
+	if SoundCore.I and (sfx_name.begins_with("enemy_rifle") or sfx_name.begins_with("enemy_mg")):
+		if SoundCore.I.npc_shot(sfx_name, global_position + Vector3.UP if at == Vector3.INF else at):
+			return   # Varianten, Laufzeit, Verdeckung, Fern-Schicht
 	var stream: AudioStream = null
 	if _sfx_cache.has(sfx_name):
 		stream = _sfx_cache[sfx_name]

@@ -266,6 +266,8 @@ func _bake_nav() -> void:
 
 func _ready() -> void:
 	await super._ready()
+	# Innenraum-Kram (nur Optik, verzoegert per Raycast an freie Wandstuecke)
+	load("res://game/levels/interior_clutter.gd").scatter(self, AABB(Vector3(-8.2, 59.5, -9.2), Vector3(16.4, 4.5, 11.4)), 8, "tech", 7103, true)   # Sendesaal (Fensterband)
 	if player != null:
 		_peak_y = player.global_position.y
 	_build_hold_label()
@@ -412,8 +414,10 @@ func _enter_gallery() -> void:
 	_checkpoint("cp_gallery")
 	_spawn_wave(4)
 	_objective("Über die Wartungsstege im Stahlgitter nach oben – 60 Meter")
-	_say_opt(SD.LENA, "Du bist draußen am Gitter, ich seh dich vom Lkw aus. Nicht nach unten schauen, Jonas.", 5.0,
-		{"priority": 1, "max_age": 4.0, "valid": func() -> bool: return phase == "gallery"})
+	# Erst das Weber/Falk-Gespraech (Kerners Antwort) ausreden lassen – sonst platzt Lena dazwischen
+	_when_radio_free(func() -> void:
+		_say_opt(SD.LENA, "Du bist draußen am Gitter, ich seh dich vom Lkw aus. Nicht nach unten schauen, Jonas.", 5.0,
+			{"priority": 1, "max_age": 4.0, "valid": func() -> bool: return phase == "gallery"}), 10.0)
 	_later(14.0, _when_radio_free.bind(func() -> void:
 		if phase == "gallery":
 			_say_opt(SD.RIEDHAMMER, "Bürger Berlins. Die Ordnung kehrt zurück. Wer heute Nacht seine Tür verschlossen hält, hat nichts zu fürchten.", 7.0,
@@ -430,7 +434,7 @@ func _enter_top() -> void:
 	_checkpoint("cp_top")
 	_spawn_wave(5)
 	_objective("In den Sendesaal – ans Sendepult")
-	_say(SD.RIEDHAMMER, "Die sogenannten Loyalen sind Söldner einer fremden Macht. Meldet sie. Die Garde schützt euch.", 6.5)
+	# Riedhammers Söldner-Zeile laeuft jetzt in der Halte-Phase (wurde hier von Lenas Anweisung abgeschnitten)
 	_say_opt(SD.LENA, "Das Pult im Sendesaal. Halt den Schalter, bis ich seine Leitung überschrieben hab.", 5.0,
 		{"priority": 2, "valid": func() -> bool: return phase == "top"})
 
@@ -440,8 +444,10 @@ func _enter_hold() -> void:
 	_hold_label.visible = true
 	_objective("Halte [E] am Sendepult – Riedhammers Sendung unterbrechen (0 %)")
 	_say_opt(SD.LENA, "Ich bin drin. Halt durch, das dauert. Die merken das sofort.", 4.5, {"priority": 1, "cut": true})
+	_say_opt(SD.RIEDHAMMER, "Die sogenannten Loyalen sind Söldner einer fremden Macht. Meldet sie. Die Garde schützt euch.", 6.5,
+		{"max_age": 4.0, "valid": func() -> bool: return phase == "hold"})
 	_say_opt(SD.RIEDHAMMER, "Ab Mitternacht gilt das Standrecht. Wer sich der Garde widersetzt –", 5.0,
-		{"max_age": 3.0, "valid": func() -> bool: return phase == "hold"})
+		{"max_age": 8.0, "valid": func() -> bool: return phase == "hold"})
 
 func _tick_hold(delta: float) -> void:
 	var holding := false

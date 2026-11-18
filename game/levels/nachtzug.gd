@@ -639,8 +639,16 @@ func _tick_lena(delta: float) -> void:
 		_lena_tp_cd = 1.5
 		_lena_to_player()
 		return
+	# Im Gefecht nie zwischen Spieler und Gegnern stehen: weicht der Spieler im engen Gang zurueck, laufen die
+	# Brotkrumen vor ihn – dann blockiert Lena die Schusslinie (Playtest Speisewagen). Gegner kommen von vorn (-z).
+	var fall_back := following and absf(lp.y - p.y) < 1.0 and lp.z < p.z - 0.4 and _hostile_ahead(p)
+	if fall_back:
+		var back := Vector3(lp.x, lp.y, p.z + 2.4)
+		if p.y < 3.0:
+			back.x = clampf(lp.x, -0.2, 1.3)
+		lena.call("walk_to", back, 3.4, false)
 	# Brotkrumen: Punkt ca. 3 m hinter dem Spieler
-	if following and dist > 3.2:
+	elif following and dist > 3.2:
 		var tgt := _crumbs[0]
 		for c in _crumbs:
 			if c.distance_to(p) > 3.0:
@@ -652,6 +660,16 @@ func _tick_lena(delta: float) -> void:
 		danger = float(train.call("tunnel_eta", lp.z)) < 6.0 or not (train.call("tunnel_at", lp.z) as Dictionary).is_empty()
 	lena.set("crouch", danger)
 	_tick_lena_fire(delta)
+
+## Lebt ein Gegner bis 30 m vor dem Spieler (kleineres z) auf derselben Ebene?
+func _hostile_ahead(p: Vector3) -> bool:
+	for n in get_tree().get_nodes_in_group("enemy"):
+		if not (n is Node3D) or (n as Node).is_in_group("vehicle") or not _alive(n):
+			continue
+		var q := (n as Node3D).global_position
+		if q.z < p.z and p.z - q.z < 30.0 and absf(q.y - p.y) < 2.0:
+			return true
+	return false
 
 func _tick_lena_fire(delta: float) -> void:
 	if _lena_c != null and bool(_lena_c.call("has_target")):
@@ -826,12 +844,15 @@ func _p2() -> bool:
 		_enemy("assault", Vector3(-0.3, Y, -38.0), 0.4, 180.0),
 		_enemy("rifleman", Vector3(-0.6, Y, -44.0), 0.4, 180.0),
 		_enemy("rifleman", Vector3(0.2, Y, -47.0), 0.4, 180.0)]
-	VF.play_2d(self, "nachtzug_chime", -4.0)
-	if not await _sleep(1.6):
-		return false
-	_say(SD.FALK, "Werte Fahrgäste, hier spricht Oberst Falk. Bleiben Sie in Ihren Abteilen. Es befinden sich zwei bewaffnete Terroristen im Zug.")
-	if not await _radio_wait(9.0):
-		return false
+	# Falks Durchsage nur beim ersten Versuch: nach einem Tod im Speisewagen sonst jedes Mal ~11 s Zwangspause
+	if not _p2_announced:
+		_p2_announced = true
+		VF.play_2d(self, "nachtzug_chime", -4.0)
+		if not await _sleep(1.6):
+			return false
+		_say(SD.FALK, "Werte Fahrgäste, hier spricht Oberst Falk. Bleiben Sie in Ihren Abteilen. Es befinden sich zwei bewaffnete Terroristen im Zug.")
+		if not await _radio_wait(9.0):
+			return false
 	train.call("open_door", 0)
 	_obj("Speisewagen säubern – Reisende an den Tischen nicht treffen")
 	if not await _wait_entry(ENTRY_Z[2]):
@@ -1239,6 +1260,7 @@ void fragment() {
 var _hl: Dictionary = {}           ## Leucht-Nodes des aktuellen Helis (P4)
 var _hl_t: float = 0.0
 var _hl_burst: int = 0
+var _p2_announced: bool = false   ## Falks Speisewagen-Durchsage lief schon (Wiederholungen nach Tod ohne Wartezeit)
 var _hl_flash: float = 0.0
 var _hl_sweep: float = 0.0
 static var _hl_tex: Texture2D = null

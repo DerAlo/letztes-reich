@@ -333,6 +333,20 @@ func cancel_reload() -> void:
 	_events_done.clear()
 	_apply_parts_rest()
 
+## Abzug waehrend des Nachladens: sitzt das neue Magazin schon (Munition gutgeschrieben), endet die
+## Animation sofort (Klaps/Ladehebel entfallen); ist das alte Magazin noch nicht entriegelt, wird
+## abgebrochen und mit dem Restmagazin weitergeschossen. Dazwischen (Magazin draussen) geht nichts.
+func interrupt_reload_for_fire() -> bool:
+	if not reloading or is_launcher():
+		return false
+	if _ammo_in and not (_reload_empty and not _events_done.has("bolt")):
+		_finish_reload()
+		return true
+	if not _events_done.has("mag_out") and ammo_mag > 0:
+		cancel_reload()
+		return true
+	return false
+
 func _finish_reload() -> void:
 	_credit_ammo()
 	reloading = false
@@ -479,6 +493,8 @@ func try_fire(cam: Camera3D, ads: float, move_ratio: float, crouching: bool, air
 	_eject_shell()
 	_muzzle_flash()
 	_play(sfx_fire, 0.035, 1.2, OWN_FIRE_DB)   # eigene Schuesse lauter (Nutzerwunsch)
+	if SoundCore.I and owner_player:
+		SoundCore.I.player_shot(self)   # Hall-Fahne drinnen/draussen
 	fired.emit(self)
 	return true
 
@@ -513,6 +529,25 @@ func _shoot(cam: Camera3D, spread_deg: float) -> void:
 		end = res.position
 		_apply_hit(res, dir)
 	_spawn_tracer(cam, end)
+	if owner_player:
+		_suppress_near(origin, end)
+
+## Niederhalten: Gegner, an denen die Kugel knapp vorbeizischt, ducken sich und schiessen unruhiger.
+func _suppress_near(origin: Vector3, end: Vector3) -> void:
+	var seg: Vector3 = end - origin
+	var len2: float = seg.length_squared()
+	if len2 < 1.0:
+		return
+	for e in get_tree().get_nodes_in_group("enemy"):
+		if not (e is Node3D) or not e.has_method("suppress"):
+			continue
+		var p: Vector3 = (e as Node3D).global_position + Vector3.UP * 1.2
+		var t: float = clampf((p - origin).dot(seg) / len2, 0.0, 1.0)
+		if t <= 0.0:
+			continue
+		var d: float = p.distance_to(origin + seg * t)
+		if d < 2.0:
+			e.call("suppress", lerpf(0.3, 0.08, d / 2.0) * clampf(damage / 30.0, 0.5, 1.5))
 
 func _apply_hit(res: Dictionary, dir: Vector3) -> void:
 	var collider: Object = res.collider
@@ -555,6 +590,8 @@ func _apply_hit(res: Dictionary, dir: Vector3) -> void:
 		VFX.spawn_blood(pos, normal, dir, 1.6 if headshot else 1.0)
 	elif not is_enemy or not VFX.is_bleeder(target):
 		VFX.spawn_impact(pos, normal, str(target.get_meta("surface", "metal")) if target is Node else "metal")
+	if SoundCore.I and is_enemy and VFX.is_bleeder(target):
+		SoundCore.I.impact(pos, "metal" if no_blood or deflected else "flesh")   # Koerper-/Panzertreffer
 	if was_alive and (killed or not deflected):
 		hit_confirmed.emit(killed, headshot and not deflected)
 

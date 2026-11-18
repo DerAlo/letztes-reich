@@ -83,6 +83,20 @@ var _gz_size := Vector3(1.1, 1.3, 1.1)
 var _puppet: CharacterBody3D = null
 var _hull_y := 0.7                          ## Mitte der Rumpf-Kollisionsbox (lokal y)
 
+## Treffbarkeit (Playtest 18.11.: Boote schossen weit hinter dem Zollboot aus dem toten Winkel der Bordwaffe,
+## der Spieler musste warten). Regel: ein Garde-Boot schiesst nur, solange der Spieler zurueckschiessen kann -
+## Schuetze in Reichweite, innerhalb des Schwenkbereichs des MG5 (mit Abstand zur Grenze: am Heck stehen
+## Konsole und Lena im Bild) und freie Schusslinie Kamera -> Schuetze. Sonst schweigt das Bug-MG, das Boot
+## holt mit erhoehter Fahrt in den Schussbereich auf; bleibt es zu lange unerreichbar, setzt es sich neu.
+const FIRE_RANGE := 180.0           ## m Kamera -> Schuetze
+const ARC_MARGIN_DEG := 15.0        ## Abstand zur Schwenkgrenze (yaw_limit_deg der RailRide)
+const PITCH_MARGIN_DEG := 2.0
+const CATCHUP_RATE := 18.0          ## m/s Bahnversatz-Annaeherung, solange nicht treffbar
+const RECYCLE_T := 8.0              ## s ununterbrochen nicht treffbar -> neu in den Schussbereich setzen
+var _hittable := false
+var _reach_cd := 0.0
+var _unreach_t := 0.0
+
 func _ready() -> void:
 	health = max_health
 	sync_to_physics = false
@@ -357,7 +371,11 @@ func _physics_process(delta: float) -> void:
 			else:
 				offset_s = move_toward(offset_s, target_offset, maxf(approach_rate, 4.0) * delta)
 		else:
-			offset_s = move_toward(offset_s, target_offset, approach_rate * delta * (0.4 if stopped else 1.0))
+			_update_reach(delta)
+			# nicht treffbar (hinter dem Heck, zu weit voraus, verdeckt): zuegig auf den Sollversatz, auch
+			# wenn das Zollboot steht - sonst kroch ein Ueberholer bei Halten minutenlang hinterher
+			var rate := CATCHUP_RATE if not _hittable else approach_rate * (0.4 if stopped else 1.0)
+			offset_s = move_toward(offset_s, target_offset, rate * delta)
 		var s: float = float(ride.get("path_s")) + offset_s
 		var p: Vector3 = ride.call("pos_at", s)
 		var dir: Vector3 = ride.call("dir_at", s)
@@ -453,6 +471,57 @@ func _aim_spot(tgt: Vector3, delta: float) -> void:
 	var cur := sl.global_basis.orthonormalized()
 	sl.global_basis = cur.slerp(want, 1.0 - exp(-delta * 3.0))
 
+## Kann der Spieler dieses Boot gerade beschiessen? (siehe FIRE_RANGE/ARC_MARGIN_DEG)
+func is_hittable() -> bool:
+	return _hittable and not dead
+
+func _update_reach(delta: float) -> void:
+	_reach_cd -= delta
+	if _reach_cd <= 0.0:
+		_reach_cd = 0.1
+		_hittable = _calc_reach()
+	if _hittable or not gunner_alive:
+		_unreach_t = 0.0
+		return
+	_unreach_t += delta
+	if _unreach_t < RECYCLE_T:
+		return
+	_unreach_t = 0.0
+	if absf(offset_s - target_offset) > 6.0:
+		# haengt noch weit hinten/vorn: direkt auf den Sollversatz (Neuplatzierung ausser Sicht)
+		offset_s = target_offset
+	else:
+		# am Sollpunkt, aber verdeckt (Kaimauer, Pfeiler, anderes Boot): auf die andere Seite, etwas naeher ran
+		lateral = -lateral
+		lateral_to = INF
+		target_offset = clampf(target_offset * 0.8, 18.0, 60.0)
+	print("[hafen_boat] %s war %.0f s nicht treffbar -> neu gesetzt (Versatz %.0f, seitlich %.0f)" % [name, RECYCLE_T, offset_s, lateral])
+
+func _calc_reach() -> bool:
+	if ride == null or not is_instance_valid(ride) or not bool(ride.call("is_alive")):
+		return false
+	var cam: Camera3D = ride.call("get_camera")
+	if cam == null or not cam.is_inside_tree():
+		return false
+	var p := marker_point()
+	var eye := cam.global_position
+	if eye.distance_to(p) > FIRE_RANGE:
+		return false
+	var a: Vector2 = ride.call("aim_angles_for", p)
+	var ylim := float(ride.get("yaw_limit_deg"))
+	if ylim < 180.0 and absf(a.x) > deg_to_rad(ylim - ARC_MARGIN_DEG):
+		return false
+	if a.y < deg_to_rad(float(ride.get("pitch_min_deg")) + PITCH_MARGIN_DEG) \
+			or a.y > deg_to_rad(float(ride.get("pitch_max_deg")) - PITCH_MARGIN_DEG):
+		return false
+	# Schusslinie wie beim MG5 des Spielers (Welt + Gegner-Layer, eigener Rumpf ausgenommen): ein Treffer auf
+	# dieses Boot selbst (Rumpf oder Schuetze) zaehlt als frei, Welt/Weber/anderes Boot davor nicht
+	var hit := VF.ray(self, eye, p, VF.LAYER_WORLD | VF.LAYER_ENEMY, [ride.get_rid()])
+	if hit.is_empty():
+		return true
+	var c: Object = hit.get("collider")
+	return c == self or (c is Node and is_ancestor_of(c as Node))
+
 func _tick_gun(delta: float) -> void:
 	if not gunner_alive or ride == null or not is_instance_valid(ride) or not bool(ride.call("is_alive")):
 		return
@@ -460,6 +529,11 @@ func _tick_gun(delta: float) -> void:
 	var lp: Vector3 = (_gun.get_parent() as Node3D).global_transform.affine_inverse() * tgt - _gun.position
 	_gun.rotation.y = lerp_angle(_gun.rotation.y, atan2(-lp.x, -lp.z), 1.0 - exp(-delta * 5.0))
 	_aim_spot(tgt, delta)
+	if not _hittable:
+		# nie aus dem toten Winkel / ausser Reichweite schiessen - laufende Salve abbrechen
+		_burst_left = 0
+		_burst_cd = maxf(_burst_cd, 0.6)
+		return
 	if _burst_left > 0:
 		_shot_cd -= delta
 		if _shot_cd <= 0.0:

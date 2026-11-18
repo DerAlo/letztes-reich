@@ -296,6 +296,15 @@ func _physics_process(delta: float) -> void:
 	elif stealth and not bool(sneak["route"]):
 		move_world = sneak["move"]
 		wants_move = bool(sneak["wants"])
+	elif _bot_objective() != null and health > max_health * 0.35:
+		# Missionsziel zum Anfassen (z. B. Sprengladung am Panzer): hinlaufen, das Ziel loest selbst aus
+		var to_obj: Vector3 = _bot_objective().global_position - _player.global_position
+		to_obj.y = 0.0
+		if to_obj.length() > 0.8:
+			move_world = to_obj.normalized()
+			wants_move = true
+			sprint = to_obj.length() > 5.0
+		_cover_mode = false
 	elif _cover_mode:
 		var to_cover: Vector3 = _cover_pos - _player.global_position
 		to_cover.y = 0.0
@@ -584,6 +593,21 @@ func _sneak_log(mode: String, who: Node3D, v: float) -> void:
 
 # --------------------------------------------------------------------------- Route / Stuck
 
+## Naechstes offenes Missionsziel (Gruppe "bot_objective", z. B. Sprengladung) in Reichweite, sonst null.
+func _bot_objective() -> Node3D:
+	if _player == null:
+		return null
+	var best: Node3D = null
+	var best_d: float = 45.0
+	for n in get_tree().get_nodes_in_group("bot_objective"):
+		if not (n is Node3D) or not (n as Node3D).is_inside_tree() or bool(n.get("is_planted")) or bool(n.get("is_detonated")):
+			continue
+		var d: float = (n as Node3D).global_position.distance_to(_player.global_position)
+		if d < best_d:
+			best_d = d
+			best = n
+	return best
+
 func _current_waypoint() -> Vector3:
 	if _wp_idx < _waypoints.size():
 		return _waypoints[_wp_idx]
@@ -651,6 +675,9 @@ func _check_stuck(wants_move: bool, delta: float) -> void:
 	if _route_done_time >= 0.0 and _boss_alive():
 		_route_done_time = _sim_time   # Level-Ende wartet auf den Boss: Zeitfenster laeuft erst danach
 	if _route_done_time >= 0.0 and _sim_time - _route_done_time > 40.0:
+		for e in get_tree().get_nodes_in_group("enemy"):   # Diagnose: wer haelt das Levelende auf?
+			if e is Node3D and e.has_method("is_alive") and e.call("is_alive"):
+				print("[autopilot] lebt noch: %s (%s) bei %s" % [e.name, _type_of(e), str((e as Node3D).global_position)])
 		_finish("stuck")  # Ende nicht erreicht
 		return
 	if _sim_time - _stuck_ref_t >= STUCK_TIME:

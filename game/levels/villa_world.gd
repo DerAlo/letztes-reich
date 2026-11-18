@@ -176,6 +176,13 @@ static func _sb(bd: BP.Builder, body: StaticBody3D, key: String, c: Vector3, s: 
 	bd.box(key, c, s, Basis(Vector3.UP, deg_to_rad(yaw_deg)))
 	Geo.add_box_shape(body, c, s, Vector3(0, yaw_deg, 0))
 
+## Hecke: Kollision immer; der dunkle Quader nur, wenn das modellierte Buchsbaum-Asset fehlt
+## (sonst schimmert er zwischen den Bloecken schwarz durch). Optik: VD.hedges.
+static func _hedge(bd: BP.Builder, body: StaticBody3D, c: Vector3, s: Vector3) -> void:
+	Geo.add_box_shape(body, c, s, Vector3.ZERO)
+	if not VD.SV.available():
+		bd.box("hedge", c, s, Basis.IDENTITY)
+
 ## Moebel: Kollision wie bisher als Box (Deckung/Navmesh unveraendert), Optik als Poly-Haven-Modell
 ## (furniture_kit.gd); fehlt das Modell, wird der alte Quader gezeichnet.
 static func _furn(bd: BP.Builder, body: StaticBody3D, key: String, model: String, c: Vector3, s: Vector3, yaw_deg: float = 0.0, opts: Dictionary = {}) -> void:
@@ -287,16 +294,16 @@ static func _terrain(bd: BP.Builder, body: StaticBody3D) -> void:
 
 static func _estate_walls(bd: BP.Builder, body: StaticBody3D) -> void:
 	# Suedmauer mit Toreinfahrt (x 10..18), Ostmauer bis zum Ufer
-	_mm(bd, body, "stone", Vector3(-23.0, 0.0, 29.75), Vector3(9.6, 2.5, 30.25))
-	_mm(bd, body, "stone", Vector3(18.4, 0.0, 29.75), Vector3(34.25, 2.5, 30.25))
-	_mm(bd, body, "stone", Vector3(33.75, 0.0, -44.0), Vector3(34.25, 2.5, 30.25))
+	_mm(bd, body, "wall_stone", Vector3(-23.0, 0.0, 29.75), Vector3(9.6, 2.5, 30.25))
+	_mm(bd, body, "wall_stone", Vector3(18.4, 0.0, 29.75), Vector3(34.25, 2.5, 30.25))
+	_mm(bd, body, "wall_stone", Vector3(33.75, 0.0, -44.0), Vector3(34.25, 2.5, 30.25))
 	# Mauerabdeckung
 	_vis(bd, "quay", Vector3(-23.0, 2.5, 29.65), Vector3(9.6, 2.62, 30.35))
 	_vis(bd, "quay", Vector3(18.4, 2.5, 29.65), Vector3(34.35, 2.62, 30.35))
 	_vis(bd, "quay", Vector3(33.65, 2.5, -44.0), Vector3(34.35, 2.62, 30.35))
 	# Torpfeiler und offene Torfluegel
 	for px: float in [9.6, 18.4]:
-		_sb(bd, body, "stone", Vector3(px, 1.6, 30.0), Vector3(0.9, 3.2, 0.9))
+		_sb(bd, body, "wall_stone", Vector3(px, 1.6, 30.0), Vector3(0.9, 3.2, 0.9))
 		bd.box("quay", Vector3(px, 3.28, 30.0), Vector3(1.05, 0.16, 1.05))
 	for side: float in [-1.0, 1.0]:
 		var hinge := Vector3(14.0 + side * 3.95, 0.0, 30.0)
@@ -349,11 +356,11 @@ static func _boathouse(bd: BP.Builder, body: StaticBody3D) -> void:
 
 static func _garden(bd: BP.Builder, body: StaticBody3D) -> void:
 	# Hecken (Sichtschutz, nicht ueberkletterbar hoch)
-	_sb(bd, body, "hedge", Vector3(-16.5, 0.85, 12.0), Vector3(7.0, 1.7, 0.9))
-	_sb(bd, body, "hedge", Vector3(-29.0, 0.85, 0.0), Vector3(4.0, 1.7, 0.9))
-	_sb(bd, body, "hedge", Vector3(-15.75, 0.85, -4.0), Vector3(6.5, 1.7, 0.9))
-	_sb(bd, body, "hedge", Vector3(-27.0, 0.85, -14.0), Vector3(6.0, 1.7, 0.9))
-	_sb(bd, body, "hedge", Vector3(-8.0, 0.75, 20.0), Vector3(0.9, 1.5, 8.0))
+	_hedge(bd, body, Vector3(-16.5, 0.85, 12.0), Vector3(7.0, 1.7, 0.9))
+	_hedge(bd, body, Vector3(-29.0, 0.85, 0.0), Vector3(4.0, 1.7, 0.9))
+	_hedge(bd, body, Vector3(-15.75, 0.85, -4.0), Vector3(6.5, 1.7, 0.9))
+	_hedge(bd, body, Vector3(-27.0, 0.85, -14.0), Vector3(6.0, 1.7, 0.9))
+	_hedge(bd, body, Vector3(-8.0, 0.75, 20.0), Vector3(0.9, 1.5, 8.0))
 	# Gartenweg (Kies) vom Bootshaus zur Terrasse
 	for p: Array in [[Vector3(-28.5, 0.0, 21.5), Vector3(-26.5, 0.02, 14.0)], [Vector3(-26.5, 0.0, 14.0), Vector3(-22.5, 0.02, -10.0)],
 			[Vector3(-22.5, 0.0, -10.0), Vector3(-18.0, 0.02, -14.0)]]:
@@ -405,7 +412,7 @@ static func _forecourt(bd: BP.Builder, body: StaticBody3D, world: Node3D, covers
 	for z: float in [24.0, 16.0, 8.0]:
 		_sb(bd, body, "stone", Vector3(9.6, 0.4, z), Vector3(0.9, 0.8, 0.9))   # Bepflanzung: VD.beds
 	# Hecke vor der Ostmauer
-	_sb(bd, body, "hedge", Vector3(32.0, 0.9, -10.0), Vector3(1.2, 1.8, 30.0))
+	_hedge(bd, body, Vector3(32.0, 0.9, -10.0), Vector3(1.2, 1.8, 30.0))
 
 # ------------------------------------------------------------------ Villa
 
@@ -642,10 +649,17 @@ static func _trees(lv: Node3D, world: Node3D, rng: RandomNumberGenerator) -> voi
 	# Im Grundstueck einzelne Fichten an der Ostmauer
 	for z: float in [-36.0, -26.0, 20.0, 25.0]:
 		trees_in.append([Vector3(31.5, 0.0, z), rng.randf_range(0.8, 0.95)])
-	NP.forest(lv, trees_in + trees_out, rng)
+	# Mit Eichen-Asset: alle diese Standorte als echte Eichen (VD.far_oaks) - die Karten-Fichten samt
+	# Impostor-Fernstufe wirkten aus der Ferne wie Duftbaeume. Ohne Asset: prozedurale Fichten.
+	var oaks := VD.SV.available()
+	if not oaks:
+		NP.forest(lv, trees_in + trees_out, rng, true, 0.0)   # Juni: kein Schnee auf den Fichten
+	else:
+		for i in (trees_in.size() + trees_out.size()) * 7:   # Zufallsfolge wie NP.forest (7 Zuege je Baum)
+			rng.randf()
 	NP.trunk_colliders(world, trees_in)
 	# Laubbaeume im Garten (Stamm/Aeste/Laubkarten in VillaDressing), Kollision nur am Stamm
-	VD.broadleaf_trees(lv)
+	VD.broadleaf_trees(lv, (trees_in + trees_out) if oaks else [])
 	var tb := Geo.static_body()
 	for p: Vector3 in VD.TREES:
 		var cs := CollisionShape3D.new()
@@ -660,6 +674,7 @@ static func _trees(lv: Node3D, world: Node3D, rng: RandomNumberGenerator) -> voi
 ## Ausstattung (nur Optik, keine Kollision): Gras, Hecken-Laub, Beete, Gartenmoebel, Villa aussen/innen.
 static func _dressing(lv: Node3D, mats: Dictionary) -> void:
 	VD.grass(lv)
+	VD.ground_cover(lv)
 	VD.hedges(lv)
 	VD.beds(lv, mats)
 	VD.garden_props(lv, mats)

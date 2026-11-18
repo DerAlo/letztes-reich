@@ -423,6 +423,8 @@ func _build_game() -> void:
 	_add_row({"key": "game/difficulty", "label": "Schwierigkeitsgrad", "type": "enum", "values": ["recruit", "soldier", "veteran"],
 		"labels": ["Rekrut", "Soldat", "Veteran"], "default": "soldier",
 		"tooltip": "Rekrut: Gegner zielen und reagieren langsamer, weniger Schaden, schnellere Heilung. Soldat: ausgewogen (Standard). Veteran: Gegner treffen härter, zielen besser und reagieren schneller, Heilung setzt später ein."})
+	_add_row({"key": "game/sprint_stamina", "label": "Sprint-Ausdauer", "type": "bool", "default": true,
+		"tooltip": "An: Nach etwa 6 Sekunden Vollsprint geht dir die Luft aus, der Sprint läuft aus und die Ausdauer erholt sich nach einer kurzen Pause in wenigen Sekunden. Aus: unbegrenzt sprinten."})
 	_section("Ansicht")
 	_add_row({"key": "game/fov", "label": "Sichtfeld (FOV)", "type": "int", "min": 70, "max": 110, "step": 1,
 		"default": 76, "fmt": "deg", "tooltip": "Horizontaler Blickwinkel der Ego-Kamera (Standard 76°). Zielen und Zielfernrohr zoomen wie gewohnt."})

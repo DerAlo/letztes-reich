@@ -11,6 +11,8 @@ const Geo = preload("res://game/levels/level_geo.gd")
 const K = preload("res://game/levels/overwatch_world_kit.gd")
 const FKit = preload("res://game/levels/facade_kit.gd")
 const FAR_CAM = preload("res://game/levels/villa_far_cam.gd")
+const GC = preload("res://game/levels/ground_cover.gd")
+const SV = preload("res://game/levels/sf_vegetation.gd")
 
 const VTEX := "res://assets/environment/villa/"
 const ETEX := "res://assets/environment/textures/"
@@ -158,6 +160,13 @@ static func apply_materials(m: Dictionary) -> void:
 	m["dusk_glass"] = Geo.flat(Color(0.02, 0.025, 0.04), 0.06, 0.0, Color(0.22, 0.3, 0.45), 0.45)
 	m["shade"] = Geo.flat(Color(0.9, 0.8, 0.62), 0.8, 0.0, Color(1.0, 0.78, 0.5), 2.2)
 	m["rock"] = K.matte(K.pbr(ETEX + "rock_face_03", Color(0.62, 0.6, 0.56), 0.4, 1.0))
+	# Gartenmauer/Torpfeiler: Bruchsteinmauer mit Moertelfugen (Poly Haven old_stone_wall, CC0) statt Schotter-Textur
+	m["wall_stone"] = K.pbr(ETEX + "old_stone_wall", Color(0.78, 0.76, 0.72), 0.42, 1.0)
+	# Optik 3 (Playmobil-Scan): Bootshaus-Bretterwaende, Bodendielen, Giebelhoelzer und Teppich mit Textur
+	m["timber"] = K.pbr(VTEX + "rough_wood", Color(0.62, 0.5, 0.4), 0.45, 1.0)
+	m["timber_dark"] = K.pbr(VTEX + "rough_wood", Color(0.36, 0.29, 0.23), 0.45, 1.0)
+	m["planks"] = K.pbr(ETEX + "weathered_planks", Color(0.78, 0.68, 0.56), 0.5, 1.0)
+	m["rug"] = K.pbr("res://assets/environment/train/textures/quatrefoil_jacquard_fabric", Color(0.9, 0.35, 0.3), 0.9, 1.0)
 
 # ===================================================================== Geometrie-Helfer
 
@@ -250,6 +259,83 @@ static func decal(parent: Node3D, pos: Vector3, n: Vector3, w: float, h: float, 
 # ===================================================================== Gelaende-Hoehe (Level)
 
 ## Bodenhoehe im Levelbereich (Wiese y = 0, Boeschung z 48..70, Plateau y = 5).
+## Poly-Haven-Bodenbewuchs (ground_cover.gd, CC0) als Detailstufe ueber dem Klumpengras: Loewenzahn,
+## hohes Gras und Kraeuter auf der Wiese hinter der Mauer, Unkraut/Brennnesseln am Heckenfuss, Reisig und
+## Bueschel unter den Laubbaeumen. Eigene Zufallsfolge (Spielablauf unberuehrt), nur Optik.
+static func ground_cover(lv: Node3D) -> void:
+	if GC.disabled():
+		return
+	var r := RandomNumberGenerator.new()
+	r.seed = 3062030
+	var root := Node3D.new()
+	root.name = "VillaGroundCover"
+	lv.add_child(root)
+	var sets: Dictionary = {"dandelion": [], "grass02": [], "weed": [], "nettle": [], "branches": [], "shrub02": []}
+	var put := func(key: String, x: float, z: float, s: float, tilt: float) -> void:
+		var b := Basis.from_euler(Vector3(r.randf_range(-tilt, tilt), r.randf() * TAU, r.randf_range(-tilt, tilt))).scaled(Vector3.ONE * s)
+		(sets[key] as Array).append(Transform3D(b, Vector3(x, ground_y(x, z) - 0.02, z)))
+	# Wiese hinter der Gartenmauer (z > 30), hinten schmaler (Hang, siehe grass())
+	for i in 900:
+		var z := r.randf_range(31.0, 100.0)
+		var x := r.randf_range(-30.0, 33.0) if z < 48.0 else r.randf_range(-20.0, 30.0)
+		if x > 29.5 and z > 87.5 and z < 91.5:
+			continue
+		var roll := r.randf()
+		if roll < 0.3:
+			put.call("dandelion", x, z, r.randf_range(0.8, 1.2), 0.1)
+		elif roll < 0.85:
+			put.call("grass02", x, z, r.randf_range(0.8, 1.3), 0.1)
+		else:
+			put.call("weed", x, z, r.randf_range(0.7, 1.1), 0.1)
+	# Heckenfuss: Unkraut, vereinzelt Brennnesseln (beide Laengsseiten)
+	for hd: Array in HEDGES:
+		var c: Vector3 = hd[0]
+		var s: Vector3 = hd[1]
+		var along_x := s.x > s.z
+		var ln := s.x if along_x else s.z
+		var half_w := (s.z if along_x else s.x) * 0.5
+		for k in int(ln / 0.7):
+			for sd: float in [-1.0, 1.0]:
+				if r.randf() > 0.55:
+					continue
+				var u := -ln * 0.5 + (float(k) + r.randf()) * 0.7
+				var o := sd * (half_w + r.randf_range(0.1, 0.35))
+				var x := c.x + (u if along_x else o)
+				var z := c.z + (o if along_x else u)
+				put.call("nettle" if r.randf() < 0.25 else "weed", x, z, r.randf_range(0.55, 0.9), 0.08)
+	# Unter den Laubbaeumen: Reisig, Bueschel
+	for tp: Vector3 in TREES:
+		for k in 7:
+			var a := r.randf() * TAU
+			var d := r.randf_range(0.6, 3.2)
+			put.call("branches", tp.x + cos(a) * d, tp.z + sin(a) * d, r.randf_range(0.7, 1.1), 0.15)
+		for k in 3:
+			var a := r.randf() * TAU
+			var d := r.randf_range(0.7, 1.6)
+			put.call("shrub02", tp.x + cos(a) * d, tp.z + sin(a) * d, r.randf_range(0.6, 0.9), 0.05)
+	# Waldsaum jenseits der Strasse (far_oaks): Krautsaum statt Rasen bis an die Staemme
+	for i in 700:
+		var x := r.randf_range(49.5, 64.0)
+		var z := r.randf_range(-44.0, 156.0)
+		var roll := r.randf()
+		if roll < 0.5:
+			put.call("grass02", x, z, r.randf_range(1.0, 1.6), 0.12)
+		elif roll < 0.7:
+			put.call("nettle", x, z, r.randf_range(0.8, 1.2), 0.1)
+		elif roll < 0.88:
+			put.call("weed", x, z, r.randf_range(0.8, 1.3), 0.1)
+		elif roll < 0.95:
+			put.call("shrub02", x, z, r.randf_range(0.8, 1.2), 0.05)
+		else:
+			put.call("branches", x, z, r.randf_range(0.8, 1.2), 0.15)
+	var lush := Color(0.85, 0.95, 0.75)
+	GC.scatter(root, "dandelion", sets["dandelion"], {"fade": Vector2(26, 38), "cell": 16.0, "seed": 31})
+	GC.scatter(root, "grass02", sets["grass02"], {"fade": Vector2(34, 48), "cell": 16.0, "mult": 2.0, "tint": lush, "seed": 32})
+	GC.scatter(root, "weed", sets["weed"], {"fade": Vector2(28, 40), "cell": 16.0, "tint": lush, "seed": 33})
+	GC.scatter(root, "nettle", sets["nettle"], {"fade": Vector2(28, 40), "cell": 16.0, "seed": 34})
+	GC.scatter(root, "branches", sets["branches"], {"fade": Vector2(24, 34), "cell": 16.0, "seed": 35})
+	GC.scatter(root, "shrub02", sets["shrub02"], {"fade": Vector2(34, 48), "cell": 16.0, "tint": lush, "seed": 36})
+
 static func ground_y(x: float, z: float) -> float:
 	if x >= -20.0 and x <= 30.0:
 		if z >= 70.0:
@@ -450,6 +536,11 @@ static func _flower_node(mesh: Mesh, items: Array, vis_end: float) -> MultiMeshI
 
 ## Laubhuelle um die Heckenquader (Kollision bleibt an den Quadern in VillaWorld).
 static func hedges(lv: Node3D) -> void:
+	# modellierte Buchsbaumhecke (Sketchfab "Shrub tiles pack", CC-BY 4.0); Fallback: Laubkarten
+	if SV.available():
+		for hd: Array in HEDGES:
+			SV.hedge(lv, hd[0], hd[1])
+		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4411
 	var cards := Cards.new()
@@ -598,10 +689,72 @@ static func _tube(st: SurfaceTool, a: Vector3, b: Vector3, ra: float, rb: float,
 		_tri(st, p00, p01, p11, nf, Vector2(0, 0), Vector2(1, 0), Vector2(1, 1))
 		_tri(st, p00, p11, p10, nf, Vector2(0, 0), Vector2(1, 1), Vector2(0, 1))
 
+## Laubwald ausserhalb der Spielflaeche (Ostufer hinter der Strasse, Hang im Sueden) und die Baumreihen
+## am Rand der Spielflaeche: alles echte Eichen-Modelle (MultiMesh-Zellen mit Mesh-LOD), keine
+## Billboard-Kreuze und keine Karten-Fichten mehr - die wirkten aus der Ferne wie Pappaufsteller/
+## Duftbaeume. extra = zusaetzliche Standorte [[pos, skala], ...] (frueher Fichten, VillaWorld._trees).
+## Mischung: ueberwiegend mittlere Eichen (Bestandsbaeume), dazwischen breite Alteichen als Ueberhaelter
+## und junge Eichen als Unterwuchs am Saum, damit die Silhouette gegen den Himmel unruhig bleibt.
+static func far_oaks(lv: Node3D, extra: Array = []) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7707
+	var items: Array = []
+	# Saum hinter der Strasse (vorderste Reihe, nah am Spieler: dicht und mit Schatten)
+	for i in 18:
+		var p := Vector3(rng.randf_range(53.0, 62.0), 0.0, -44.0 + i * 11.4 + rng.randf_range(-3.5, 3.5))
+		items.append(_oak_item(p, rng, 1.0, true))
+	# Bestand dahinter bis zur Levelgrenze (nach hinten hoeher: Altbestand ueberragt den Saum)
+	for i in 105:
+		var p := Vector3(rng.randf_range(64.0, 114.0), 0.0, rng.randf_range(-46.0, 160.0))
+		items.append(_oak_item(p, rng, lerpf(1.0, 1.25, inverse_lerp(64.0, 114.0, p.x)), p.x < 80.0))
+	# Hang im Sueden hinter dem Startplatz
+	for i in 34:
+		var p := Vector3(rng.randf_range(-32.0, 40.0), 5.0, rng.randf_range(110.0, 156.0))
+		items.append(_oak_item(p, rng, lerpf(0.95, 1.2, inverse_lerp(110.0, 156.0, p.z)), p.z < 128.0))
+	# junge Eichen als Unterwuchs am Saum und im Bestand (verdecken die kahlen Stammzonen)
+	for i in 70:
+		var p := Vector3(rng.randf_range(50.5, 60.0) if i < 50 else rng.randf_range(60.0, 100.0), 0.0, rng.randf_range(-44.0, 156.0))
+		items.append([p, rng.randf_range(0.0, 360.0), rng.randf_range(0.7, 1.4), "small", p.x < 80.0])
+	for i in 18:
+		var p := Vector3(rng.randf_range(-30.0, 38.0), 5.0, rng.randf_range(105.0, 130.0))
+		items.append([p, rng.randf_range(0.0, 360.0), rng.randf_range(0.95, 1.35), "small", true])
+	for t: Array in extra:
+		var p: Vector3 = t[0]
+		items.append(_oak_item(p, rng, float(t[1]), true, p.x > 24.0 and p.x < 40.0 and p.z < 30.0))
+	# Hoehenlage: nur hinter dem Plateau (x -20..30) steht der Hang auf 5 m; seitlich daneben liegt die
+	# Wiese auf 0 m - dort sonst schwebende Baeume (vom Streifen x 30..37 neben dem Plateau sichtbar)
+	for it: Array in items:
+		var p: Vector3 = it[0]
+		if p.y > 0.0 and (p.x < -19.0 or p.x > 29.0):
+			it[0] = Vector3(p.x, 0.0, p.z)
+	SV.oak_grove(lv, items, 22.0, 0.0, 7708)
+
+## Eichen-Eintrag fuer SV.oak_grove: Art und Skala gewuerfelt (Hoehen ca. 9-17 m). compact = nur
+## mittlere Eichen (enge Stellen, z. B. an der Ostmauer, wo eine Alteiche ins Haus ragen wuerde).
+static func _oak_item(p: Vector3, rng: RandomNumberGenerator, s: float, shadow: bool, compact: bool = false) -> Array:
+	var r := rng.randf()
+	var kind := "medium_a" if r < 0.42 else ("medium_b" if r < 0.8 else ("big" if r < 0.9 else ("large_a" if r < 0.95 else "large_b")))
+	if compact and r >= 0.8:
+		kind = "medium_b"
+	var sc := s * rng.randf_range(0.95, 1.4)
+	if kind == "big":
+		sc = s * rng.randf_range(0.62, 0.8)
+	elif kind.begins_with("large"):
+		sc = s * rng.randf_range(0.5, 0.62)
+	return [p, rng.randf_range(0.0, 360.0), sc, kind, shadow]
+
 ## Laubbaeume (Stamm + Aeste aus Rinde, Krone aus Laubbuescheln). Kollision der Staemme in VillaWorld.
-static func broadleaf_trees(lv: Node3D) -> void:
+## forest = Standorte der Waldbaeume [[pos, skala], ...]; mit Eichen-Asset als Eichen gepflanzt (far_oaks).
+static func broadleaf_trees(lv: Node3D, forest: Array = []) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2030
+	# modellierte Eichen (Sketchfab "Oak trees pack", CC-BY 4.0) + ferne Billboard-Eichen; Fallback: prozedural
+	if SV.available():
+		var kinds := ["medium_a", "medium_b"]
+		for i in TREES.size():
+			SV.oak(lv, kinds[i % 2], TREES[i], rng.randf_range(0.0, 360.0), rng.randf_range(0.78, 0.9), 220.0)
+		far_oaks(lv, forest)
+		return
 	var bark := SurfaceTool.new()
 	bark.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var cards := Cards.new()

@@ -56,10 +56,19 @@ func _ready() -> void:
 	light.position = Vector3(0, 0, 0.5)
 	add_child(light)
 	_build_trail()
+	# Flug-Brennen als Schleife, wandert mit dem Geschoss (3D + Doppler)
 	_snd = AudioStreamPlayer3D.new()
-	_snd.unit_size = 8.0
+	_snd.unit_size = 9.0
+	_snd.max_distance = 260.0
+	_snd.doppler_tracking = AudioStreamPlayer3D.DOPPLER_TRACKING_PHYSICS_STEP
+	_snd.attenuation_filter_cutoff_hz = 9000.0
 	add_child(_snd)
 	Sfx.play_on(_snd, "rocket_fly", 0.05)
+	if _snd.stream is AudioStreamOggVorbis:
+		var st := _snd.stream.duplicate() as AudioStreamOggVorbis
+		st.loop = true
+		_snd.stream = st
+		_snd.play(randf() * 1.5)
 
 func _build_trail() -> void:
 	if _smoke_mat == null:

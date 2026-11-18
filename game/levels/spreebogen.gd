@@ -23,6 +23,8 @@ const HALT_Z: Array[float] = [22.0, -40.0, -118.0, -195.0, -246.0]
 const BRIDGE_Z0 := -258.0
 const RPG_WINDUP := 1.5          ## s zwischen Warnung (Schuetze rot im HUD) und Abschuss
 const BARRICADE_GRACE := 12.0    ## s nach den Fenstern, dann sprengen Lenas Pioniere die Sperre
+const NEST_HINT_T := 25.0        ## s nach dem Halt: Auftrag nennt die Fenster konkret (Stock, Taste, Zoom)
+const NEST_HELP_T := 50.0        ## s nach dem Halt: Lenas Trupp stuermt die Fenster (statt 90-s-Zeitlimit)
 const BRIDGE_Z1 := -352.0
 const SUN_AZ := 150.0
 const SUN_EL := 4.0
@@ -46,6 +48,7 @@ var _boss: Node3D = null
 var _foot_t: float = 0.0
 var _finale_started: bool = false
 var _assist_done: bool = false
+var _boss_obj_done: bool = false
 var _nests: Dictionary = {}          ## id -> [side, zc, floor]
 var _shots: Node = null
 
@@ -287,7 +290,7 @@ func _build_street() -> void:
 ## Hohles Eckhaus mit Fensterloch: Panzerfaust-Trupp steht direkt dahinter.
 func _build_nest(side: int, zc: float, fl: int, tint: Color) -> void:
 	var wm := Buildings.wall_mat(true, tint, 0.5)
-	var dark := Geo.flat(Color(0.12, 0.11, 0.1))
+	var dark: Material = Geo.mat("concrete_wall_008", Color(0.42, 0.4, 0.37), 0.5, 1.0)   # Optik 3: Rohbetondecken statt Flachbraun
 	var sx := float(side)
 	var x0 := sx * 10.35
 	var h := 11.2
@@ -864,6 +867,8 @@ func _run() -> void:
 		print("[spreebogen] Phase %d %s nach %.1f s (gesamt %.1f s, Rabe %.0f %%)" % [phase, "geschafft" if ok and _failed == "" else "FEHLER " + _failed, _phase_t, _time, ifv.integrity])
 		if ok and _failed == "":
 			_checkpoint("cp_halt%d" % phase)
+			# Erledigten Auftrag nicht bis zum naechsten Halt stehen lassen (wirkte wie "noch etwas offen")
+			_obj("Weiter Richtung Moltkebrücke – Voss fährt, Turm frei gegen Infanterie")
 			phase += 1
 		else:
 			await _retry()
@@ -932,10 +937,18 @@ func _p1() -> bool:
 	ifv.drive_to_z(HALT_Z[1])
 	await _sleep(3.0)
 	_say_opt(SD.VOSS, "Sperre voraus! Ich halte an.", 0.0, {"priority": 1, "max_age": 4.0})
+	# Auftrag + Lenas Hinweis schon bei der Anfahrt (vorher kamen beide erst nach dem Halt – oft erst,
+	# als die Fenster laengst ausgeschaltet waren; der Spieler sah bis dahin nur "zur Moltkebruecke")
+	var nests_alive := func() -> bool: return _alive(n1) or _alive(n2)
+	_say_opt(SD.LENA, "Fenster links und rechts, Panzerfaust-Trupps! Erst die Fenster, dann die Sperre.", 0.0,
+		{"priority": 1, "max_age": 8.0, "valid": nests_alive})
+	if bool(nests_alive.call()):
+		_obj("Panzerfaust-Fenster links und rechts ausschalten (rot markiert = Abschuss droht, Nebel [F])")
+	ifv.status_text = "HALT AN DER SPERRE"
 	if not await _until(func() -> bool: return ifv.arrived(), 30.0):
 		return false
-	_say_opt(SD.LENA, "Fenster links und rechts, Panzerfaust-Trupps! Erst die Fenster, dann die Sperre.", 0.0, {"priority": 1})
-	_obj("Panzerfaust-Fenster links und rechts ausschalten (rot markiert = Abschuss droht, Nebel [F])")
+	var arrived_t := _time
+	var hinted := [false]
 	var nests_down := [-1.0]
 	var warned := [false]
 	var hit_said := [false]
@@ -949,6 +962,17 @@ func _p1() -> bool:
 		if not warned[0] and ifv.rocket_warn > 0.0:
 			warned[0] = true
 			_say_opt(SD.LENA, "Panzerfaust! Nebel, Kerner!", 0.0, {"priority": 2, "cut": true, "max_age": 1.5})
+		if not hinted[0] and bool(nests_alive.call()) and _time - arrived_t > NEST_HINT_T:
+			# Spieler findet die Fenster nicht: konkreter Hinweis statt stummem Warten aufs Zeitlimit
+			hinted[0] = true
+			_obj("Fenster im 1. Stock links und rechts (Marke PANZERFAUST) mit der Kanone [1] treffen – Zoom [Mausrad]. Lenas Trupp stürmt in %d s" % int(NEST_HELP_T - NEST_HINT_T))
+		if bool(nests_alive.call()) and _time - arrived_t > NEST_HELP_T:
+			print("[spreebogen] Phase 1: Fenster nach %.0f s, Lenas Trupp stürmt" % NEST_HELP_T)
+			_say(SD.LENA, "Mein Trupp nimmt das Haus. Feuer halten!")
+			for nn: Variant in [n1, n2]:
+				_kill(nn)
+		if nests_down[0] >= 0.0 and nests_down[0] < INF and _alive(bar):
+			bar.set_meta("hud_label", "SPERRE – Pioniere in %d s" % ceili(maxf(0.0, BARRICADE_GRACE - (_time - nests_down[0]))))
 		if nests_down[0] < 0.0 and not _alive(n1) and not _alive(n2):
 			nests_down[0] = _time
 			if _alive(bar):
@@ -971,8 +995,11 @@ func _p1() -> bool:
 	await _mop_up(3.0)
 	if _failed != "":
 		return false
-	_say(SD.VOSS, "Sperre ist weg. Ich fahre durch.")
+	# v0.6: Lagemeldung (max_age) statt Erzaehlzeile – darf Lenas laufende Einweisung unterbrechen (die wird
+	# danach fortgesetzt); vorher kam sie bei schnellem Durchbruch +5,4 s nach dem Anfahren
+	_say_opt(SD.VOSS, "Sperre ist weg. Ich fahre durch.", 0.0, {"priority": 1, "max_age": 5.0})
 	_say(SD.LENA, "Zwei Wochen nach der Ausstrahlung hält die Garde noch immer den Spreebogen. Wir sind die Spitze, hinter uns kommen drei Bataillone.")
+	ifv.status_text = ""
 	_after_clear()
 	return true
 
@@ -1229,6 +1256,7 @@ func _spawn_boss() -> void:
 		return
 	_boss = _enemy("juggernaut", Vector3(0.0, 0.05, -346.0))
 	_say_opt(SD.LENA, "Schwere Panzerung auf der Brücke! Das ist ein Juggernaut. Panzerfaust, Kerner!", 0.0, {"priority": 1})
+	_obj("Juggernaut stoppen: Panzerfaust (Kiste am Ufer) oder Visier/Tornister – Boss-Leiste oben")
 
 func _foot_tick() -> void:
 	if _finale_started:
@@ -1244,6 +1272,10 @@ func _foot_tick() -> void:
 	if _boss == null and pl.global_position.z < -300.0:
 		_spawn_boss()
 	var boss_dead := _boss != null and not _alive(_boss)
+	if boss_dead and not _boss_obj_done:
+		# Nach dem Koloss: klares naechstes Ziel statt stehendem "Bruecke nehmen"
+		_boss_obj_done = true
+		_obj("Juggernaut erledigt – zum anderen Ende der Brücke vorrücken")
 	if boss_dead and pl.global_position.z < -356.0:
 		_finale_started = true
 		_finale()

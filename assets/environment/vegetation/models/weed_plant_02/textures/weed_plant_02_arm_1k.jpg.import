@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b7aca4djapn12"
-path="res://.godot/imported/weed_plant_02_arm_1k.jpg-6ccfb7ca72ccd56248c284e43b324a87.ctex"
+path.s3tc="res://.godot/imported/weed_plant_02_arm_1k.jpg-6ccfb7ca72ccd56248c284e43b324a87.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/environment/vegetation/models/weed_plant_02/textures/weed_plant_02_arm_1k.jpg"
-dest_files=["res://.godot/imported/weed_plant_02_arm_1k.jpg-6ccfb7ca72ccd56248c284e43b324a87.ctex"]
+dest_files=["res://.godot/imported/weed_plant_02_arm_1k.jpg-6ccfb7ca72ccd56248c284e43b324a87.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -37,4 +38,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

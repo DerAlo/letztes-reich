@@ -574,6 +574,8 @@ func _apply_result(res: Dictionary, source: Node, hit_position: Vector3, hit_nor
 	if health <= 0.0:
 		_die()
 		return
+	if _burst_left > 0:
+		_shot_timer = maxf(_shot_timer, HIT_STAGGER)
 	_bark("hit")
 	_on_damaged(source, src_pos)
 

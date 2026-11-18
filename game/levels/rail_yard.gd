@@ -373,7 +373,9 @@ func _build_markers() -> void:
 	_trigger("TriggerTwist", Vector3(0, 3, -40.0), strip, _radio_twist)
 	_trigger("TriggerWave1", Vector3(0, 3, -75.0), strip, func() -> void:
 		_spawn_wave(1)
-		_radio_opt("Hauptmann Weber", "Kontakt am Zug! Die Lok steht unter Dampf – die wollen raus.", 4.0, {"priority": 1, "max_age": 3.0}))
+		# Lenas Kanal-zwei-Gespraech nicht zerreissen (sonst kommt Webers "Funkdisziplin" erst nach der Kontaktmeldung)
+		_when_radio_free(func() -> void:
+			_radio_opt("Hauptmann Weber", "Kontakt am Zug! Die Lok steht unter Dampf – die wollen raus.", 4.0, {"priority": 1, "max_age": 3.0}), 6.0))
 	_trigger("TriggerBriefTank", Vector3(0, 3, -98.0), strip, _radio_tank)
 	_trigger("TriggerSetpieceA", Vector3(0, 3, -118.0), strip, trigger_setpiece)
 	_trigger("TriggerWave2", Vector3(0, 3, -150.0), strip, func() -> void: _spawn_wave(2))
@@ -652,8 +654,8 @@ func _radio_tank() -> void:
 	if _a_done:
 		return
 	_radio("Hauptmann Weber", "Kesselwagen mit roter Binde – Treibladungen. Ein Treffer und der ganze Zug geht hoch.", 5.0)
-	_radio_opt("Lena Aksoy", "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer – nur Munition.", 5.0,
-		{"valid": func() -> bool: return not _a_done})
+	# Lenas Gefangenenwagen-Zeile kommt nach der Explosion (_on_train_detonated): vorher wurde sie vom Set-Piece
+	# nach 0,6 s abgeschnitten und verworfen.
 
 ## Set-Piece A: Lena schiesst von hinten auf den markierten Kesselwagen.
 func _run_setpiece_a() -> void:
@@ -685,6 +687,7 @@ func _on_train_detonated(_pos: Vector3) -> void:
 	_setpiece_done = true
 	_later(2.6, func() -> void:
 		_radio_opt("Lena Aksoy", "Heilige ... das ganze Gleis brennt!", 2.5, {"priority": 1, "max_age": 3.0})
+		_radio_opt("Lena Aksoy", "Die Gefangenenwagen haben sie mittags abgehängt. Der Zug ist leer – nur Munition.", 5.0, {"priority": 1})
 		_radio_opt("Hauptmann Weber", "Weiter! Lagerhallen und Kranbahn, bevor die sich neu sortieren.", 4.0, {"priority": 1}))
 	_later(6.0, func() -> void: _objective("Lagerhallen und Kranbahn sichern"))
 
@@ -770,8 +773,12 @@ func _physics_process(delta: float) -> void:
 			pl.set("health", 100.0)
 	if not _ending and _b_started and _waves_spawned.has(3) and _b_time >= 0.0 and _t - _b_time > 6.0:
 		var alive := 0
+		# Zurückgelassene Nachzügler weit hinten (z. B. Schütze auf dem Dach am Anfang) blockieren das Ende nicht
+		var pl_end := get_tree().get_first_node_in_group("player") as Node3D
 		for e in get_tree().get_nodes_in_group("enemy"):
 			if e.has_method("is_alive") and e.call("is_alive"):
+				if pl_end != null and e is Node3D and (e as Node3D).global_position.distance_to(pl_end.global_position) > 90.0:
+					continue
 				alive += 1
 		if alive <= 1:
 			_start_ending()

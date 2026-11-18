@@ -593,8 +593,16 @@ func _tick_guards(delta: float) -> void:
 		if director != null:
 			director.call("end_alarm")
 		if not _fail:
-			_bark(SD.LENA, "Das war der Letzte. Atme, Jonas. Dann weiter.", "clear", 30.0,
-				{"priority": 1, "max_age": 4.0, "valid": func() -> bool: return not _combat and not _fail})
+			# Entwarnung nicht ueber _bark (verwirft bei belegtem Funk) und erst nach 2,8 s: Oeffnet der Kampf
+			# einen Abschnitt, sagt Lena ohnehin die konkretere Freigabe ("Streife liegt…") – dann entfaellt sie.
+			if _t >= float(_bark_cd.get("clear", -1.0)):
+				_bark_cd["clear"] = _t + 30.0
+				var gate_before := _last_gate
+				get_tree().create_timer(2.8, false).timeout.connect(func() -> void:
+					if _combat or _fail or _last_gate != gate_before:
+						return
+					_say_opt(SD.LENA, "Das war der Letzte. Atme, Jonas. Dann weiter.", 0.0,
+						{"priority": 1, "max_age": 10.0, "valid": func() -> bool: return not _combat and not _fail}))
 
 func _guard_patrol(g: Dictionary, a: Node3D, delta: float) -> void:
 	var route: Array = g["d"]["route"]
@@ -845,7 +853,7 @@ func _start_combat(reason: String) -> void:
 				_:
 					_say_opt(SD.ORDNUNG, "Eindringling gesichtet! Alarm!", 0.0, {"priority": 1, "max_age": 4.0})
 			_say_opt(SD.KERNER, "Kontakt! Sie haben mich – Lena, ich brauch dich!", 0.0,
-				{"priority": 1, "valid": func() -> bool: return not _fail})
+				{"priority": 1, "max_age": 4.0, "valid": func() -> bool: return _combat and not _fail})
 
 func _make_hostile(g: Dictionary, a: Node3D) -> void:
 	if a == null:
@@ -1234,7 +1242,11 @@ func _say_lamp_out() -> void:
 		return
 	# Prioritaet 2: eine spaetere Einweisung (Gegenscharfschuetze) wartet, statt das Paar zu zerschneiden
 	_say_opt(SD.ORDNUNG, "Anbau B an Zentrale: Scheinwerfer ausgefallen. Vermutlich der Regen.", 0.0, {"priority": 2})
-	_say_opt(SD.LENA, "Der Regen hat heute Nacht gute Augen.", 0.0, {"priority": 2})
+	# Die Pointe entfaellt, wenn inzwischen ein Abschnitt freigegeben wurde: dann hat Lenas Wegweisung
+	# („Platz ist sauber…“) Vorrang – sonst wartete Kerner mit der Anweisung 10 s.
+	var gate_now := _last_gate
+	_say_opt(SD.LENA, "Der Regen hat heute Nacht gute Augen.", 0.0,
+		{"priority": 2, "valid": func() -> bool: return _last_gate == gate_now})
 
 func _start_download() -> void:
 	_k_mode = "download"

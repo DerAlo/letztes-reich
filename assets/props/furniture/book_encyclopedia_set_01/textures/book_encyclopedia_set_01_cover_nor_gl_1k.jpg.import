@@ -3,25 +3,26 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bqcgqx31w4wdu"
-path="res://.godot/imported/book_encyclopedia_set_01_cover_nor_gl_1k.jpg-03555bd681fc8735870f6cab2ff0fe0f.ctex"
+path.bptc="res://.godot/imported/book_encyclopedia_set_01_cover_nor_gl_1k.jpg-03555bd681fc8735870f6cab2ff0fe0f.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/props/furniture/book_encyclopedia_set_01/textures/book_encyclopedia_set_01_cover_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/book_encyclopedia_set_01_cover_nor_gl_1k.jpg-03555bd681fc8735870f6cab2ff0fe0f.ctex"]
+dest_files=["res://.godot/imported/book_encyclopedia_set_01_cover_nor_gl_1k.jpg-03555bd681fc8735870f6cab2ff0fe0f.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=false
 mipmaps/limit=-1
@@ -37,4 +38,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

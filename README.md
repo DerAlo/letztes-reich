@@ -6,6 +6,12 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 1
 
 | | |
 |---|---|
+| ![Eichenwiese](docs/screenshots/v06_villa_eichenwiese.jpg) | ![Bibliothek](docs/screenshots/v06_villa_bibliothek.jpg) |
+| **Villa am Traunsee** – über Wiese und Bootshaus zur Villa, echte Eichen statt Kugelbäume | **Bibliothek** – Falks Jäger rücken an, der VIP wartet zwischen den Regalen |
+| ![Wasserflugzeug](docs/screenshots/v06_villa_wasserflugzeug.jpg) | ![Waldrand](docs/screenshots/v06_villa_waldrand.jpg) |
+| **Der Steg** – das Wasserflugzeug wartet im Abendlicht | **Einfahrt** – fotogescannte Fahrzeuge, Buchsbaumhecken, Eichenwald |
+| ![Sendezentrum](docs/screenshots/v06_berlin_sendezentrum.jpg) | ![Ministeriumsdach](docs/screenshots/v06_ep_lena_ministeriumsdach.jpg) |
+| **Sendezentrum** – Treffpunkt mit Weber im Funkraum, Berlin brennt | **Lenas Nacht** – vom Ministeriumsdach deckt Lena Kerners Weg |
 | ![Speisewagen](docs/screenshots/v05_nachtzug_speisewagen.jpg) | ![Reisender](docs/screenshots/v05_nachtzug_reisender.jpg) |
 | **Nachtzug** – Speisewagen mit Reisenden, die sich beim ersten Schuss ducken | **Abteil** – neue, animierte Zivilfiguren statt starrer Puppen |
 | ![Hubbrücke](docs/screenshots/v05_hafen_hubbruecke.jpg) | ![Regierungsviertel](docs/screenshots/v05_ep_lena_regierungsviertel.jpg) |
@@ -33,7 +39,7 @@ Singleplayer-Korridorshooter in Godot 4.7. Fiktive Geschichte, Europa 2030 – 1
 
 ## ▶ Spielen
 
-1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.5-win64.zip`
+1. **[Neueste Version herunterladen](https://github.com/DerAlo/letztes-reich/releases/latest)** – `LetztesReich-v0.6-win64.zip`
 2. Entpacken, `LetztesReich.exe` doppelklicken. Keine Installation nötig.
 3. Falls Windows warnt („Der Computer wurde durch Windows geschützt“): **Weitere Informationen → Trotzdem ausführen** (die Datei ist nicht signiert).
 

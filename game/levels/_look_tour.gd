@@ -63,6 +63,15 @@ func _ready() -> void:
 	_cam.far = 900
 	add_child(_cam)
 	_cam.make_current()
+	# --camlight=<energie>: Taschenlampe an der Kamera (dunkle Level wie kanalisation)
+	if float(Game.arg("camlight", 0)) > 0.0:
+		var fl := SpotLight3D.new()
+		fl.light_energy = float(Game.arg("camlight", 0))
+		fl.spot_range = float(Game.arg("camlight-range", 30))
+		fl.spot_angle = 30.0
+		fl.shadow_enabled = true
+		fl.position = Vector3(0.25, -0.2, 0.0)
+		_cam.add_child(fl)
 	var views: Dictionary = VIEWS.get(lname, VIEWS["test_range"])
 	var pick: Array = views.keys()
 	var vs := str(Game.arg("views", ""))
@@ -116,6 +125,34 @@ func _ready() -> void:
 		ca.auto_exposure_max_sensitivity = float(ae[2])
 		ca.auto_exposure_speed = 2.0
 		we.camera_attributes = ca
+	# --aim-tex=<teil des Texturpfads>: Ansichten auf die ersten Meshes mit dieser Albedo-Textur
+	# (Gleisblick x=+-4 und Nahansicht), z. B. nachtzug-Doerfer (rough_plaster_broken)
+	# --freeze: Level-Prozesse anhalten (nachtzug: Strecke scrollt sonst aus dem Bild)
+	if str(Game.arg("freeze", "")) != "":
+		_level.process_mode = Node.PROCESS_MODE_DISABLED
+	var aim := str(Game.arg("aim-tex", ""))
+	if aim != "":
+		views = {}
+		pick = []
+		var found := 0
+		for n in _level.find_children("*", "MeshInstance3D", true, false):
+			var mi := n as MeshInstance3D
+			if mi.mesh == null or not mi.is_visible_in_tree():
+				continue
+			var mt := mi.get_active_material(0) as StandardMaterial3D
+			if mt == null or mt.albedo_texture == null or not mt.albedo_texture.resource_path.contains(aim):
+				continue
+			var bb: AABB = mi.global_transform * mi.mesh.get_aabb()
+			var c := bb.get_center()
+			var side := signf(c.x) if absf(c.x) > 0.5 else 1.0
+			views["a%d" % found] = [Vector3(side * 4.0, 4.0, c.z + 70.0), c]
+			views["n%d" % found] = [c + Vector3(-side * 22.0, 7.0, 26.0), c + Vector3(0, 3.0, 0)]
+			pick.append("a%d" % found)
+			pick.append("n%d" % found)
+			found += 1
+			if found >= 2:
+				break
+		print("LOOKTOUR aim=%s found=%d" % [aim, found])
 	var all_fps: Array[float] = []
 	for k in pick:
 		if not views.has(k):

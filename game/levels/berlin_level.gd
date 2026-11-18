@@ -1201,7 +1201,11 @@ func _on_wave3() -> void:
 
 func _on_cp_plaza() -> void:
 	_checkpoint("cp_plaza")
-	_obj("Überquere den Platz – Sendezentrum am Nordende")
+	# Lena sagt nur "Kugeln bringen da nichts" – die Panzerfaust-Kiste am linken Platzrand (-6, -170) war nirgends erklaert
+	if _tank != null and is_instance_valid(_tank):
+		_obj("Überquere den Platz – Sendezentrum am Nordende (gegen den Panzer: Panzerfaust-Kiste links am Platzrand)")
+	else:
+		_obj("Überquere den Platz – Sendezentrum am Nordende")
 	_say(PA, "Ordnung. Stärke. Das letzte Reich beginnt heute Nacht.", 3.4)
 	_say_opt(SD.LENA, "„Das letzte Reich.“ Gefeiert mit Sprengstoff unter der Bühne.", 3.2, {"max_age": 3.0})   # Antwort auf die Durchsage, sonst weg
 	_say(SD.WEBER, "Funkraum im Erdgeschoss des Sendezentrums. Ich bin schon drin – ich warte auf euch.", 4.0)

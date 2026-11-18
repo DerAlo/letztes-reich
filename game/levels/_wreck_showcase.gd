@@ -8,6 +8,7 @@ extends Node3D
 const VfxEnv = preload("res://game/vfx/vfx_env.gd")
 const Props = preload("res://game/levels/level_props.gd")
 const IntroNews = preload("res://game/intro/intro_news.gd")
+const Scans = preload("res://game/vehicles/models/wreck_scans.gd")
 
 var _vp: SubViewport
 var _cam: Camera3D
@@ -41,10 +42,15 @@ func _ready() -> void:
 		_setup_intro()
 	elif mode == "heavy":
 		_setup_heavy()
+	elif mode == "scans":
+		_setup_scans()
+	elif mode == "flip":
+		_setup_flip()
 	else:
-		_setup_props()
+		_setup_props(mode != "intact")
 
-func _setup_props() -> void:
+## props (Wracks) bzw. intact (--wmode=intact: dieselben Fahrzeuge unbeschaedigt, Modelle aus WreckScans)
+func _setup_props(burnt: bool = true) -> void:
 	var we := WorldEnvironment.new()
 	we.environment = VfxEnv.make_environment(0.004, 1.0)
 	_cam.environment = we.environment
@@ -60,12 +66,15 @@ func _setup_props() -> void:
 	g.add_child(gm)
 	add_child(g)
 	var cv: Array = []
-	Props.vehicle(self, Vector3(0, 0, 0), 30.0, "car", Color(0.4, 0.1, 0.08), true, false, cv)
-	Props.vehicle(self, Vector3(6, 0, 1), -20.0, "car", Color(0.2, 0.25, 0.3), true, false, cv)
-	Props.vehicle(self, Vector3(-6, 0, 2), 120.0, "car", Color(0.2, 0.2, 0.2), true, true, cv)
-	Props.vehicle(self, Vector3(0, 0, -12), 80.0, "van", Color(0.7, 0.7, 0.68), true, false, cv)
-	Props.vehicle(self, Vector3(9, 0, -12), 10.0, "truck", Color(0.3, 0.33, 0.25), true, false, cv)
-	Props.vehicle(self, Vector3(-12, 0, -14), 6.0, "bus", Color(0.75, 0.55, 0.15), true, false, cv)
+	Props.vehicle(self, Vector3(0, 0, 0), 30.0, "car", Color(0.4, 0.1, 0.08), burnt, false, cv)
+	Props.vehicle(self, Vector3(6, 0, 1), -20.0, "car", Color(0.2, 0.25, 0.3), burnt, false, cv)
+	if burnt:
+		Props.vehicle(self, Vector3(-6, 0, 2), 120.0, "car", Color(0.2, 0.2, 0.2), true, true, cv)
+	else:
+		Props.vehicle(self, Vector3(-6, 0, 2.3), 120.0, "car", Color(0.2, 0.2, 0.2), false, false, cv)
+	Props.vehicle(self, Vector3(0, 0, -12), 80.0, "van", Color(0.7, 0.7, 0.68), burnt, false, cv)
+	Props.vehicle(self, Vector3(9, 0, -12), 10.0, "truck", Color(0.3, 0.33, 0.25), burnt, false, cv)
+	Props.vehicle(self, Vector3(-12, 0, -14), 6.0, "bus", Color(0.75, 0.55, 0.15), burnt, false, cv)
 	Props.tank_wreck(self, Vector3(0, 0, -30), 160.0, cv)
 	Props.tank_wreck(self, Vector3(12, 0, -30), 30.0, cv, true)
 	_shots = [
@@ -129,6 +138,65 @@ func _setup_heavy() -> void:
 		["z_bus_wheel_lit", Vector3(32.6, 0.9, 6.2), Vector3(31.1, 0.45, 4.0), 180.0],
 		["z_truck_wheels", Vector3(2.8, 0.9, -4.6), Vector3(1.0, 0.45, -2.2), 0.0],
 	]
+
+## scans: rohe Sketchfab-Wracks (WreckScans) nebeneinander, je 3 Ansichten.
+func _setup_scans() -> void:
+	var we := WorldEnvironment.new()
+	we.environment = VfxEnv.make_environment(0.004, 1.0)
+	_cam.environment = we.environment
+	add_child(we)
+	add_child(VfxEnv.make_sun())
+	var g := MeshInstance3D.new()
+	var gb := BoxMesh.new()
+	gb.size = Vector3(300, 1, 300)
+	g.mesh = gb
+	g.position.y = -0.5
+	g.material_override = Props.Geo.mat("asphalt_02", Color(0.6, 0.58, 0.55), 0.25)
+	add_child(g)
+	var keys := [["car_a", 4.4], ["car_b", 4.4], ["bus", 11.0], ["van", 5.2], ["truck", 7.0]]
+	var x := 0.0
+	for k: Array in keys:
+		var n := Node3D.new()
+		n.position = Vector3(x, 0, 0)
+		add_child(n)
+		var h := Scans.place(n, k[0], k[1])
+		var aabb := AABB()
+		print("[scan] ", k[0], " h=", h, " avail=", Scans.available(k[0]))
+		var L: float = k[1]
+		_shots.append([k[0] + "_q", Vector3(x + L * 0.75, L * 0.35 + 1.0, L * 0.85), Vector3(x, h * 0.4, 0)])
+		_shots.append([k[0] + "_side", Vector3(x + L * 1.1, 1.4, 0.0), Vector3(x, h * 0.45, 0)])
+		_shots.append([k[0] + "_rear", Vector3(x - L * 0.6, L * 0.3 + 1.0, -L * 0.9), Vector3(x, h * 0.4, 0)])
+		x += 25.0
+
+## flip: alle Wrackvarianten aufrecht und auf dem Dach, Aufnahmen auf Augenhoehe (Bodenkontakt pruefen).
+func _setup_flip() -> void:
+	var we := WorldEnvironment.new()
+	we.environment = VfxEnv.make_environment(0.004, 1.0)
+	_cam.environment = we.environment
+	add_child(we)
+	add_child(VfxEnv.make_sun())
+	var g := StaticBody3D.new()
+	var gm := MeshInstance3D.new()
+	var gb := BoxMesh.new()
+	gb.size = Vector3(300, 1, 300)
+	gm.mesh = gb
+	gm.position.y = -0.5
+	gm.material_override = Props.Geo.mat("asphalt_02", Color(0.6, 0.58, 0.55), 0.25)
+	g.add_child(gm)
+	add_child(g)
+	var cv: Array = []
+	# Positionen so gewaehlt, dass der Seed (pos) car_a bzw. car_b ergibt
+	var rows := [["car", Vector3(0, 0, 0)], ["car", Vector3(0, 0, 1)], ["van", Vector3(0, 0, 0)],
+		["bus", Vector3(0, 0, 0)], ["truck", Vector3(0, 0, 0)]]
+	var x := 0.0
+	for r: Array in rows:
+		for fl in [false, true]:
+			var p: Vector3 = r[1] + Vector3(x, 0, 30.0 if fl else 0.0)
+			Props.vehicle(self, p, 90.0, r[0], Color(0.3, 0.3, 0.3), true, fl, cv)
+			var tag := "%s_%d_%s" % [r[0], int(x), "flip" if fl else "up"]
+			_shots.append([tag + "_eye", p + Vector3(0.0, 0.25, 9.0), p + Vector3(0, 0.4, 0)])
+			_shots.append([tag + "_q", p + Vector3(6.0, 1.6, 7.0), p + Vector3(0, 0.5, 0)])
+		x += 25.0
 
 func _setup_intro() -> void:
 	for s in [0, 1]:

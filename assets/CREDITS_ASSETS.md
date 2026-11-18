@@ -467,3 +467,195 @@ Keine neuen Dateien, nur Wiederverwendung bereits gelisteter Poly-Haven-Texturen
 | `assets/environment/realism/models/metal_tool_chest/` (glTF 1k) | https://polyhaven.com/a/metal_tool_chest | Yann Kervran, John Hutcheson | CC0 | Werkzeugkiste im Versorgungskeller, `kanalisation.gd` |
 
 Wiederverwendet (bereits gelistet, CC0): `facade/textures/painted_plaster_wall` (Putz Anbau/Keller), `river/models/utility_box_01` (Schaltkaesten), `river/models/Barrel_01`, `river/models/cement_bag` (Keller), `bunker/textures/linoleum_brown`, `bunker/textures/concrete_floor_painted`, `interior/textures/ceiling_interior`, `interior/textures/american_walnut_veneer`, `rusty_metal_02` aus der vorhandenen Geo.mat-Bibliothek (Rohre, Lueftungskanal). Der Lkw in curfew nutzt `game/levels/villa_truck.gd` (eigene Geometrie). Download: `tools/fetch_realism_assets.py`.
+
+## Sounds (Sound-Overhaul v0.6, 17.11.) - `assets/sfx/`
+
+Alle Aufnahmen CC0 1.0 (Freesound, nur CC0 gefiltert; Kenney CC0). Geschnitten, gelayert (teils mit synthetischer Tiefton-Druckwelle), normalisiert, Mono-OGG. Dateinamen ohne `.ogg`; `_N` = Varianten.
+
+| Titel | Autor | Quelle | Lizenz | Dateien |
+|---|---|---|---|---|
+| AR15 rifle shot | michorvath | https://freesound.org/people/michorvath/sounds/427596/ | CC0 1.0 | rifle_fire, weapons/tail_out |
+| AssaultRifle1.wav | SuperPhat | https://freesound.org/people/SuperPhat/sounds/404562/ | CC0 1.0 | rifle_fire_2 |
+| M16 Rifle Shots.flac | qubodup | https://freesound.org/people/qubodup/sounds/187677/ | CC0 1.0 | enemy_rifle_4, overwatch_dmr_fire_4, rifle_fire_3, rifle_fire_4 |
+| Automatic Assault Rifle.wav | SuperPhat | https://freesound.org/people/SuperPhat/sounds/416417/ | CC0 1.0 | rifle_fire_5 |
+| AK47 Shot | LeMudCrab | https://freesound.org/people/LeMudCrab/sounds/163457/ | CC0 1.0 | enemy_mg_3, enemy_rifle_2, weapons/ak_fire |
+| AK47 Fire into Street.aif | Franki-01234 | https://freesound.org/people/Franki-01234/sounds/201670/ | CC0 1.0 | enemy_mg_4, enemy_rifle, weapons/ak_fire_2, weapons/ak_fire_3, weapons/tail_out_2 |
+| Kalashnikov 1 (indoor) | mahecic | https://freesound.org/people/mahecic/sounds/812210/ | CC0 1.0 | weapons/ak_fire_4, weapons/tail_in |
+| AK47 and various other gunshots at indoor shooting range | acidsnowflake | https://freesound.org/people/acidsnowflake/sounds/402791/ | CC0 1.0 | enemy_rifle_3, weapons/ak_fire_5 |
+| 9mm pistol shot | michorvath | https://freesound.org/people/michorvath/sounds/427592/ | CC0 1.0 | pistol_fire |
+| Pistol Shot | LeMudCrab | https://freesound.org/people/LeMudCrab/sounds/163456/ | CC0 1.0 | pistol_fire_2 |
+| 9mm_gunshot.wav | mnslugger20 | https://freesound.org/people/mnslugger20/sounds/244138/ | CC0 1.0 | pistol_fire_3 |
+| gun_9mm_15m_in_front_m10.wav | johanwestling | https://freesound.org/people/johanwestling/sounds/377789/ | CC0 1.0 | pistol_fire_4 |
+| Pocket Pistol gunshot 2 (Outside of room) | mahecic | https://freesound.org/people/mahecic/sounds/803497/ | CC0 1.0 | pistol_fire_5 |
+| S20-30 Pistol shots with silencer.wav | craigsmith | https://freesound.org/people/craigsmith/sounds/675677/ | CC0 1.0 | curfew_pistol_sd, curfew_pistol_sd_2, curfew_pistol_sd_3 |
+| Sniper Shot | LeMudCrab | https://freesound.org/people/LeMudCrab/sounds/163460/ | CC0 1.0 | overwatch_dmr_fire |
+| Sniper Rifle | SuperPhat | https://freesound.org/people/SuperPhat/sounds/514228/ | CC0 1.0 | overwatch_dmr_fire_2 |
+| Sniper Rifle M24 SFX.mp3 | kennysvoice | https://freesound.org/people/kennysvoice/sounds/351777/ | CC0 1.0 | overwatch_dmr_fire_3 |
+| LightMachineGun1.wav | SuperPhat | https://freesound.org/people/SuperPhat/sounds/417688/ | CC0 1.0 | enemy_mg |
+| Machine Gun 002 - triple shot.ogg | pgi | https://freesound.org/people/pgi/sounds/212606/ | CC0 1.0 | enemy_mg_2 |
+| rpg launcher  three shots.wav | klangfabrik | https://freesound.org/people/klangfabrik/sounds/249298/ | CC0 1.0 | rocket_launch |
+| Launching Anti-Tank Missiles.flac | qubodup | https://freesound.org/people/qubodup/sounds/184274/ | CC0 1.0 | rocket_launch_2 |
+| Rocket Launch | Jarusca | https://freesound.org/people/Jarusca/sounds/521377/ | CC0 1.0 | rocket_launch_3 |
+| Forest Impulse Response Gunshot Tail | modusmogulus | https://freesound.org/people/modusmogulus/sounds/734096/ | CC0 1.0 | weapons/tail_out_3 |
+| 357 Magnum Revolver Gunshot with Tail | Shark_Anthony | https://freesound.org/people/Shark_Anthony/sounds/683175/ | CC0 1.0 | weapons/tail_out_4 |
+| Kalashnikov 2 (indoor) | mahecic | https://freesound.org/people/mahecic/sounds/812211/ | CC0 1.0 | weapons/tail_in_2 |
+| AR15 rifle shot from 50 yards away | michorvath | https://freesound.org/people/michorvath/sounds/427597/ | CC0 1.0 | weapons/far_rifle |
+| R12-09-Rifle Shots, Natural Reverb.wav | craigsmith | https://freesound.org/people/craigsmith/sounds/486063/ | CC0 1.0 | weapons/far_rifle_2, weapons/far_rifle_3, weapons/far_rifle_4 |
+| G35-17-Rifle Cracks.wav | craigsmith | https://freesound.org/people/craigsmith/sounds/438582/ | CC0 1.0 | weapons/far_rifle_5 |
+| AR15 M4 Gun Hardware Magazine Movement Sounds | jackthemurray | https://freesound.org/people/jackthemurray/sounds/393732/ | CC0 1.0 | weapon_bolt, weapon_bolt_2, weapon_bolt_3, weapon_mag_in, weapon_mag_in_2, weapon_mag_in_3, weapon_mag_out, weapon_mag_out_2, weapon_mag_out_3 |
+| Glock 19 Handgun Pistol Slide Cocking Sounds | jackthemurray | https://freesound.org/people/jackthemurray/sounds/393734/ | CC0 1.0 | pistol_mag_in, pistol_mag_in_2, pistol_mag_in_3, pistol_mag_out, pistol_mag_out_2, pistol_mag_out_3, pistol_slide, pistol_slide_2, pistol_slide_3, pistol_slide_4 |
+| GUNRif_M1 GARAND DRY FIRE_MP.wav | MPierluissi | https://freesound.org/people/MPierluissi/sounds/460852/ | CC0 1.0 | dry_fire, dry_fire_2, dry_fire_3 |
+| Bouncing Shell Casings (Various Sizes) | GryffDavid | https://freesound.org/people/GryffDavid/sounds/318964/ | CC0 1.0 | shell_drop, shell_drop_2, shell_drop_3, shell_drop_4, shell_drop_5, shell_drop_6 |
+| bullets hit EDIT.aif | Woodingp | https://freesound.org/people/Woodingp/sounds/116645/ | CC0 1.0 | impacts/concrete, impacts/concrete_2, impacts/concrete_3, impacts/concrete_4, impacts/concrete_5, impacts/concrete_6, impacts/glass, impacts/glass_2, impacts/glass_3, impacts/glass_4, impacts/metal, impacts/metal_2, impacts/metal_3, impacts/metal_4, impacts/metal_5, impacts/metal_6, impacts/metal_7, impacts/metal_8, impacts/water, impacts/water_2, impacts/water_3, impacts/water_4, impacts/water_5, impacts/wood, impacts/wood_2, impacts/wood_3, impacts/wood_4, impacts/wood_5 |
+| bullet impacts | pushkin | https://freesound.org/people/pushkin/sounds/144444/ | CC0 1.0 | impacts/concrete, impacts/concrete_2, impacts/concrete_3, impacts/concrete_4, impacts/concrete_5, impacts/concrete_6, impacts/dirt, impacts/dirt_2, impacts/dirt_3, impacts/dirt_4, impacts/dirt_5 |
+| Foley bullet hit metal 02.wav | martian | https://freesound.org/people/martian/sounds/182263/ | CC0 1.0 | impacts/metal, impacts/metal_2, impacts/metal_3, impacts/metal_4, impacts/metal_5, impacts/metal_6, impacts/metal_7 |
+| HeavyBulletPing.mp3 | wilhellboy | https://freesound.org/people/wilhellboy/sounds/351371/ | CC0 1.0 | impacts/metal_8 |
+| Single Rock hit Dirt.wav | worthahep88 | https://freesound.org/people/worthahep88/sounds/319222/ | CC0 1.0 | impacts/dirt, impacts/dirt_3, impacts/dirt_5 |
+| Single Rock hit dirt 2.wav | worthahep88 | https://freesound.org/people/worthahep88/sounds/319229/ | CC0 1.0 | impacts/dirt_2, impacts/dirt_4 |
+| Glass Break | unfa | https://freesound.org/people/unfa/sounds/221528/ | CC0 1.0 | impacts/glass_5 |
+| VisceralBulletImpacts.wav | u1769092 | https://freesound.org/people/u1769092/sounds/423301/ | CC0 1.0 | impacts/flesh, impacts/flesh_2 |
+| ricochet.mp3 | cedarstudios | https://freesound.org/people/cedarstudios/sounds/148840/ | CC0 1.0 | ricochet |
+| Ricochet 2.wav | morganpurkis | https://freesound.org/people/morganpurkis/sounds/392975/ | CC0 1.0 | ricochet_2 |
+| Whizzby | Daleonfire | https://freesound.org/people/Daleonfire/sounds/505238/ | CC0 1.0 | bullet_whiz, bullet_whiz_3 |
+| Real Bullet Flyby Sound | qubodup | https://freesound.org/people/qubodup/sounds/855248/ | CC0 1.0 | bullet_whiz, bullet_whiz_2, bullet_whiz_3, bullet_whiz_4 |
+| Fly-by whiz SFX (subsonic) | modusmogulus | https://freesound.org/people/modusmogulus/sounds/789222/ | CC0 1.0 | bullet_whiz_2, bullet_whiz_4 |
+| water_splash_10shots.wav | vibe_crc | https://freesound.org/people/vibe_crc/sounds/50623/ | CC0 1.0 | impacts/water, impacts/water_2, impacts/water_3, impacts/water_4, impacts/water_5 |
+| Hiking Boot Footsteps on Stone | Fission9 | https://freesound.org/people/Fission9/sounds/521590/ | CC0 1.0 | footsteps/concrete_6, footsteps/concrete_7, footsteps/concrete_8 |
+| Footsteps on slush | xkeril | https://freesound.org/people/xkeril/sounds/611278/ | CC0 1.0 | footsteps/snow_6, footsteps/snow_7, footsteps/snow_8 |
+| Footsteps_6_Dirt_shoe.wav | monte32 | https://freesound.org/people/monte32/sounds/353799/ | CC0 1.0 | footsteps/dirt, footsteps/dirt_2, footsteps/dirt_3, footsteps/dirt_4, footsteps/dirt_5, footsteps/dirt_6 |
+| Footsteps_Mountain_Boots_Mud_Mono.wav | Nox_Sound | https://freesound.org/people/Nox_Sound/sounds/548384/ | CC0 1.0 | footsteps/dirt_7, footsteps/dirt_8, footsteps/mud, footsteps/mud_2, footsteps/mud_3, footsteps/mud_4, footsteps/mud_5, footsteps/mud_6, footsteps/mud_7, footsteps/mud_8 |
+| Walking on metal | Sanderboah | https://freesound.org/people/Sanderboah/sounds/696374/ | CC0 1.0 | footsteps/metal, footsteps/metal_2, footsteps/metal_3, footsteps/metal_4, footsteps/metal_5, footsteps/metal_6 |
+| Metal Steps | Phil25 | https://freesound.org/people/Phil25/sounds/208101/ | CC0 1.0 | footsteps/metal_7, footsteps/metal_8 |
+| puddle footsteps.wav | patchytherat | https://freesound.org/people/patchytherat/sounds/531566/ | CC0 1.0 | footsteps/water, footsteps/water_2, footsteps/water_3, footsteps/water_4, footsteps/water_5 |
+| puddlewalk.wav | j1987 | https://freesound.org/people/j1987/sounds/106395/ | CC0 1.0 | footsteps/water_6, footsteps/water_7, footsteps/water_8 |
+| foley cloth rustle.wav | martian | https://freesound.org/people/martian/sounds/19291/ | CC0 1.0 | foley/gear, foley/gear_2, foley/gear_3, foley/gear_4 |
+| Clothes Rustling 1 | WasabiWielder | https://freesound.org/people/WasabiWielder/sounds/334219/ | CC0 1.0 | foley/gear_5, foley/gear_6 |
+| Cloth_1(rustle, fabric, clothes).WAV | o_ciz | https://freesound.org/people/o_ciz/sounds/475440/ | CC0 1.0 | foley/gear_7, foley/gear_8 |
+| Jump Landing.wav | Shamewap | https://freesound.org/people/Shamewap/sounds/389678/ | CC0 1.0 | foley/land, foley/land_2, foley/land_3, foley/land_4 |
+| BODY FALL - V HVY - DIRT | leonelmail | https://freesound.org/people/leonelmail/sounds/504626/ | CC0 1.0 | foley/land_5 |
+| Heart Beating | michorvath | https://freesound.org/people/michorvath/sounds/273150/ | CC0 1.0 | foley/heartbeat, foley/heartbeat_2, foley/heartbeat_3, foley/heartbeat_4 |
+| Explosion with debris - authentic. 4kg TNT | sidohzen | https://freesound.org/people/sidohzen/sounds/165808/ | CC0 1.0 | explosion, explosions/debris_2 |
+| Explosion and Rubble/Debris | deleted_user_1887925 | https://freesound.org/people/deleted_user_1887925/sounds/132929/ | CC0 1.0 | explosion_2, explosions/debris_4 |
+| Explosion004.wav | klangfabrik | https://freesound.org/people/klangfabrik/sounds/220062/ | CC0 1.0 | explosion_3 |
+| massive explosion | Hugofski | https://freesound.org/people/Hugofski/sounds/177556/ | CC0 1.0 | explosion_4 |
+| Explosion_Debris_Short_Stereo.wav | Nox_Sound | https://freesound.org/people/Nox_Sound/sounds/560510/ | CC0 1.0 | explosions/debris, explosions/debris_3 |
+| Muffled Distant Explosion | NenadSimic | https://freesound.org/people/NenadSimic/sounds/149966/ | CC0 1.0 | explosions/far |
+| Distant Explosion | Mr_KeybOred | https://freesound.org/people/Mr_KeybOred/sounds/372086/ | CC0 1.0 | explosions/far_2 |
+| Explosion Distant  | Johnnyfarmer | https://freesound.org/people/Johnnyfarmer/sounds/209769/ | CC0 1.0 | explosions/far_3 |
+| distant explosions | Kostrava | https://freesound.org/people/Kostrava/sounds/320788/ | CC0 1.0 | explosions/far_4 |
+| Wind__Artic__Cold.wav | cobratronik | https://freesound.org/people/cobratronik/sounds/117136/ | CC0 1.0 | amb_wind |
+| Background shooting 120.wav | deleted_user_1371021 | https://freesound.org/people/deleted_user_1371021/sounds/113360/ | CC0 1.0 | amb_battle |
+| 201110 Distant sirens, urban, night, quiet, roof 11pm.flac | TRP | https://freesound.org/people/TRP/sounds/568975/ | CC0 1.0 | amb_siren |
+| Strong Wind | florianreichelt | https://freesound.org/people/florianreichelt/sounds/459981/ | CC0 1.0 | ambience/wind_strong |
+| Downtown LA, Little Tokyo, late night semi distant traffic.wav | janbezouska | https://freesound.org/people/janbezouska/sounds/330427/ | CC0 1.0 | ambience/city_night |
+| Night Woods | widgetstudios | https://freesound.org/people/widgetstudios/sounds/532301/ | CC0 1.0 | ambience/forest_night |
+| Water Through Drain (With Reverb).wav | clif_creates | https://freesound.org/people/clif_creates/sounds/381418/ | CC0 1.0 | ambience/drain |
+| Ambiance_Atmosphere_Cave_Loop_Stereo.ogg | Nox_Sound | https://freesound.org/people/Nox_Sound/sounds/553080/ | CC0 1.0 | ambience/cave |
+| room tone large room church basement heavy deep ventilation or furnace hum.flac | kyles | https://freesound.org/people/kyles/sounds/451924/ | CC0 1.0 | ambience/room_tone |
+| room tone, big hall, heavy ventilation hum, extremely sparse people.wav | be_a_hero_not_a_patriot | https://freesound.org/people/be_a_hero_not_a_patriot/sounds/509477/ | CC0 1.0 | ambience/hall_tone |
+| 070916 Machine room transformer hum 1.wav | thaighaudio | https://freesound.org/people/thaighaudio/sounds/349688/ | CC0 1.0 | ambience/machine_hum |
+| S20-02 Rifle ricochets.wav | craigsmith | https://freesound.org/people/craigsmith/sounds/675955/ | CC0 1.0 | ricochet_3, ricochet_4 |
+| UH-1 helicopter.wav | Rmutt | https://freesound.org/people/Rmutt/sounds/156906/ | CC0 1.0 | veh_heli_rotor |
+| Riding Train interior recording | gecop | https://freesound.org/people/gecop/sounds/525058/ | CC0 1.0 | nachtzug_rail_loop |
+| Kenney Impact Sounds | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0 1.0 | footsteps/carpet, footsteps/carpet_2, footsteps/carpet_3, footsteps/carpet_4, footsteps/carpet_5, footsteps/concrete, footsteps/concrete_2, footsteps/concrete_3, footsteps/concrete_4, footsteps/concrete_5, footsteps/grass, footsteps/grass_2, footsteps/grass_3, footsteps/grass_4, footsteps/grass_5, footsteps/snow, footsteps/snow_2, footsteps/snow_3, footsteps/snow_4, footsteps/snow_5, footsteps/wood, footsteps/wood_2, footsteps/wood_3, footsteps/wood_4, footsteps/wood_5, impacts/concrete, impacts/concrete_2, impacts/concrete_3, impacts/concrete_4, impacts/concrete_5, impacts/concrete_6, impacts/flesh, impacts/flesh_2, impacts/flesh_3, impacts/flesh_4, impacts/flesh_5, impacts/glass, impacts/glass_2, impacts/glass_3, impacts/glass_4, impacts/wood, impacts/wood_2, impacts/wood_3, impacts/wood_4, impacts/wood_5 |
+| Kenney Interface Sounds | Kenney (kenney.nl) | https://kenney.nl/assets/interface-sounds | CC0 1.0 | ui/back, ui/click, ui/click_2, ui/click_3, ui/hover, ui/hover_2, ui/toggle, ui/toggle_2 |
+| Tinnitus-Ton (numpy) | selbst erzeugt | – | CC0 | foley/tinnitus, foley/tinnitus_2 |
+
+### Nachtrag: Sound-Runde 2 (Fahrzeuge, Panzerfaust, Granate, Gunship, 17.11.)
+
+Alle CC0 1.0 (Freesound). Schleifen nahtlos geschnitten; `gunship_impact105/40` sind gefilterte Fassungen von `explosions/far`/`far_3` (Quellen oben). `veh_tank_turret` = Servo-Abschnitte, 0,55-fach tiefer.
+
+| Titel | Autor | Quelle | Lizenz | Dateien |
+|---|---|---|---|---|
+| foley cloth rustle.wav | martian | https://freesound.org/people/martian/sounds/19291/ | CC0 1.0 | launcher_mag_out |
+| Metal Cup Drop | AlecCorday | https://freesound.org/people/AlecCorday/sounds/181115/ | CC0 1.0 | grenade_bounce_2, grenade_bounce_soft_2 |
+| small metal object fall  | nicktermer | https://freesound.org/people/nicktermer/sounds/259553/ | CC0 1.0 | grenade_bounce, grenade_bounce_soft |
+| MetalDrop.wav | nickronk123 | https://freesound.org/people/nickronk123/sounds/489767/ | CC0 1.0 | grenade_bounce_3 |
+| ThrowGrenadeCloth.ogg | Avreliy | https://freesound.org/people/Avreliy/sounds/611613/ | CC0 1.0 | grenade_throw, grenade_throw_2 |
+| Grenade with Pin Handling | loganzsound | https://freesound.org/people/loganzsound/sounds/876008/ | CC0 1.0 | grenade_throw, grenade_throw_2 |
+| Excalibur Howitzer Shot | qubodup | https://freesound.org/people/qubodup/sounds/175430/ | CC0 1.0 | gunship_gun105 |
+| Artillery Shots.flac | qubodup | https://freesound.org/people/qubodup/sounds/182822/ | CC0 1.0 | gunship_gun105 |
+| Cannon Shot | qubodup | https://freesound.org/people/qubodup/sounds/187767/ | CC0 1.0 | gunship_gun40 |
+| Airplane inside ambient- cessna 414. condenser .mp3 | Daveshu88 | https://freesound.org/people/Daveshu88/sounds/325845/ | CC0 1.0 | gunship_engine |
+| Lockheed Electra turboprop flyover | HootOwl | https://freesound.org/people/HootOwl/sounds/464893/ | CC0 1.0 | gunship_engine |
+| Radio Noise.wav | RutgerMuller | https://freesound.org/people/RutgerMuller/sounds/50750/ | CC0 1.0 | gunship_radio |
+| Autocannon Three Shot Burst | qubodup | https://freesound.org/people/qubodup/sounds/854186/ | CC0 1.0 | gunship_gatling, gunship_gun40 |
+| rpg launcher  three shots.wav | klangfabrik | https://freesound.org/people/klangfabrik/sounds/249298/ | CC0 1.0 | weapons/pzf_backblast, weapons/pzf_backblast_2 |
+| Metallic latch release.wav | Crinkem | https://freesound.org/people/Crinkem/sounds/481789/ | CC0 1.0 | launcher_bolt |
+| Rocket Launch Boost and Burning (Version A) | TheLittleCrow | https://freesound.org/people/TheLittleCrow/sounds/774245/ | CC0 1.0 | rocket_fly |
+| Rocket Launch | qubodup | https://freesound.org/people/qubodup/sounds/840511/ | CC0 1.0 | rocket_fly |
+| Mechanical1.wav | BMacZero | https://freesound.org/people/BMacZero/sounds/94120/ | CC0 1.0 | launcher_bolt |
+| Clank1.wav | BMacZero | https://freesound.org/people/BMacZero/sounds/94127/ | CC0 1.0 | gunship_gun105, launcher_mag_in |
+| LightClunk1.wav | BMacZero | https://freesound.org/people/BMacZero/sounds/94129/ | CC0 1.0 | launcher_mag_out |
+| LightClunk2.wav | BMacZero | https://freesound.org/people/BMacZero/sounds/94130/ | CC0 1.0 | launcher_mag_in |
+| Thud2.wav | BMacZero | https://freesound.org/people/BMacZero/sounds/96137/ | CC0 1.0 | grenade_bounce, grenade_bounce_2, grenade_bounce_3, grenade_bounce_soft, grenade_bounce_soft_2, launcher_mag_out |
+| tracked vehicle.wav | cognito perceptu | https://freesound.org/people/cognito%20perceptu/sounds/121531/ | CC0 1.0 | veh_tank_tracks_2 |
+| Servo motor | Burningmonkey | https://freesound.org/people/Burningmonkey/sounds/322021/ | CC0 1.0 | veh_tank_turret |
+| Military Vehicle Humming.flac | qubodup | https://freesound.org/people/qubodup/sounds/182793/ | CC0 1.0 | veh_tank_engine |
+| t26_moving_01.wav | greatmganga | https://freesound.org/people/greatmganga/sounds/329800/ | CC0 1.0 | veh_tank_tracks |
+| Helicopter interior, no rotor | schots | https://freesound.org/people/schots/sounds/265568/ | CC0 1.0 | veh_heli_turbine |
+| River boat with outboard engine (at a constant speed) | nomadas | https://freesound.org/people/nomadas/sounds/690161/ | CC0 1.0 | hafen_boat_engine |
+| Prop Plane | Mozfoo | https://freesound.org/people/Mozfoo/sounds/440163/ | CC0 1.0 | veh_prop_plane |
+| Truck Engine Idle Loops.flac | qubodup | https://freesound.org/people/qubodup/sounds/187564/ | CC0 1.0 | veh_truck_engine |
+| Jet Plane Flyby.flac | qubodup | https://freesound.org/people/qubodup/sounds/189446/ | CC0 1.0 | veh_jet_loop |
+| intense and very intimate breathing after sport | florianreichelt | https://freesound.org/people/florianreichelt/sounds/434828/ | CC0 1.0 | player/exert_breath_in(_2.._6), player/exert_breath_out(_2.._6) – Sprint-Ausdauer-Keuchen, einzelne Atemzuege geschnitten (HP 110 Hz, Blenden 12/90 ms) |
+
+
+## Fahrzeugwracks v0.6 (Sketchfab, CC-BY 4.0)
+
+Ausgebrannte Fahrzeuge fuer `LevelProps.vehicle(..., burnt = true)` ueber `game/vehicles/models/wreck_scans.gd`
+(Fallback: prozedurales `WreckModel`). Texturen auf 1K (Lkw 2K) verkleinert; beim Lkw wurde das mitgescannte
+Bodenstueck (Dreiecke < 0,3 m ueber Grund) aus dem Index-Puffer entfernt.
+
+| Datei(en) | Quelle | Autor | Lizenz | Verwendung |
+|---|---|---|---|---|
+| `assets/vehicles/wrecks/burned_cars/` | "Burned-out Cars", https://sketchfab.com/3d-models/burned-out-cars-701066df6b914fd08318524c7ccd96a7 | Renafox (https://sketchfab.com/kryik1023) | CC-BY 4.0 | Pkw-Wracks (2 Varianten, auch auf dem Dach), ca. 11 MB |
+| `assets/vehicles/wrecks/bus/` | "destroyed Bus 01", https://sketchfab.com/3d-models/destroyed-bus-01-fdf39ca893a64368af45f82a6b6d68a4 | o0ozexo0o (https://sketchfab.com/dadndan0091) | CC-BY 4.0 | Bus-Wracks, ca. 27 MB |
+| `assets/vehicles/wrecks/van/` | "Destroyed car Van", https://sketchfab.com/3d-models/destroyed-car-van-ef5b7d68f03845a1bf810129053de91e | sehjadm64 (https://sketchfab.com/sehjadm64) | CC-BY 4.0 | Transporter-Wracks |
+| `assets/vehicles/wrecks/truck/` | "Burnt Truck", https://sketchfab.com/3d-models/burnt-truck-bb538b4a384d4a71a39b4eb49be0039d | Digitage (https://sketchfab.com/digitage) | CC-BY 4.0 | Lkw-Wracks (Fotogrammetrie einer ausgebrannten Zugmaschine) |
+
+## Optik Runde 2 v0.6 (17.11.)
+
+### Innenraum-Kleinkram (Poly Haven, CC0)
+Verteilt ueber `game/levels/interior_clutter.gd` (Bunker, Kanzleramt, Funkturm, Curfew, Kanalisation, Villa), 1K-glTF, zusammen ca. 33 MB.
+
+| Datei(en) | Quelle | Autor | Lizenz | Verwendung |
+|---|---|---|---|---|
+| `assets/environment/interior/models/cardboard_box_01/` | https://polyhaven.com/a/cardboard_box_01 | Rahul Chaudhary | CC0 | Kartons (Villa: Umzugskartons, Wohnungen, Bunker), 2,2 MB |
+| `assets/environment/interior/models/metal_jerrycan_green/` | https://polyhaven.com/a/metal_jerrycan_green | Ulan Cabanilla | CC0 | Kanister Bunker/Kanalisation, 2,6 MB |
+| `assets/environment/interior/models/metal_stool_01/` | https://polyhaven.com/a/metal_stool_01 | Ulan Cabanilla | CC0 | Hocker Bunker/Funkturm, 2,3 MB |
+| `assets/environment/interior/models/metal_trash_can/` | https://polyhaven.com/a/metal_trash_can | GurJas Studios | CC0 | Muelleimer Buero/Wohnung, 4,9 MB |
+| `assets/environment/interior/models/modern_arm_chair_01/` | https://polyhaven.com/a/modern_arm_chair_01 | Vibrant Nordic | CC0 | Sessel Kanzleramt, 2,7 MB |
+| `assets/environment/interior/models/modular_electric_cables/` | https://polyhaven.com/a/modular_electric_cables | Kuutti Siitonen | CC0 | Kabelrollen Funkturm/Bunker, 5,9 MB |
+| `assets/environment/interior/models/plastic_crate_02/` | https://polyhaven.com/a/plastic_crate_02 | Fabi_G | CC0 | Kunststoffkisten, 1,8 MB |
+| `assets/environment/interior/models/plastic_jerrycan/` | https://polyhaven.com/a/plastic_jerrycan | Ulan Cabanilla | CC0 | Kanister (Kunststoff), 2,5 MB |
+| `assets/environment/interior/models/plastic_monobloc_chair_01/` | https://polyhaven.com/a/plastic_monobloc_chair_01 | Kuutti Siitonen | CC0 | Gartenstuehle Wohnungen/Kanalisation, 1,9 MB |
+| `assets/environment/interior/models/power_box_01/` | https://polyhaven.com/a/power_box_01 | Rico Cilliers (Modell/Textur), Yann Kervran (Rigging) | CC0 | Verteilerkaesten Funkturm/Bunker, 2,7 MB |
+| `assets/environment/interior/models/trashbag/` | https://polyhaven.com/a/trashbag | Benny Weimer | CC0 | Muellsaecke Wohnungen/Kanalisation, 1,7 MB |
+| `assets/environment/interior/models/wall_clock/` | https://polyhaven.com/a/wall_clock | PierreB3D | CC0 | Wanduhren Buero/Bunker/Villa, 1,6 MB |
+
+### Vegetation Villa und intakte Fahrzeuge (Sketchfab, CC-BY 4.0)
+Mit `tools/prune_gltf.py` ausgeduennt (nur benutzte Knoten, Texturen 1K, Billboards 512). Fallback jeweils die
+bisherige prozedurale Version (`game/levels/sf_vegetation.gd`, `game/vehicles/models/wreck_scans.gd`).
+
+| Datei(en) | Quelle | Autor | Lizenz | Verwendung |
+|---|---|---|---|---|
+| `assets/environment/vegetation/oak/` | "Oak trees pack (17var, LODs, seasons, gameready)", https://sketchfab.com/3d-models/oak-trees-pack-17var-lods-seasons-gameready-a5e4e64f9f1d4089bdcc6170a9333393 | LOLIPOP (https://sketchfab.com/lolipop_1707) | CC-BY 4.0 | Laubbaeume Villa-Garten (LOD0), Eichenwald am Ostufer/Suedhang und Waldrand (LOD-Stufen als MultiMesh), 8,4 MB |
+| `assets/environment/vegetation/hedge/` | "Shrub tiles pack (3 vars, seamless)", https://sketchfab.com/3d-models/shrub-tiles-pack-3-vars-seamless-ce2fce219f634f328abc6280b2409613 | LOLIPOP (https://sketchfab.com/lolipop_1707) | CC-BY 4.0 | Buchsbaumhecken Villa (Bloecke segmentweise gestreckt), 6,9 MB |
+| `assets/vehicles/intact/golf5/` | "vw golf 5 gti", https://sketchfab.com/3d-models/vw-golf-5-gti-4389c32f54964b5ab01aa8462419b6c1 | giuffridanicolo54 (https://sketchfab.com/giuffridanicolo54) | CC-BY 4.0 | intakte Pkw (`LevelProps.vehicle`, jeder zweite unverbrannte Pkw; Rest bleibt abgedeckt), 10,1 MB |
+| `assets/vehicles/intact/sprinter/` | "Mercedes Benz Sprinter 2006", https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73 | Max (https://sketchfab.com/Max-5532) | CC-BY 4.0 | intakte Transporter; der Autor bittet auf der Modellseite um eine kurze Nachricht bei Verwendung, 3,6 MB |
+| `assets/vehicles/intact/lct3000/` | "LCT 3000 '95 - Low poly model", https://sketchfab.com/3d-models/lct-3000-95-low-poly-model-663a0953c038434a918cb85725c88ffa | Daniel Zhabotinsky (https://sketchfab.com/DanielZhabotinsky) | CC-BY 4.0 | intakte Lkw (Aufbau in Levelfarbe umlackiert), 4,4 MB |
+
+## Optik Runde 3 v0.6 (17.11.)
+
+Poly Haven (https://polyhaven.com), CC0, je 1K-JPG (diffuse/normal/arm), geladen mit `tools/fetch_optik3_assets.py`.
+
+| Pfad | Asset | Autor | Lizenz | Verwendung |
+|---|---|---|---|---|
+| `assets/environment/textures/old_stone_wall/` | "Old Stone Wall", https://polyhaven.com/a/old_stone_wall | Charlotte Baglioni | CC0 | Villa-Grundstuecksmauern und Torpfeiler (statt Schotter-Textur), 2,6 MB |
+| `assets/environment/textures/blue_metal_plate/` | "Blue Metal Plate", https://polyhaven.com/a/blue_metal_plate | Rob Tuytel | CC0 | Hafen-Containerbruecken (STS-Kraene), 1,1 MB |
+
+Wiederverwendete Projekttexturen (bereits oben nachgewiesen): `bunker/textures/painted_steel` (Hafen-Kranhaus, Funkturm-Attika,
+Alpenpass-Seilbahnkabine, Kanalisation-Warnlack), `river/textures/brown_mud_02` (Kanalisation Schlammrinnen und Abwasser-Shader),
+`river/textures/green_metal_rust` + `textures/weathered_planks` (Kanalisation-Kisten), `assets/textures/rusty_metal_02` (Kanalisation-Regale),
+`villa/rough_wood` + `train/textures/quatrefoil_jacquard_fabric` (Villa-Bootshaus, Teppich), `assets/textures/concrete_wall_008` (Spreebogen-Decken).

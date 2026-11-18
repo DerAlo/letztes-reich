@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://xh4m7hi5wato"
-path="res://.godot/imported/civ_frau2_brow.png-e7804a4e6d4f357e33f5a9832f224cdb.ctex"
+path.s3tc="res://.godot/imported/civ_frau2_brow.png-e7804a4e6d4f357e33f5a9832f224cdb.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "8d5485ba5e0f6152448418f099d2798e"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/characters/civilian/civ_frau2_brow.png"
-dest_files=["res://.godot/imported/civ_frau2_brow.png-e7804a4e6d4f357e33f5a9832f224cdb.ctex"]
+dest_files=["res://.godot/imported/civ_frau2_brow.png-e7804a4e6d4f357e33f5a9832f224cdb.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

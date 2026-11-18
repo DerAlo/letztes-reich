@@ -8,6 +8,7 @@ const Geo = preload("res://game/levels/level_geo.gd")
 const NightProps = preload("res://game/levels/night_props.gd")
 const NightFx = preload("res://game/levels/night_fx.gd")
 const IProps = preload("res://game/intro/intro_props.gd")
+const Props = preload("res://game/levels/level_props.gd")
 
 var shot: int = 0
 var env: Environment
@@ -209,7 +210,9 @@ func _build_border() -> void:
 	_road(Vector3(-1.5, 0, -300), Vector3(-1.5, 0, 80), 6.5)
 	var d := IProps.border_post(self, rng)
 	_flag = d["flag"]
-	NightProps.ifv(self, Vector3(4.5, 0, 6.0), 160.0, [])
+	# ausgebrannter Schuetzenpanzer am Schlagbaum (verkohlter Marder, Schneeauflage) mit Restglut
+	Props.tank_wreck(self, Vector3(4.5, 0, 6.0), 160.0, [], true)
+	Props.fire(self, Vector3(4.2, 1.6, 7.6), 0.5, true, 1.4, 3.0)
 	_forest_band(false, -300.0, 80.0, 30.0, 70.0, 180)
 	_fx.call("add_searchlight", Vector3(9.0, 6.2, 3.0), 200.0, -10.0, 35.0, 0.25, 50.0)
 	# Jenseits der Grenze: Scheinwerferkette des Aufmarsches

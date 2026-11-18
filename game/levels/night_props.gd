@@ -277,7 +277,8 @@ static func spruce_mat() -> ShaderMaterial:
 ## Fichtenbestand als MultiMesh in Zellen (CELL m): je Zelle zwei Varianten als Nahstufe (bis LOD_DIST)
 ## und als Impostor-Fernstufe (ab LOD_DIST). Zellen erlauben Frustum-Culling und LOD je Gebiet.
 ## trees = Array von [Vector3 pos, float scale].
-static func forest(parent: Node3D, trees: Array, rng: RandomNumberGenerator, shadows: bool = true) -> void:
+## snow >= 0: eigene Schneemenge (z. B. 0 fuer Sommer-Level wie die Villa), sonst Standard (Winter).
+static func forest(parent: Node3D, trees: Array, rng: RandomNumberGenerator, shadows: bool = true, snow: float = -1.0) -> void:
 	if not _cache.has("spruce_hi"):
 		var hi: Array = []
 		var lo: Array = []
@@ -313,6 +314,8 @@ static func forest(parent: Node3D, trees: Array, rng: RandomNumberGenerator, sha
 			if xs.is_empty():
 				continue
 			var mi := _mm_node(hi_m[(cv + j) % 3], xs, shadows)
+			if snow >= 0.0:
+				mi.material_override = _snow_variant("spruce_mat", spruce_mat(), snow)
 			mi.visibility_range_end = LOD_DIST
 			mi.visibility_range_end_margin = 6.0
 			parent.add_child(mi)
@@ -322,11 +325,22 @@ static func forest(parent: Node3D, trees: Array, rng: RandomNumberGenerator, sha
 			if xs.is_empty():
 				continue
 			var lm := _mm_node(lo_m[(cv + j) % 3], xs, shadows)
+			if snow >= 0.0:
+				lm.material_override = _snow_variant("spruce_imp_mat", spruce_impostor_mat(), snow * 0.6)
 			lm.visibility_range_begin = LOD_DIST
 			lm.visibility_range_begin_margin = 6.0
 			parent.add_child(lm)
 	# Kronen fuer die Gegner-Sichtlinie registrieren (Laub verdeckt in beide Richtungen)
 	FoliageSight.register(parent, trees, TREE_H)
+
+## Materialkopie mit anderer Schneemenge (gecacht; das Basismaterial bleibt unveraendert).
+static func _snow_variant(key: String, base: ShaderMaterial, snow: float) -> ShaderMaterial:
+	var k := "%s_snow_%d" % [key, roundi(snow * 100.0)]
+	if not _cache.has(k):
+		var m := base.duplicate() as ShaderMaterial
+		m.set_shader_parameter("snow_amount", snow)
+		_cache[k] = m
+	return _cache[k]
 
 static func _mm_node(mesh: Mesh, xforms: Array, shadows: bool) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()

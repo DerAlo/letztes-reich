@@ -13,11 +13,14 @@ const GRENADE_SCENE: PackedScene = preload("res://game/weapons/grenade.tscn")
 @export var chest_open_pass: float = 0.4       ## Brust nach abgefallener Brustplatte
 @export var pack_mult: float = 1.5             ## Tornister: Schwachstelle
 @export var back_open_pass: float = 0.5        ## Ruecken nach geplatztem Tornister
-@export var face_mult: float = 2.5             ## Kopftreffer nach gebrochenem Visier
+@export var face_mult: float = 1.8             ## Kopftreffer nach gebrochenem Visier (war 2.5: Bot-Kill in ~9 s)
 @export var rocket_fraction: float = 0.25
 @export var pack_burst_damage: float = 150.0
 @export var stagger_mult: float = 1.5          ## Schaden waehrend des Taumelns (klares Trefferfenster)
 @export var spinup_time: float = 1.1
+@export var burst_ramp_shots: int = 10         ## Salve "laeuft ein": Trefferchance steigt ueber die ersten Schuesse
+@export var burst_ramp_floor: float = 0.3
+@export var phase_min_time: float = 4.0          ## s nach einer Taumel-Marke, bevor die naechste fallen kann
 @export var grenade_cooldown: float = 9.0
 @export var grenade_min_dist: float = 7.0
 @export var grenade_max_dist: float = 14.0
@@ -29,6 +32,9 @@ var _rocket_frame: int = -1
 var _last_fire_age: float = -100.0
 var _spin: float = 0.0
 var _spinning_up: float = 0.0
+var _burst_shots: int = 0
+var _engage_age: float = 0.0
+var _mark_lock_until: float = -100.0
 var _barrels: Node3D = null
 var _barrel_glow: StandardMaterial3D = null
 var _step_dist: float = 0.0
@@ -166,6 +172,15 @@ func _resolve(loc: Dictionary, amount: float, headshot: bool) -> Dictionary:
 	var r := _resolve_suit(loc, amount, headshot)
 	if _stagger_t > 0.0:
 		r["dmg"] = float(r["dmg"]) * stagger_mult
+	# Phasen lesbar halten: ein Treffer ueberspringt keine Taumel-Marke (jede Phase endet mit einem Fenster)
+	# Nach einer Marke haelt er mindestens phase_min_time durch (kein Durchrauschen im Taumel-Fenster).
+	var floor_hp := -INF
+	if _age < _mark_lock_until:
+		floor_hp = max_health * _stagger_marks[0] + 0.5 if not _stagger_marks.is_empty() else 1.0
+	elif not _stagger_marks.is_empty():
+		floor_hp = max_health * _stagger_marks[0] - 1.0
+	if health > floor_hp and health - float(r["dmg"]) < floor_hp:
+		r["dmg"] = maxf(health - floor_hp, 0.0)
 	if _last_src_player:
 		if bool(r["deflect"]):
 			_deflect_streak += 1
@@ -275,6 +290,8 @@ func _after_damage(dmg: float, _res: Dictionary) -> void:
 	while not _stagger_marks.is_empty() and frac <= _stagger_marks[0] and health > 0.0:
 		_stagger_marks.pop_front()
 		_stagger(2.2)
+		_mark_lock_until = _age + phase_min_time
+		print("[juggernaut] Taumel-Marke erreicht hp=%.0f t=%.1f" % [health, _age - _engage_age])
 		_hud_message("ER TAUMELT – JETZT DRAUF!", _last_src_player)
 		_bark("hit", 1.0, true)
 
@@ -318,6 +335,8 @@ func _engage() -> void:
 	if boss_engaged or state == State.DEAD:
 		return
 	boss_engaged = true
+	_engage_age = _age
+	print("[juggernaut] Kampf beginnt (%s)" % name)
 	if not _hud_set:
 		var h := AHUD.get_hud(self)
 		if h != null:
@@ -390,6 +409,7 @@ func _maybe_grenade() -> void:
 
 func _start_burst() -> void:
 	super._start_burst()
+	_burst_shots = 0
 	if _age - _last_fire_age > 1.6:
 		# Anlaufen: faire Vorwarnung (Ton + gluehende Laeufe), erst danach Feuer
 		_shot_timer = spinup_time
@@ -398,7 +418,16 @@ func _start_burst() -> void:
 
 func _fire_shot() -> void:
 	super._fire_shot()
+	_burst_shots += 1
 	_last_fire_age = _age
+
+## Rotations-MG wandert ins Ziel: die ersten Schuesse einer Salve streuen (Zeit zum Abtauchen nach dem Anlaufen).
+func hit_chance() -> float:
+	var ramp := clampf(burst_ramp_floor + (1.0 - burst_ramp_floor) * float(_burst_shots) / maxf(float(burst_ramp_shots), 1.0), 0.0, 1.0)
+	return super.hit_chance() * ramp
+
+func _reacts_to_fire() -> bool:
+	return false
 
 func _spawn_tracer(from: Vector3, to: Vector3) -> void:
 	var length := from.distance_to(to)
@@ -447,6 +476,7 @@ func _animate(delta: float) -> void:
 # ---------------------------------------------------------------- Tod
 
 func _on_death() -> void:
+	print("[juggernaut] besiegt nach %.1f s Kampf" % (_age - _engage_age))
 	boss_engaged = false
 	_play_sfx("jugg_collapse")
 	if _intact("pack") and not _pack_burst_done:

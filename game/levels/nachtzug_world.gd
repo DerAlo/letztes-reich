@@ -16,6 +16,8 @@ const Int := preload("res://game/levels/nachtzug_interior.gd")
 const Deco := preload("res://game/levels/nachtzug_table_deco.gd")
 const FKit := preload("res://game/levels/facade_kit.gd")
 const MOUNTAIN_SHADER := preload("res://assets/environment/train/mountains_night.gdshader")
+const TRACK_GROUND_SHADER := preload("res://assets/environment/train/track_ground.gdshader")
+const GroundCover := preload("res://game/levels/ground_cover.gd")
 
 const PITCH := 27.5
 const CAR_LEN := 26.0
@@ -160,8 +162,9 @@ func _make_mats() -> void:
 	_mats["rock"] = Geo.flat(Color(0.1, 0.1, 0.11), 0.95)
 	_mats["concrete"] = Geo.mat("concrete_wall_008", Color(0.42, 0.42, 0.44), 0.25)
 	_mats["tree"] = Geo.flat(Color(0.035, 0.06, 0.045), 0.95)
-	_mats["house"] = Geo.flat(Color(0.5, 0.48, 0.44), 0.9)
-	_mats["tile"] = Geo.flat(Color(0.22, 0.1, 0.08), 0.85)
+	# Dorfhaeuser an der Strecke: Putz und Dachziegel statt einfarbiger Quader (Poly Haven CC0, schon im Projekt)
+	_mats["house"] = _pbr("res://assets/environment/facade/textures/rough_plaster_broken", Color(0.62, 0.6, 0.55), 0.3)
+	_mats["tile"] = _pbr("res://assets/environment/villa/grey_roof_tiles", Color(0.75, 0.5, 0.42), 0.45)
 	_mats["win"] = Geo.flat(Color(1.0, 0.8, 0.45), 0.6, 0.0, Color(1.0, 0.75, 0.4), 3.0)
 	_mats["dot"] = Geo.flat(Color(1.0, 0.82, 0.55), 0.6, 0.0, Color(1.0, 0.8, 0.5), 6.0)
 	_mats["water"] = Geo.flat(Color(0.02, 0.03, 0.05), 0.05, 0.6)
@@ -178,6 +181,17 @@ func _make_mats() -> void:
 	_mats["wood"] = _mats["veneer_dark"]
 	_mats["cloth"] = _mats["linen"]
 	_mats["crate"] = _mats["planks"]
+
+## Wie Geo.mat, aber mit beliebigem Texturordner (diffuse/normal/arm.jpg); triplanar in Weltkoordinaten.
+static func _pbr(dir: String, tint: Color, scale: float) -> StandardMaterial3D:
+	var m := Geo.mat("concrete_wall_008", tint, scale).duplicate() as StandardMaterial3D
+	if not ResourceLoader.exists(dir + "/diffuse.jpg"):
+		return m
+	m.albedo_texture = load(dir + "/diffuse.jpg")
+	m.normal_texture = load(dir + "/normal.jpg")
+	m.roughness_texture = load(dir + "/arm.jpg")
+	m.ao_texture = load(dir + "/arm.jpg")
+	return m
 
 func _m(k: String) -> Material:
 	return _mats[k]
@@ -1016,10 +1030,13 @@ func _make_sparks() -> GPUParticles3D:
 # ------------------------------------------------------------------ Gleis, Masten, Boden
 
 func _build_track() -> void:
-	var gs := Shader.new()
-	gs.code = GROUND_SHADER
+	# Poly-Haven-Texturen (Schnee, Schotter) statt Flachfarben; Shader: assets/environment/train/track_ground.gdshader
 	_ground_mat = ShaderMaterial.new()
-	_ground_mat.shader = gs
+	_ground_mat.shader = TRACK_GROUND_SHADER
+	for kv: Array in [["snow_alb", "textures/snow_02/diffuse.jpg"], ["snow_nrm", "textures/snow_02/normal.jpg"],
+			["ballast_alb", "rail/textures/gravel_stones/diffuse.jpg"], ["ballast_nrm", "rail/textures/gravel_stones/normal.jpg"]]:
+		_ground_mat.set_shader_parameter(kv[0], load("res://assets/environment/" + str(kv[1])))
+	_ground_mat.set_shader_parameter("track2_x", TRACK2_X)
 	var pm := PlaneMesh.new()
 	pm.size = Vector2(1400, 1400)
 	var g := MeshInstance3D.new()
@@ -1258,6 +1275,7 @@ func _fill_chunk(c: Node3D) -> void:
 		var s := r.randf_range(0.6, 1.4)
 		shrubs.append([Vector3(x, 0.2, -r.randf_range(0, CHUNK_LEN)), s, k])
 	TrackTrees.plant(c, trees, shrubs, CHUNK_LEN)
+	_ground_cover(c)
 	# Dorf mit beleuchteten Fenstern
 	if r.randf() < 0.35:
 		_village(c, (-1.0 if r.randf() < 0.5 else 1.0) * r.randf_range(45.0, 180.0), -r.randf_range(20.0, 80.0), r)
@@ -1278,6 +1296,51 @@ func _fill_chunk(c: Node3D) -> void:
 		dmi.multimesh = dmm
 		dmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		c.add_child(dmi)
+
+## Bodenbewuchs am Bahndamm (ground_cover.gd, Poly Haven CC0): Altgrashorste und Unkraut, die durch den
+## Schnee stehen, verschneite Steine, Reisig. Eigene Zufallsfolge (_rng bleibt unberuehrt). Gleisbett
+## und Masten (x -8.4..4.2) bleiben frei; Fade nah, weil die Chunks mit Fahrtempo vorbeiziehen.
+var _gc_n := 0
+
+func _ground_cover(c: Node3D) -> void:
+	if GroundCover.disabled():
+		return
+	_gc_n += 1
+	var g := RandomNumberGenerator.new()
+	g.seed = 7919 * _gc_n + 31
+	var tufts: Array = []
+	var weeds: Array = []
+	# dichter und naeher am Damm (Runde 2): 240 Horste, Abstand quadratisch zum Gleis hin verdichtet
+	for k in 240:
+		var side := -1.0 if g.randf() < 0.5 else 1.0
+		var x0 := 8.6 if side < 0.0 else 4.4
+		var cx := side * (x0 + pow(g.randf(), 1.6) * (46.0 - x0))
+		var cz := -g.randf_range(0.0, CHUNK_LEN)
+		var nk := g.randi_range(6, 14)
+		for j in nk:
+			var p := Vector3(cx + g.randf_range(-1.8, 1.8), -0.17, cz + g.randf_range(-1.8, 1.8))
+			if p.x > -8.4 and p.x < 4.2:
+				continue
+			var b := Basis.from_euler(Vector3(g.randf_range(-0.12, 0.12), g.randf() * TAU, g.randf_range(-0.12, 0.12)))
+			if j < 2 and g.randf() < 0.5:
+				weeds.append(Transform3D(b.scaled(Vector3.ONE * g.randf_range(0.7, 1.1)), p))
+			else:
+				tufts.append(Transform3D(b.scaled(Vector3.ONE * g.randf_range(1.0, 1.9)), p))
+	var stones: Array = []
+	var twigs: Array = []
+	for k in 26:
+		var side := -1.0 if g.randf() < 0.5 else 1.0
+		var p := Vector3(side * g.randf_range(9.0 if side < 0.0 else 4.8, 40.0), -0.22, -g.randf_range(0.0, CHUNK_LEN))
+		var b := Basis.from_euler(Vector3(g.randf_range(-0.2, 0.2), g.randf() * TAU, g.randf_range(-0.2, 0.2)))
+		if k % 3 == 0:
+			twigs.append(Transform3D(b.scaled(Vector3.ONE * g.randf_range(0.8, 1.3)), p + Vector3(0, 0.05, 0)))
+		else:
+			stones.append(Transform3D(b.scaled(Vector3.ONE * g.randf_range(0.7, 1.8)), p))
+	var straw := Color(0.86, 0.68, 0.45)
+	GroundCover.scatter(c, "grass02", tufts, {"mult": 2.5, "tint": straw, "fade": Vector2(40, 58), "cell": 34.0, "seed": 11})
+	GroundCover.scatter(c, "weed", weeds, {"mult": 1.8, "tint": Color(0.7, 0.55, 0.4), "fade": Vector2(30, 44), "cell": 34.0, "seed": 12})
+	GroundCover.scatter(c, "rocks", stones, {"tint": Color(0.82, 0.84, 0.88), "fade": Vector2(55, 80), "cell": 50.0, "seed": 13})
+	GroundCover.scatter(c, "branches", twigs, {"tint": Color(0.75, 0.72, 0.7), "fade": Vector2(30, 44), "cell": 50.0, "seed": 14})
 
 func _village(c: Node3D, vx: float, vz: float, r: RandomNumberGenerator) -> void:
 	var walls := Geo.batch()
@@ -1765,60 +1828,3 @@ func _tick_audio(_delta: float) -> void:
 
 # ------------------------------------------------------------------ Boden-Shader
 
-const GROUND_SHADER := """
-shader_type spatial;
-uniform float scroll = 0.0;
-uniform float blur = 0.0;
-varying vec3 wp;
-
-float h21(vec2 p) {
-	p = fract(p * vec2(123.34, 456.21));
-	p += dot(p, p + 45.32);
-	return fract(p.x * p.y);
-}
-
-float vn(vec2 p, float per) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	float a = h21(mod(i, per));
-	float b = h21(mod(i + vec2(1.0, 0.0), per));
-	float c = h21(mod(i + vec2(0.0, 1.0), per));
-	float d = h21(mod(i + vec2(1.0, 1.0), per));
-	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
-
-void vertex() {
-	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-
-void fragment() {
-	vec2 p = vec2(wp.x, wp.z - scroll);
-	vec2 cell = floor(p / 130.0);
-	vec2 cm = mod(cell, 110.0);
-	float h = h21(cm + 0.37);
-	vec3 col = vec3(0.1, 0.12, 0.07);
-	if (h > 0.25) col = vec3(0.13, 0.11, 0.07);
-	if (h > 0.5) col = vec3(0.07, 0.09, 0.06);
-	if (h > 0.75) col = vec3(0.12, 0.125, 0.1);
-	float dirsel = step(0.5, h21(cm + 1.7));
-	float fu = sin((dirsel > 0.5 ? p.x : p.y) * 6.2832 / 1.3);
-	col *= 0.9 + 0.1 * fu * (1.0 - blur * 0.7);
-	float n = vn(p / 13.0, 1100.0) * 0.6 + vn(p / 2.6, 5500.0) * 0.4;
-	col *= 0.7 + 0.6 * n;
-	vec2 fp = fract(p / 130.0);
-	float edge = min(min(fp.x, 1.0 - fp.x), min(fp.y, 1.0 - fp.y)) * 130.0;
-	col *= mix(0.55, 1.0, smoothstep(0.5, 2.5, edge));
-	float dx0 = abs(wp.x);
-	float dx1 = abs(wp.x + 4.4);
-	float dmin = min(dx0, dx1);
-	float bn = vn(vec2(p.x * 5.0, p.y * 5.0 / (1.0 + blur * 25.0)), 71500.0);
-	vec3 ballast = vec3(0.17, 0.16, 0.15) * (0.6 + 0.7 * bn);
-	float s = fract(p.y / 0.65);
-	float sleeper = (1.0 - step(0.38, s)) * (1.0 - step(1.3, dmin));
-	vec3 track = mix(ballast, vec3(0.09, 0.075, 0.06), sleeper * (1.0 - blur * 0.85));
-	col = mix(col, track, 1.0 - smoothstep(2.3, 3.0, dmin));
-	ALBEDO = col;
-	ROUGHNESS = 0.95;
-}
-"""

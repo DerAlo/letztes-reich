@@ -65,6 +65,18 @@ enum Stance { STAND, CROUCH, PRONE }
 @export var roll_strafe: float = 1.6          # Grad Kamera-Roll beim Strafen
 @export var recoil_follow: float = 28.0       # wie schnell die Sicht dem Rückstoß folgt
 @export var recoil_recover: float = 7.0       # Rückkehr zur Zielposition
+@export var aim_punch_deg: float = 0.6       # Blick-Ruck bei eigenem Treffer (0 = aus)
+
+@export_group("Stamina")
+## Sprint-Ausdauer. Zusaetzlich abschaltbar ueber die Einstellung "game/sprint_stamina" (Standard an).
+@export var stamina_enabled: bool = true
+@export var stamina_sprint_time: float = 6.0     # s Vollsprint aus voller Ausdauer
+@export var stamina_regen_delay: float = 1.0     # s Pause nach Sprint-Ende, bevor die Erholung einsetzt
+@export var stamina_regen_time: float = 4.5      # s von leer bis voll (gehend; stehend/geduckt 30 % schneller)
+@export var stamina_resume: float = 0.45         # nach voller Erschoepfung erst ab diesem Wert wieder sprinten
+@export var stamina_taper: float = 0.2           # darunter laeuft der Sprint aus (Tempo sinkt Richtung Joggen)
+@export var stamina_breath_db: float = -11.0     # Lautstaerke des Keuchens bei voller Erschoepfung
+@export var stamina_heave_deg: float = 0.35      # Kamera-Heben/Senken beim Keuchen (Grad, skaliert mit Kopfbewegung)
 
 @export_group("Health")
 @export var max_health: float = 100.0
@@ -157,6 +169,13 @@ var drops: DropManager = null
 var _ads: float = 0.0
 var _sprint_amt: float = 0.0
 var _sprinting: bool = false
+# Sprint-Ausdauer (0..1); _exhausted sperrt den Sprint bis stamina_resume
+var stamina: float = 1.0
+var _exhausted: bool = false
+var _stamina_rest: float = 0.0        # Zeit seit Sprint-Ende
+var _breath: float = 0.0              # 0..1 Keuch-Intensitaet (Ton + Kamera)
+var _breath_phase: float = 0.0        # ein Atemzug = TAU
+var _breath_player: AudioStreamPlayer = null
 var _crouching: bool = false
 var _move_ratio: float = 0.0
 var _since_damage: float = 99.0
@@ -271,6 +290,7 @@ var _opt_crouch_hold: bool = false
 var _opt_aim_toggle: bool = false
 var _opt_bob: float = 1.0
 var _opt_shake: float = 1.0
+var _opt_stamina: bool = true
 var _fov_default: float = -1.0
 var _aim_latched: bool = false
 
@@ -300,6 +320,7 @@ func _load_options(st: Node) -> void:
 	_opt_aim_toggle = aim_t
 	_opt_bob = clampf(float(_opt(st, "game/head_bob", 1.0)), 0.0, 1.5)
 	_opt_shake = clampf(float(_opt(st, "game/screen_shake", 1.0)), 0.0, 1.5)
+	_opt_stamina = bool(_opt(st, "game/sprint_stamina", true))
 	fov_base = clampf(float(_opt(st, "game/fov", _fov_default)), 50.0, 120.0)
 
 func _setup_camera() -> void:
@@ -620,7 +641,7 @@ func _update_camera(delta: float) -> void:
 			if stance == Stance.PRONE:
 				if fmod(floorf(_bob_phase / PI), 2.0) == 0.0:
 					play_sfx("player_prone", 0.2, 6.0)
-			else:
+			elif not (SoundCore.I and SoundCore.I.player_step(self)):
 				play_sfx("footstep", 0.1)
 		var nominal: float = walk_speed
 		if _sprinting:
@@ -656,8 +677,10 @@ func _update_camera(delta: float) -> void:
 		side = 0.0
 	var roll: float = -side * roll_strafe + sh_roll + bob_roll + slide_roll * _slide_amt \
 			+ 4.0 * _mantle_wave - _death_roll * (1.0 if dead else 0.0)
-	camera.position = bob + sh_off + Vector3(0.0, -_land_dip, 0.0)
-	camera.rotation_degrees = Vector3(sh_pitch + bob_pitch - 7.0 * _mantle_wave, sh_yaw, roll)
+	# Keuchen: Brustkorb hebt/senkt die Sicht leicht (beim Zielen halb so stark)
+	var heave: float = sin(_breath_phase) * _breath * _opt_bob * lerpf(1.0, 0.5, _ads) if not dead else 0.0
+	camera.position = bob + sh_off + Vector3(0.0, -_land_dip + heave * 0.006, 0.0)
+	camera.rotation_degrees = Vector3(sh_pitch + bob_pitch - 7.0 * _mantle_wave + heave * stamina_heave_deg, sh_yaw, roll)
 	# FOV
 	var target_fov: float = fov_base + fov_sprint_add * _sprint_amt + slide_fov_add * _slide_amt
 	if weapon:
@@ -691,6 +714,7 @@ func _physics_process(delta: float) -> void:
 		_physics_dead(delta)
 		return
 	_update_movement(delta)
+	_update_stamina(delta)
 	_update_weapons(delta)
 	_update_grenades(delta)
 	_update_health(delta)
@@ -708,6 +732,62 @@ func _physics_dead(delta: float) -> void:
 	if _respawn_t <= 0.0:
 		respawn()
 
+# ----------------------------------------------------------------- Sprint-Ausdauer
+
+func _stamina_on() -> bool:
+	return stamina_enabled and _opt_stamina
+
+## ~6 s Vollsprint, dann laeuft der Sprint aus; nach kurzer Pause erholt sich die Ausdauer in ~4-5 s.
+## Nach voller Erschoepfung erst ab stamina_resume wieder sprinten (gehaltene Taste sprintet dann von selbst weiter).
+func _update_stamina(delta: float) -> void:
+	if not _stamina_on():
+		stamina = 1.0
+		_exhausted = false
+	elif _sprinting:
+		_stamina_rest = 0.0
+		stamina = maxf(0.0, stamina - delta / maxf(stamina_sprint_time, 0.1))
+		if stamina <= 0.0:
+			_exhausted = true
+			_sprinting = false
+	else:
+		_stamina_rest += delta
+		if _stamina_rest >= stamina_regen_delay:
+			var resting: bool = Vector2(velocity.x, velocity.z).length() < 0.5 or stance != Stance.STAND
+			stamina = minf(1.0, stamina + delta / maxf(stamina_regen_time, 0.1) * (1.3 if resting else 1.0))
+		if _exhausted and stamina >= stamina_resume:
+			_exhausted = false
+	_update_breath(delta)
+
+## Dezentes Keuchen (echte Aufnahme, je 6 Ein-/Ausatem-Varianten unter assets/sfx/player/) und
+## Atemzyklus fuer das Kamera-Heben. overwatch_breath_* bleibt dem Scharfschuetzen-Atem vorbehalten.
+func _update_breath(delta: float) -> void:
+	var target: float = 0.0
+	if _stamina_on() and not dead:
+		target = 1.0 if _exhausted else clampf((0.55 - stamina) / 0.55, 0.0, 1.0)
+	_breath = move_toward(_breath, target, delta * (1.5 if target > _breath else 0.22))
+	if _breath <= 0.001:
+		_breath_phase = 0.0
+		return
+	var old_half: int = floori(_breath_phase / PI)
+	_breath_phase += delta * TAU / lerpf(2.6, 1.15, _breath)
+	if floori(_breath_phase / PI) == old_half or _breath < 0.2:
+		return
+	if _breath_player == null:
+		_breath_player = AudioStreamPlayer.new()
+		_breath_player.bus = &"SFX"
+		_breath_player.max_polyphony = 2
+		add_child(_breath_player)
+	var inhale: bool = (floori(_breath_phase / PI) % 2) == 0
+	var s := Sfx.get_stream("player/exert_breath_in" if inhale else "player/exert_breath_out")
+	if s == null:
+		return
+	_breath_player.stream = s
+	# leicht tiefer (erwachsene Maennerstimme), kleine Streuung gegen Wiederholung
+	_breath_player.pitch_scale = 0.96 + randf_range(-0.03, 0.03)
+	# Einatmen ist in den Dateien schon 2 dB leiser angelegt
+	_breath_player.volume_db = lerpf(stamina_breath_db - 12.0, stamina_breath_db, _breath) + (-1.0 if inhale else 0.0)
+	_breath_player.play()
+
 func _update_movement(delta: float) -> void:
 	var on_floor: bool = is_on_floor()
 	_mantle_cd = maxf(0.0, _mantle_cd - delta)
@@ -723,7 +803,7 @@ func _update_movement(delta: float) -> void:
 	var was_sprinting: bool = _sprinting
 	_sprint_block = maxf(0.0, _sprint_block - delta)
 	_sprinting = _in_sprint and moving_fwd and stance == Stance.STAND and not _sliding and not _in_aim \
-			and on_floor and _switch_phase == 0 and _sprint_block <= 0.0
+			and on_floor and _switch_phase == 0 and _sprint_block <= 0.0 and not (_exhausted and _stamina_on())
 	if not _sprinting and was_sprinting and not on_floor and not _sliding:
 		_sprinting = was_sprinting     # Sprint in der Luft beibehalten
 	_sprint_amt = move_toward(_sprint_amt, 1.0 if _sprinting else 0.0, delta * 7.0)
@@ -737,6 +817,9 @@ func _update_movement(delta: float) -> void:
 	var speed: float = walk_speed
 	if _sprinting:
 		speed = sprint_speed
+		# Ausdauer fast leer: Sprint laeuft zum Joggen aus statt hart abzubrechen
+		if _stamina_on() and stamina < stamina_taper:
+			speed = lerpf(minf(walk_speed * 1.15, sprint_speed), sprint_speed, stamina / maxf(stamina_taper, 0.01))
 	elif stance == Stance.PRONE:
 		speed = prone_speed
 	elif stance == Stance.CROUCH:
@@ -765,7 +848,8 @@ func _update_movement(delta: float) -> void:
 			add_trauma(clampf(-_last_fall_speed * 0.02, 0.0, 0.25))
 			if weapon:
 				weapon.land_impulse(clampf(-_last_fall_speed / 9.0, 0.2, 1.3))
-			play_sfx("land")
+			if not (SoundCore.I and SoundCore.I.player_land(self, -_last_fall_speed)):
+				play_sfx("land")
 		if velocity.y < 0.0:
 			velocity.y = 0.0
 		if _in_jump:
@@ -1153,6 +1237,9 @@ func _update_weapons(delta: float) -> void:
 	var trigger: bool = _in_fire if (weapon.full_auto or external_input) else _in_fire_edge
 	if not _in_fire:
 		weapon.reset_trigger()
+	# Nachladen per Abzug abbrechen (frischer Druck): Restmagazin nutzen bzw. Animationsrest ueberspringen
+	if _in_fire_edge and weapon.reloading and not busy and weapon.has_method("interrupt_reload_for_fire"):
+		weapon.interrupt_reload_for_fire()
 	if trigger and not busy and not sprint_lock and not wall_lock:
 		if weapon.ammo_mag <= 0:
 			if _in_fire_edge or weapon.full_auto:
@@ -1407,6 +1494,13 @@ func take_damage(amount: float, source: Node, hit_position: Vector3, hit_normal:
 			angle = atan2(local.x, -local.z)
 	if hud and hud.has_method("show_damage"):
 		hud.call("show_damage", angle, amount)
+	# Treffer-Zucken: kleiner Ruck im Blick (vom Angreifer weg), faengt sich wie Rueckstoss von selbst
+	if aim_punch_deg > 0.0 and source != self:
+		var k: float = clampf(amount / 20.0, 0.3, 1.0) * aim_punch_deg * lerpf(1.0, 0.6, _ads)
+		var side: float = -signf(sin(angle)) if not is_nan(angle) else randf_range(-1.0, 1.0)
+		_recoil_target += Vector2(side * k * 0.5, k)
+		_recoil_target.y = minf(_recoil_target.y, 14.0)
+		_recoil_target.x = clampf(_recoil_target.x, -6.0, 6.0)
 	play_sfx("player_hurt", 0.05)
 	if health <= 0.0:
 		_die()
@@ -1479,6 +1573,9 @@ func respawn() -> void:
 		w.refill()
 	_sprint_block = 0.0
 	_since_sprint = 10.0
+	stamina = 1.0
+	_exhausted = false
+	_breath = 0.0
 	_wall_amt = 0.0
 	if weapon_index != 0:
 		_do_switch(0)
@@ -1591,6 +1688,8 @@ func get_hud_info() -> Dictionary:
 		"fov": camera.fov,
 		"ads": _ads,
 		"sprint": _sprint_amt,
+		"stamina": stamina,
+		"exhausted": _exhausted,
 		"stance": _stance_name(),
 		"sliding": _sliding,
 	}

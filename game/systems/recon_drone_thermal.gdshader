@@ -21,10 +21,13 @@ void fragment() {
 	uv.x += (hash(vec2(line, floor(time_s * 24.0))) - 0.5) * 0.03 * signal_loss * tear;
 	vec3 c = textureLod(screen_tex, uv, 0.0).rgb;
 	float l = dot(c, vec3(0.299, 0.587, 0.114));
-	// Waermebild: kalte Umgebung dunkel und flach, Heisses (emittierende Overlays, Lampen) weiss
-	float hot = smoothstep(0.78, 1.05, max(c.r, max(c.g, c.b)));
-	vec3 th = vec3(pow(clamp(l, 0.0, 1.0), 0.85) * 0.5 + 0.035);
-	th = mix(th, vec3(1.0), hot);
+	// Waermebild: kalte Umgebung dunkel und flach (bis 0.5 Eingang -> 0.36), darueber steiler bis weiss.
+	// Warme Figuren tragen Temperatur-Materialien (recon_thermal_body.gdshader), deren Eingang schon der
+	// Sensorwert ist: Haut ~0.97 -> weiss, Uniform ~0.76 -> hellgrau, Weste ~0.5, Waffe ~0.17 = Umgebung.
+	float mx = clamp(max(c.r, max(c.g, c.b)), 0.0, 1.0);
+	float lo = 0.035 + 0.6 * pow(clamp(l, 0.0, 1.0), 0.9);
+	float hi = 0.36 + (mx - 0.5) * 1.28;
+	vec3 th = vec3(mx > 0.5 ? max(lo, hi) : lo);
 	// leichter Halo um heisse Stellen
 	float halo = 0.0;
 	for (int i = 0; i < 4; i++) {

@@ -147,7 +147,10 @@ void fragment() {
 	float depth_fall = exp(-hp.z * 0.32);
 	vec3 interior = col * (interior_ambient * (0.35 + 0.65 * depth_fall) + lc * lamp);
 	if (broken > 0.5) {
-		interior *= 0.35;   // ausgebrannt/verrusst
+		// ausgebrannt: Decke und obere Wand verrusst, unten Schutt/Putz heller; ohne Scheibe faellt mehr
+		// Tageslicht hinein (vorher pauschal * 0.35 -> leere Fensterhoehlen wirkten tiefschwarz)
+		float soot = smoothstep(0.35, 0.95, (hp.y - y0) / (y1 - y0));
+		interior = interior * mix(0.8, 0.28, soot) + col * interior_ambient * 0.25 * depth_fall;
 	}
 
 	// Vorhaenge/Jalousien kurz hinter der Scheibe

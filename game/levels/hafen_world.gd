@@ -132,8 +132,8 @@ static func _tmat(rel: String, tint: Color, scale: float, rough_mul: float = 1.0
 
 const WATER_SHADER := """
 shader_type spatial;
-uniform vec4 deep : source_color = vec4(0.024, 0.04, 0.052, 1.0);
-uniform vec4 crest : source_color = vec4(0.07, 0.09, 0.1, 1.0);
+uniform vec4 deep : source_color = vec4(0.034, 0.054, 0.062, 1.0);
+uniform vec4 crest : source_color = vec4(0.09, 0.112, 0.12, 1.0);
 uniform sampler2D n1 : hint_normal;
 uniform sampler2D n2 : hint_normal;
 uniform float amp = 0.17;
@@ -674,14 +674,7 @@ static func _build_crane(world: Node3D, wind: Node) -> void:
 	# Flugwarnlichter + Flutlicht
 	var red := Geo.flat(Color(1, 0.1, 0.05), 0.4, 0.0, Color(1, 0.1, 0.05), 6.0)
 	for p in [Vector3(-14.0, CRANE_Y + 0.4, CRANE_Z - 3.0), Vector3(18.0, CRANE_Y + 0.4, CRANE_Z - 3.0), Vector3(-6.0, CRANE_Y + 3.0, CRANE_Z + 1.2)]:
-		var s := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.18
-		sm.height = 0.36
-		s.mesh = sm
-		s.material_override = red
-		s.position = p
-		world.add_child(s)
+		_obst_light(world, p, red, 1.1)
 	var flood := SpotLight3D.new()
 	flood.light_color = Color(1.0, 0.86, 0.66)
 	flood.light_energy = 6.0
@@ -825,7 +818,9 @@ static func _sts_crane(world: Node3D, z: float, m: Material, boom_up: bool) -> v
 		bb.add(Vector3(xq, by - 0.9, z), Vector3(0.5, 0.4, 7.6))
 		xq += 6.0
 	# Maschinenhaus (hell) und Gegengewicht
-	var house := Geo.flat(Color(0.72, 0.73, 0.72), 0.7)
+	var house: Material = Geo.flat(Color(0.72, 0.73, 0.72), 0.7)
+	if ResourceLoader.exists(ENV_TEX + "bunker/textures/painted_steel/diffuse.jpg"):
+		house = _tmat("bunker/textures/painted_steel", Color(0.9, 0.9, 0.88), 0.3, 1.0, 0.0)   # Optik 3: Blechpaneele
 	world.add_child(Geo.box_mesh_node(Vector3(9.0, 4.4, 7.8), house, Vector3(27.0, by + 3.3, z)))
 	bb.add(Vector3(21.5, by - 2.2, z), Vector3(3.0, 2.6, 6.4))
 	var dark := Geo.flat(Color(0.08, 0.08, 0.09), 0.6, 0.5)
@@ -874,7 +869,7 @@ static func _sts_crane(world: Node3D, z: float, m: Material, boom_up: bool) -> v
 	var lamps: Array[Vector3] = [apex + Vector3(0.0, 1.3, 0.0), Vector3(20.0, by + 1.4, z)]
 	lamps.append(Vector3(xw, by, z) + d * 50.0 if boom_up else Vector3(100.0, by + 1.2, z))
 	for lp: Vector3 in lamps:
-		world.add_child(Geo.mesh_node(_nav_sphere(0.16), red, lp, false))
+		_obst_light(world, lp, red)
 		Night.glow_light(world, lp, Color(1.0, 0.1, 0.05), 4.0, 0.6)
 
 ## Hohe Flutlichtmasten (32 m) neben den Quergassen: machen Gassen und Gegnerstellungen auf 150-400 m lesbar,
@@ -915,7 +910,10 @@ static func _build_high_masts(world: Node3D) -> void:
 	world.add_child(Geo.mesh_node(lb.build(), lamp, Vector3.ZERO, false))
 
 static func _build_quay(world: Node3D) -> void:
-	var m := Geo.flat(Color(0.12, 0.25, 0.42), 0.6, 0.5)
+	# Optik 3: lackierter Stahl mit Abrieb/Kratzern (Poly Haven blue_metal_plate, CC0) statt flachem Blau
+	var m: Material = Geo.flat(Color(0.12, 0.25, 0.42), 0.6, 0.5)
+	if ResourceLoader.exists(ENV_TEX + "textures/blue_metal_plate/diffuse.jpg"):
+		m = _tmat("textures/blue_metal_plate", Color(0.95, 1.0, 1.05), 0.22, 1.0, 0.0)
 	_sts_crane(world, -55.0, m, true)
 	_sts_crane(world, -140.0, m, false)
 	_sts_crane(world, -275.0, m, true)
@@ -1394,15 +1392,40 @@ static func _lighthouse(world: Node3D, base: Vector3, h: float, r: float, body: 
 		var a2 := TAU * k / 8.0
 		mb.add(Vector3(base.x + cos(a2) * lr, gy + 1.46, base.z + sin(a2) * lr), Vector3(0.07, 1.5, 0.07))
 	world.add_child(Geo.mesh_node(mb.build(), metal, Vector3.ZERO, false))
+	# Fresnel-Optik: Glasbarriere mit Messing-Prismenringen auf Sockel, Gluehlampe innen (statt Leuchtkugel)
+	var brass := Geo.flat(Color(0.55, 0.42, 0.2), 0.35, 0.9)
+	var ped := MeshInstance3D.new()
+	ped.mesh = _cyl_mesh(0.16, 0.24, 0.55, 12)
+	ped.material_override = metal
+	ped.position = Vector3(base.x, gy + 0.98, base.z)
+	world.add_child(ped)
 	var lamp := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.38
-	sm.height = 0.9
-	lamp.mesh = sm
-	lamp.material_override = Geo.flat(light_col, 0.3, 0.0, light_col, 7.0)
-	lamp.position = Vector3(base.x, gy + 1.4, base.z)
+	lamp.mesh = _cyl_mesh(0.3, 0.3, 0.86, 16)
+	lamp.material_override = Geo.flat(light_col.darkened(0.15), 0.15, 0.0, light_col, 3.2)
+	lamp.position = Vector3(base.x, gy + 1.68, base.z)
 	lamp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	world.add_child(lamp)
+	var bulb := MeshInstance3D.new()
+	bulb.mesh = _nav_sphere(0.1)
+	bulb.material_override = Geo.flat(Color(1, 0.97, 0.9), 0.3, 0.0, Color(1, 0.95, 0.85), 12.0)
+	bulb.position = Vector3(base.x, gy + 1.68, base.z)
+	world.add_child(bulb)
+	var rmi := MeshInstance3D.new()
+	rmi.mesh = _cyl_mesh(0.325, 0.325, 0.022, 16)
+	rmi.material_override = brass
+	for k in 7:
+		var rc := rmi.duplicate() as MeshInstance3D
+		rc.position = Vector3(base.x, gy + 1.27 + k * 0.137, base.z)
+		rc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		world.add_child(rc)
+	rmi.free()
+	for k in 4:
+		var a3 := TAU * k / 4.0 + 0.4
+		var st := MeshInstance3D.new()
+		st.mesh = _cyl_mesh(0.012, 0.012, 0.9, 4)
+		st.material_override = brass
+		st.position = Vector3(base.x + cos(a3) * 0.31, gy + 1.68, base.z + sin(a3) * 0.31)
+		world.add_child(st)
 	var cap := MeshInstance3D.new()
 	cap.mesh = _cyl_mesh(0.12, lr + 0.18, 0.9, 16)
 	cap.material_override = roof
@@ -1614,11 +1637,6 @@ static func _build_port_cranes(world: Node3D) -> void:
 	if Models.path_for("port_crane") == "":
 		return
 	var red := Geo.flat(Color(1.0, 0.1, 0.05), 0.4, 0.0, Color(1.0, 0.08, 0.04), 6.0)
-	var sm := SphereMesh.new()
-	sm.radius = 0.25
-	sm.height = 0.5
-	sm.radial_segments = 8
-	sm.rings = 4
 	var rail := Geo.flat(Color(0.3, 0.29, 0.28), 0.45, 0.8)
 	var rb := Geo.batch()
 	var body := Geo.static_body()
@@ -1639,19 +1657,9 @@ static func _build_port_cranes(world: Node3D) -> void:
 		# Hindernisfeuer: Auslegerspitze (folgt der Animation) und Maschinenhaus
 		var tip := _crane_tip(h)
 		if tip != null:
-			var mi := MeshInstance3D.new()
-			mi.mesh = sm
-			mi.material_override = red
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			tip.add_child(mi)
-			mi.position = tip.get_meta("tip_local")
-			mi.scale = Vector3.ONE / Models._rel(h, tip).basis.get_scale()
-		var top := MeshInstance3D.new()
-		top.mesh = sm
-		top.material_override = red
-		top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		h.add_child(top)
-		top.position = Vector3(0, 32.7, 0)
+			var ol := _obst_light(tip, tip.get_meta("tip_local"), red, 1.3)
+			ol.scale = Vector3.ONE * 1.3 / Models._rel(h, tip).basis.get_scale()
+		_obst_light(h, Vector3(0, 32.7, 0), red, 1.3)
 		Night.glow_light(h, Vector3(0, 32.7, 0), Color(1.0, 0.1, 0.05), 3.5, 0.6)
 	for lx: float in [-6.5, 6.5]:
 		rb.add(Vector3(32.0 + lx, 0.04, -590.0), Vector3(0.14, 0.08, 440.0))
@@ -1705,6 +1713,25 @@ static func _build_skyline(lv: Node3D, rng: RandomNumberGenerator) -> void:
 			wb.add(c + Vector3(rng.randf_range(-w, w) * 0.4, rng.randf_range(4.0, h - 2.0), w * 0.51), Vector3(2.0, 1.4, 0.2))
 	lv.add_child(Geo.mesh_node(bb.build(), m, Vector3.ZERO, false))
 	lv.add_child(Geo.mesh_node(wb.build(), wm, Vector3.ZERO, false))
+
+## Hindernisfeuer als Leuchtkoerper: schwarzes Gehaeuse, rote Glaslinse, Deckel (statt leuchtender Kugel).
+## pos = Mitte der Linse; s skaliert den ganzen Koerper (Standard ~0.4 m hoch).
+static func _obst_light(parent: Node3D, pos: Vector3, lens: Material, s: float = 1.0) -> Node3D:
+	var n := Node3D.new()
+	n.name = "ObstLight"
+	n.position = pos
+	n.scale = Vector3.ONE * s
+	parent.add_child(n)
+	var house := Geo.flat(Color(0.07, 0.07, 0.075), 0.55, 0.4)
+	for part: Array in [[_cyl_mesh(0.1, 0.12, 0.14, 12), house, -0.15], [_cyl_mesh(0.035, 0.04, 0.2, 8), house, -0.3],
+			[_cyl_mesh(0.078, 0.088, 0.18, 14), lens, 0.02], [_cyl_mesh(0.03, 0.1, 0.05, 12), house, 0.135]]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = part[0]
+		mi.material_override = part[1]
+		mi.position = Vector3(0, part[2], 0)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.add_child(mi)
+	return n
 
 ## Kleine Kugel fuer Positions-/Hindernisfeuer (der Lichthof kommt aus Night.glow_light).
 static func _nav_sphere(r: float) -> SphereMesh:

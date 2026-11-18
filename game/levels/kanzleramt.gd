@@ -18,6 +18,7 @@ const BotScript = preload("res://game/systems/breach_bot.gd")
 
 const Y2 := 9.0          ## Fussboden 2. OG
 const WK = preload("res://game/levels/overwatch_world_kit.gd")   ## pbr(): Poly-Haven-Texturordner
+const WallGrime = preload("res://game/levels/wall_grime.gd")
 const FarCity = preload("res://game/levels/far_city.gd")   ## Fernfassaden mit Fensterlicht (hinter den Fensterbaendern)
 const RED_DIM := 0.3  ## Faktor fuer rote Notleuchten (siehe _omni)
 const INT_TEX := "res://assets/environment/interior/textures/"   ## Poly Haven CC0 (tools/fetch_interior_assets.py)
@@ -68,6 +69,8 @@ func _ready() -> void:
 		return
 	if str(Game.arg("shots", "")) != "":   # Debug-Aufnahmen mit festen Kameras (villa_shots.gd)
 		add_child(load("res://game/levels/tools/villa_shots.gd").new())
+	# Innenraum-Kram (nur Optik, verzoegert per Raycast an freie Wandstuecke)
+	load("res://game/levels/interior_clutter.gd").scatter(self, AABB(), 45, "office", 7102)
 	slowmo = SlowmoScript.new()
 	slowmo.name = "BreachSlowmo"
 	add_child(slowmo)
@@ -257,11 +260,13 @@ func _wall_x(z: float, x0: float, x1: float, y0: float, y1: float, gaps: Array =
 		var g1: float = float(g[0]) + float(g[1]) * 0.5
 		if g0 > cur:
 			_bx(key, Vector3(cur, y0, z - t), Vector3(g0, y1, z + t))
+			_grime(Vector3(cur, 0, z), Vector3(g0, 0, z), y0, y1)
 		if y0 + float(g[2]) < y1:
 			_bx(key, Vector3(g0, y0 + float(g[2]), z - t), Vector3(g1, y1, z + t))
 		cur = g1
 	if cur < x1:
 		_bx(key, Vector3(cur, y0, z - t), Vector3(x1, y1, z + t))
+		_grime(Vector3(cur, 0, z), Vector3(x1, 0, z), y0, y1)
 
 ## Wand entlang z bei x (z0 > z1), Oeffnungen [[z_mitte, breite, hoehe], ...].
 func _wall_z(x: float, z0: float, z1: float, y0: float, y1: float, gaps: Array = [], key: String = "wall") -> void:
@@ -274,11 +279,22 @@ func _wall_z(x: float, z0: float, z1: float, y0: float, y1: float, gaps: Array =
 		var g1: float = float(g[0]) + float(g[1]) * 0.5
 		if g0 > cur:
 			_bx(key, Vector3(x - t, y0, cur), Vector3(x + t, y1, g0))
+			_grime(Vector3(x, 0, cur), Vector3(x, 0, g0), y0, y1)
 		if y0 + float(g[2]) < y1:
 			_bx(key, Vector3(x - t, y0 + float(g[2]), g0), Vector3(x + t, y1, g1))
 		cur = g1
 	if cur < z0:
 		_bx(key, Vector3(x - t, y0, cur), Vector3(x + t, y1, z0))
+		_grime(Vector3(x, 0, cur), Vector3(x, 0, z0), y0, y1)
+
+## Gebrauchsspuren an einem Wandstueck a..b (wall_grime.gd, Stil "office"). Eigene Zufallsfolge.
+var _grime_rng: RandomNumberGenerator = null
+
+func _grime(a: Vector3, b: Vector3, y0: float, y1: float) -> void:
+	if _grime_rng == null:
+		_grime_rng = RandomNumberGenerator.new()
+		_grime_rng.seed = 6160
+	WallGrime.wall(self, a, b, y0, y1, _grime_rng, "office")
 
 ## Fensterwand entlang z bei x: Bruestung, Sturz, Pfeiler, Glas; Kollision durchgehend.
 func _window_wall_z(x: float, z0: float, z1: float, y0: float, y1: float, sill: float, top: float, bay: float = 3.0, key: String = "wall") -> void:
@@ -361,6 +377,11 @@ func _setup_environment() -> void:
 	env.sdfgi_enabled = true
 	env.sdfgi_energy = 0.7
 	env.ssil_intensity = 1.1
+	# Kontaktschatten in den Kassetten/unter Gesimsen (Grafik-Option "aus" schaltet es ab)
+	env.ssao_enabled = true
+	env.ssao_radius = 0.9
+	env.ssao_intensity = 1.8
+	env.ssao_light_affect = 0.15
 	# Innenraum: nur leichter Dunst (Staub nach dem Sturm). Rauch gibt es lokal per FogVolume.
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.05, 0.045, 0.055)
@@ -484,7 +505,7 @@ func _make_mats() -> void:
 func _build_ground() -> void:
 	_make_mats()
 	_bd = BP.Builder.new(mats)
-	_bd.no_shadow.append_array(["glass", "exit_green", "emerg_red", "amber", "led", "armor_glass", "lamp_on", "sconce", "cornice", "coffer", "coffer_gap"])
+	_bd.no_shadow.append_array(["glass", "exit_green", "emerg_red", "amber", "led", "armor_glass", "lamp_on", "sconce", "cornice", "coffer_gap"])
 	_body = Geo.static_body()
 	_body.name = "Kanzleramt"
 	_body.set_meta("no_fit", true)
@@ -1593,7 +1614,9 @@ func _on_buero_cleared() -> void:
 
 func _on_enter_stairs() -> void:
 	_spawn_wave(2)
-	_say_opt(StoryData.FALK, "Meine Garde weicht nicht, Kerner. Sie hat keinen Ort mehr, an den sie gehen könnte. Genau wie Sie.", {"max_age": 3.0})
+	# Falk wartet, bis Lenas Treppenhaus-Lage durch ist (unterbrach sie sonst, der Rest verfiel)
+	_when_radio_free(func() -> void:
+		_say_opt(StoryData.FALK, "Meine Garde weicht nicht, Kerner. Sie hat keinen Ort mehr, an den sie gehen könnte. Genau wie Sie.", {"max_age": 3.0}), 5.0)
 
 func _on_landing() -> void:
 	_spawn_wave(3)
@@ -1611,7 +1634,16 @@ func _on_halle_cleared() -> void:
 	_say_opt(StoryData.HARTMANN, "Nicht schießen! Ich bin Hartmann … Sie sind Voss' Leute?", {"priority": 2, "cut": true})
 	_say(StoryData.KERNER, "Kerner. Wir bringen Sie raus, Frau Präsidentin.")
 	_say(StoryData.HARTMANN, "Riedhammer war eben noch hier – er will in den Bunker! Da, hinter dem Glas!")
-	_later(4.0, _when_radio_free.bind(_riedhammer_run, 14.0))
+	# Riedhammer laeuft schon los, waehrend Hartmann "Da, hinter dem Glas!" sagt (vorher erst danach:
+	# Zwischensequenz ~4 s laenger, Zeigen und Erscheinen passten nicht zusammen)
+	_later(4.0, _when_radio_low.bind(_riedhammer_run, 3.0, 14.0))
+
+## f ausfuehren, sobald hoechstens noch `left` s Funk anstehen (hoechstens max_wait s warten).
+func _when_radio_low(f: Callable, left: float, max_wait: float) -> void:
+	if _radio_busy() <= left or max_wait <= 0.0:
+		f.call()
+		return
+	_later(0.25, _when_radio_low.bind(f, left, max_wait - 0.25))
 
 # ------------------------------------------------------------------ Zwischensequenz: Riedhammer flieht
 
@@ -1648,7 +1680,8 @@ func _riedhammer_run() -> void:
 	_ried_run = true
 	_ried.rotation.y = deg_to_rad(-90.0)   # schaut nach +x
 	_cine_look = _ried.global_position + Vector3(0, 1.6, 0)
-	_say_opt(StoryData.RIEDHAMMER, "Falk! Die Tür – schließen Sie die verdammte Tür!", {"priority": 2, "cut": true}, 2.6)
+	# ohne cut: schliesst direkt an Hartmanns "Da, hinter dem Glas!" an
+	_say_opt(StoryData.RIEDHAMMER, "Falk! Die Tür – schließen Sie die verdammte Tür!", {"priority": 2}, 2.6)
 	var tw := create_tween()
 	tw.tween_property(_ried, "position", Vector3(-2.0, Y2, -74.6), 2.4)
 	tw.tween_property(_ried, "position", Vector3(0.0, Y2, -77.4), 1.0)

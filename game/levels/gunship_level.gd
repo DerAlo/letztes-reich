@@ -101,6 +101,7 @@ func _ready() -> void:
 	ctrl.aircraft_down.connect(func() -> void: _fail("aircraft"))
 	gw.friendly_hit.connect(_on_friendly_hit)
 	audio.loop("engine", true, -9.0)
+	audio.loop("radio", true, -15.0)   # Kopfhoerer-Funkkanal: leises Bandrauschen unter dem Triebwerk
 	_ready_done = true
 	_run()
 

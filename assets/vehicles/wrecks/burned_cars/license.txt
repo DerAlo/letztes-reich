@@ -1,0 +1,11 @@
+Model Information:
+* title:	Burned-out Cars
+* source:	https://sketchfab.com/3d-models/burned-out-cars-701066df6b914fd08318524c7ccd96a7
+* author:	Renafox (https://sketchfab.com/kryik1023)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Burned-out Cars" (https://sketchfab.com/3d-models/burned-out-cars-701066df6b914fd08318524c7ccd96a7) by Renafox (https://sketchfab.com/kryik1023) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -21,6 +21,10 @@ signal noticed(watcher: Object)        ## eine Wache hat den Rotorlaerm gehoert
 signal thermal_toggled(on: bool)
 
 const ThermalShader = preload("res://game/systems/recon_drone_thermal.gdshader")
+const BodyThermalShader = preload("res://game/systems/recon_thermal_body.gdshader")
+## Sensorwerte (0..1 im Bild) je Waermeklasse, Nacht ~10 Grad: Haut ~34 Grad am hellsten, Uniform ueber dem
+## Rumpf ~28, Weste/Taschen ~20, Helm ~15, getragene Waffe/Metall = Umgebung (Hintergrund ~0.15..0.2).
+const HEAT_CLASS := {"skin": 0.97, "body": 0.76, "gear": 0.5, "shell": 0.4, "weapon": 0.17, "device": 0.62}
 
 @export var max_range: float = 160.0          ## horizontale Funkreichweite ab Startpunkt (m)
 @export var battery_seconds: float = 150.0    ## Flugzeit bei Normalflug
@@ -65,8 +69,7 @@ var _noise_acc: Dictionary = {}               ## watcher -> Zaehler
 var _noise_cd: Dictionary = {}                ## watcher -> Sperrzeit
 var _heat_t: float = 0.0
 var _heat_nodes: Array[MeshInstance3D] = []
-var _heat_mat: StandardMaterial3D
-var _heat_mat_dev: StandardMaterial3D
+var _heat_mats: Dictionary = {}               ## Waermebild-Material je Waermeklasse (+ Region-Parameter)
 var _thermal_env: Environment
 var _thermal_attr: CameraAttributesPractical
 var _fx_layer: CanvasLayer
@@ -101,14 +104,6 @@ func _ready() -> void:
 	_wind_ang = _rng.randf() * TAU
 	_wind_target = _wind_ang
 	_build_layers()
-	_heat_mat = StandardMaterial3D.new()
-	_heat_mat.albedo_color = Color(0, 0, 0)
-	_heat_mat.emission_enabled = true
-	_heat_mat.emission = Color(1, 1, 1)
-	_heat_mat.emission_energy_multiplier = 4.0
-	_heat_mat.roughness = 1.0
-	_heat_mat_dev = _heat_mat.duplicate() as StandardMaterial3D
-	_heat_mat_dev.emission_energy_multiplier = 1.1
 	_thermal_env = Environment.new()
 	_thermal_env.background_mode = Environment.BG_COLOR
 	_thermal_env.background_color = Color(0.02, 0.02, 0.02)
@@ -160,6 +155,13 @@ func mark(node: Node3D) -> bool:
 			target_marked.emit(node, str(t["kind"]))
 			return true
 	return false
+
+## Ziel ohne Piepton/Einblendung markiert anmelden (z. B. Folge einer frueheren Aufklaerung).
+func mark_silent(node: Node3D, kind: String, label: String = "") -> void:
+	add_target(node, kind, label)
+	for t: Dictionary in targets:
+		if t["node"] == node:
+			t["marked"] = true
 
 ## Anzahl markierter (und noch gueltiger) Ziele, optional nur einer Art.
 func marked_count(kind: String = "") -> int:
@@ -620,13 +622,21 @@ func _set_thermal_internal(on: bool) -> void:
 		cam.attributes = _thermal_attr if on else null
 	_apply_heat(on and active)
 
-## Warme Koerper (Gruppe "enemy", Gruppe "recon_warm", Personen-Ziele) bekommen ein emittierendes Overlay.
+## Warme Koerper (Gruppe "enemy", Gruppe "recon_warm", Personen-Ziele) bekommen im Waermebild je Oberflaeche ein
+## Temperatur-Material (recon_thermal_body.gdshader): Haut heiss, Uniform warm, Weste/Helm kuehler, Waffe kalt.
+## Frueher: ein emittierendes material_overlay fuer ALLE Meshes der Figur. Das Overlay bestand den Tiefentest nur
+## auf Meshes mit StandardMaterial3D (Waffe) – die Koerper mit eigenen Shadern (Ruhepose-Daten) blieben dunkel,
+## dafuer leuchtete das kalte Gewehr weiss. Jetzt werden die Materialien ersetzt (und danach wiederhergestellt).
 func _apply_heat(on: bool) -> void:
 	if not on:
 		for mi in _heat_nodes:
-			if is_instance_valid(mi):
-				mi.material_overlay = mi.get_meta("rd_prev_overlay") if mi.has_meta("rd_prev_overlay") else null
-				mi.remove_meta("rd_prev_overlay")
+			if is_instance_valid(mi) and mi.has_meta("rd_prev_mats"):
+				var prev: Dictionary = mi.get_meta("rd_prev_mats")
+				mi.material_override = prev["ov"]
+				var surf: Array = prev["surf"]
+				for s in mini(surf.size(), mi.get_surface_override_material_count()):
+					mi.set_surface_override_material(s, surf[s])
+				mi.remove_meta("rd_prev_mats")
 		_heat_nodes.clear()
 		return
 	if not is_inside_tree():
@@ -642,7 +652,7 @@ func _apply_heat(on: bool) -> void:
 			warm.append(t["node"])
 		elif str(t["kind"]) == "camera":
 			dev.append(t["node"])
-	for grp: Array in [[warm, _heat_mat], [dev, _heat_mat_dev]]:
+	for grp: Array in [[warm, false], [dev, true]]:
 		for n: Node in grp[0]:
 			if not is_instance_valid(n):
 				continue
@@ -650,11 +660,148 @@ func _apply_heat(on: bool) -> void:
 				continue
 			for c in n.find_children("*", "MeshInstance3D", true, false):
 				var mi := c as MeshInstance3D
-				if mi.has_meta("rd_prev_overlay") or not mi.visible:
+				if mi.has_meta("rd_prev_mats") or not mi.is_visible_in_tree() or mi.mesh == null:
 					continue
-				mi.set_meta("rd_prev_overlay", mi.material_overlay)
-				mi.material_overlay = grp[1]
-				_heat_nodes.append(mi)
+				_heat_mesh(mi, n, bool(grp[1]))
+
+## Ein Mesh einer warmen Figur auf Waermebild-Materialien umstellen (vorher alte Materialien merken).
+func _heat_mesh(mi: MeshInstance3D, root: Node, device: bool) -> void:
+	# Lage in der Figur: Waffe (kalt), Muendungsfeuer (unveraendert), Ausruestungsrahmen, Soldaten-Optik
+	var in_weapon := false
+	var kit := ""
+	var soldier: Node = null
+	var p: Node = mi
+	while p != null and p != root.get_parent():
+		var nm := String(p.name)
+		if nm.begins_with("Muzzle"):
+			return
+		if nm == "Weapon" or nm.begins_with("Gun"):
+			in_weapon = true
+		if nm.begins_with("Kit_") and kit == "":
+			kit = nm
+		if soldier == null and p.has_meta("mats"):
+			soldier = p
+		p = p.get_parent()
+	var mats: Dictionary = soldier.get_meta("mats") if soldier != null else {}
+	var kind: String = str(soldier.get("kind")) if soldier != null else ""
+	var n_surf := mi.mesh.get_surface_count()
+	var tmats: Array = []
+	var actives: Array = []
+	var any := false
+	for s in n_surf:
+		var m := mi.get_active_material(s)
+		actives.append(m)
+		var tm: Material = null
+		if not _thermal_skip(m, mats):
+			var key: String = "device" if device else ("weapon" if in_weapon else _heat_class(m, mats, kind, kit))
+			tm = _heat_material(key, m, mats)
+			any = true
+		tmats.append(tm)
+	if not any:
+		return
+	var surf: Array = []
+	for s in mi.get_surface_override_material_count():
+		surf.append(mi.get_surface_override_material(s))
+	mi.set_meta("rd_prev_mats", {"ov": mi.material_override, "surf": surf})
+	var uniform := true
+	for tm in tmats:
+		if tm != tmats[0]:
+			uniform = false
+	if uniform:
+		mi.material_override = tmats[0]
+	else:
+		# gemischt (z. B. Haare mit Alpha bleiben): Oberflaechen einzeln, Override aus
+		mi.material_override = null
+		for s in n_surf:
+			mi.set_surface_override_material(s, tmats[s] if tmats[s] != null else actives[s])
+	_heat_nodes.append(mi)
+
+## Durchsichtige/additive/leuchtende Teile (Laser, Glanzpunkte, Lampen, Haarkarten) bleiben wie sie sind.
+## Ausnahme: das leuchtende Brustabzeichen (Meta-Material "patch") ist nur Stoff auf der Weste.
+func _thermal_skip(m: Material, mats: Dictionary) -> bool:
+	if m == null:
+		return true
+	if mats.get("patch") == m:
+		return false
+	if mats.get("Hair") == m:
+		return true
+	if m is BaseMaterial3D:
+		var b := m as BaseMaterial3D
+		if b.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			return true
+		if b.blend_mode != BaseMaterial3D.BLEND_MODE_MIX or b.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
+			return true
+		if b.emission_enabled and b.emission_energy_multiplier >= 1.0:
+			return true   # Lampe/Linse: wirklich heiss, bleibt hell
+	elif m is ShaderMaterial:
+		var sh := (m as ShaderMaterial).shader
+		if sh != null and (sh.code.contains("blend_add") or sh.code.contains("ALPHA")):
+			return true
+	return false
+
+## Waermeklasse einer Oberflaeche ueber das Material der Soldaten-Optik (soldier_visual.gd, Meta "mats").
+func _heat_class(m: Material, mats: Dictionary, kind: String, kit: String) -> String:
+	if kit != "":
+		return "shell" if kit == "Kit_head" else "gear"
+	for k: String in mats:
+		if mats[k] != m:
+			continue
+		match k:
+			"Skin":
+				return "skin" if kind == "mh" else "gear"   # SWAT: "Skin" = Plattentraeger
+			"Uniform", "Swat", "OpBody", "armband":
+				return "body"
+			"OpGear":
+				return "opgear"
+			"Helmet", "Visor", "plate":
+				return "shell"
+			_:
+				return "gear"
+	# Unbekannte Figur (Prozedural-Gegner, Story-Personen): nach Materialfarbe schaetzen
+	if m is BaseMaterial3D:
+		var c := (m as BaseMaterial3D).albedo_color
+		var lum := c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+		if (m as BaseMaterial3D).metallic >= 0.3 or lum < 0.1:
+			return "weapon"   # dunkles Metall/Kunststoff: Waffe, Stiefel, Ausruestung -> kuehl
+		if c.r > c.g and c.g > c.b and c.r > 0.35 and c.r - c.b > 0.12:
+			return "skin"
+	return "body"
+
+func _heat_material(key: String, src: Material, mats: Dictionary) -> ShaderMaterial:
+	# Operator-Koerper: Hand-/Stiefelzonen aus seinem Material (Ruhepose) uebernehmen
+	var ck := key
+	var op_src: ShaderMaterial = null
+	if key == "body" and src is ShaderMaterial and mats.get("OpBody") == src:
+		op_src = src as ShaderMaterial
+		ck = "body_op_%d" % op_src.get_instance_id()
+	if _heat_mats.has(ck):
+		return _heat_mats[ck]
+	var tm := ShaderMaterial.new()
+	tm.shader = BodyThermalShader
+	tm.set_shader_parameter("exposure", _thermal_env.tonemap_exposure)
+	match key:
+		"opgear":
+			tm.set_shader_parameter("region", 2)
+			tm.set_shader_parameter("face_heat", 0.93)
+			tm.set_shader_parameter("gear_heat", HEAT_CLASS["gear"])
+		"body":
+			tm.set_shader_parameter("region", 1)
+			tm.set_shader_parameter("heat", HEAT_CLASS["body"])
+			tm.set_shader_parameter("gear_heat", HEAT_CLASS["gear"])
+			if op_src != null:
+				for pn in ["hand_l", "hand_r", "boot_y"]:
+					var v: Variant = op_src.get_shader_parameter(pn)
+					if v != null:
+						tm.set_shader_parameter(pn, v)
+			else:
+				# MH/SWAT: Haende sind eigene Haut-Oberflaeche bzw. unbekannt -> keine Handzone im Stoff
+				tm.set_shader_parameter("hand_l", Vector3(0, -50, 0))
+				tm.set_shader_parameter("hand_r", Vector3(0, -50, 0))
+				tm.set_shader_parameter("boot_y", 0.12)
+		_:
+			tm.set_shader_parameter("heat", HEAT_CLASS.get(key, HEAT_CLASS["body"]))
+	_heat_mats[ck] = tm
+	return tm
 
 # ------------------------------------------------------------------ Spieler
 
@@ -914,6 +1061,19 @@ func _draw_marks() -> void:
 		var behind := cv.is_position_behind(tp)
 		var sp := cv.unproject_position(tp)
 		var col := _kind_color(str(t["kind"]))
+		# Markierte Wachen/Kameras zeigen ihren Zustand (gelb = misstrauisch, rot = Alarm) und ihre Blickrichtung:
+		# so bringt die Aufklaerung beim Schleichen echten Vorteil (wer schaut wohin, wer wird unruhig).
+		var tn: Node3D = t["node"] as Node3D
+		var wst := -9
+		var brain: Variant = tn.get("stealth") if tn is Enemy else null
+		if brain is Object and (brain as Object).has_method("get_watch_state"):
+			wst = int((brain as Object).call("get_watch_state"))
+		elif tn.has_method("get_watch_state"):
+			wst = int(tn.call("get_watch_state"))
+		if wst == 1:
+			col = Color(1.0, 0.82, 0.25)
+		elif wst == 2:
+			col = Color(1.0, 0.28, 0.22)
 		var dist := cv.global_position.distance_to(tp)
 		var edge := false
 		if behind:
@@ -930,5 +1090,18 @@ func _draw_marks() -> void:
 		_marks.draw_polyline(pts, Color(col.r, col.g, col.b, a), 1.8)
 		if str(t["kind"]) == "camera":
 			_marks.draw_circle(sp, 2.0, Color(col.r, col.g, col.b, a))
+		if wst >= 0 and not edge and not active:
+			# Blickrichtung als kurzer Strich aus der Raute heraus
+			var head: Node3D = tn.get("_head") as Node3D if "_head" in tn else tn
+			var f := -head.global_transform.basis.z
+			f.y = 0.0
+			if f.length() > 0.01:
+				var ahead := tp + f.normalized() * 2.0
+				if not cv.is_position_behind(ahead):
+					var dv := cv.unproject_position(ahead) - sp
+					if dv.length() > 1.0:
+						var tip := sp + dv.normalized() * (s + 10.0 * clampf(UIStyle.hud_scale(vs), 0.6, 2.0))
+						_marks.draw_line(sp + dv.normalized() * s, tip, Color(0, 0, 0, 0.5 * a), 3.5)
+						_marks.draw_line(sp + dv.normalized() * s, tip, Color(col.r, col.g, col.b, a), 1.8)
 		if not edge and (dist < 45.0 or active):
 			_text("%s %dm" % [str(t["label"]), int(dist)], sp + Vector2(0, -s - 6), 13, Color(col.r, col.g, col.b, a * 0.9), HORIZONTAL_ALIGNMENT_CENTER, _marks)

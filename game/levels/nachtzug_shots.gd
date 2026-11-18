@@ -26,6 +26,9 @@ const PRESETS := [
 	["schlaf_gang", Vector3(1.3, 2.6, -138.3), Vector3(0.7, 2.0, -158.0), 70.0],
 	["mountains_r", Vector3(0.0, 7.0, -60.0), Vector3(400.0, 40.0, -260.0), 60.0],
 	["mountains_l", Vector3(0.0, 7.0, -60.0), Vector3(-400.0, 40.0, -260.0), 60.0],
+	# Bahndamm-Bewuchs (Grashorste/Unkraut) aus Fensterhoehe
+	["grass_r", Vector3(3.6, 3.2, -60.0), Vector3(16.0, 0.0, -78.0), 60.0],
+	["grass_l", Vector3(-3.6, 3.2, -60.0), Vector3(-18.0, 0.0, -78.0), 60.0],
 ]
 
 var out_dir: String = ""
